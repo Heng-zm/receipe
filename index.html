@@ -240,7 +240,7 @@
         <div id="receipt-area" class="receipt-paper">
             
             <!-- Header (Responsive Flexbox) -->
-            <div class="flex flex-col sm:flex-row justify-between items-center border-b-2 border-[#004a99] pb-4 mb-6 gap-4 sm:gap-0">
+            <div class="flex flex-col sm:flex-row justify-between items-center border-b-2 border-[#004a99] pb-4 mb-8 gap-4 sm:gap-0">
                 
                 <!-- 🖼️ REAL LOGO UPLOAD COMPONENT -->
                 <div id="logo-container" class="relative group cursor-pointer w-[80px] h-[80px] flex-shrink-0 flex items-center justify-center border border-transparent hover:border-dashed hover:border-slate-300 rounded transition overflow-hidden bg-white shadow-sm" onclick="document.getElementById('logoInputHidden').click()" title="Click to upload Logo">
@@ -265,46 +265,49 @@
             </div>
 
             <!-- ══ REDESIGNED INVOICE HEADER ══ -->
-            <div class="flex flex-col sm:flex-row justify-between gap-6 sm:gap-8 mb-8">
+            <div class="w-full mb-8">
                 
-                <!-- Left Column: Customer Info -->
-                <div class="flex-1 space-y-4">
-                    <h3 class="font-black text-blue-900 uppercase tracking-widest text-[11px] mb-2 sm:mb-4 border-b-2 border-blue-900 inline-block pb-1">Billed To</h3>
-                    
-                    <div class="flex items-end gap-3 min-w-0">
-                        <span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">Customer</span>
-                        <input type="text" id="f-to" class="dotted-line text-base sm:text-lg !text-blue-900 font-bold" placeholder="Customer Name">
-                    </div>
-                    <div class="flex items-end gap-3 min-w-0">
-                        <span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">Mobile</span>
-                        <input type="text" id="f-phone" class="dotted-line text-sm sm:text-base" placeholder="Phone number">
-                    </div>
-                    
-                    <!-- 🗺️ Map Trigger in Address Row -->
-                    <div class="flex items-end gap-3 min-w-0 relative group">
-                        <span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">Address</span>
-                        <div class="relative flex-grow">
-                            <input type="text" id="f-address" class="dotted-line text-sm sm:text-base w-full pr-8" placeholder="Address">
-                            <button onclick="App.openMap()" class="no-print absolute right-0 bottom-1 text-red-500 hover:text-red-600 transition p-1 bg-white" title="Choose on Map">
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg>
-                            </button>
-                        </div>
+                <!-- Center Title -->
+                <div class="flex justify-center mb-8">
+                    <div class="text-center inline-flex flex-col items-center">
+                        <input type="text" class="edit-txt font-bold text-3xl leading-none italic !text-blue-900 text-center pb-2" value="វិក្កយបត្រ">
+                        <p class="text-[11px] border-t-2 border-blue-900 pt-1 px-8 font-bold uppercase tracking-[0.25em] text-blue-900">Invoice</p>
                     </div>
                 </div>
 
-                <!-- Right Column: Invoice Meta -->
-                <div class="w-full sm:w-[320px] flex flex-col mt-4 sm:mt-0">
-                    <div class="text-left sm:text-right mb-4 sm:mb-6 border-b-2 border-blue-900 pb-2 w-full">
-                        <input type="text" class="edit-txt font-bold text-2xl sm:text-3xl leading-none !text-blue-900 text-left sm:text-right" value="វិក្កយបត្រ">
-                        <input type="text" class="edit-txt font-bold text-xs text-slate-400 text-left sm:text-right tracking-[0.4em] uppercase mt-1 sm:mt-2" value="Invoice">
+                <div class="flex flex-col sm:flex-row justify-between gap-6 sm:gap-8">
+                    
+                    <!-- Left Column: Customer Info -->
+                    <div class="flex-1 space-y-4">
+                        <div class="flex items-end gap-3 min-w-0">
+                            <span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">To</span>
+                            <input type="text" id="f-to" class="dotted-line text-base sm:text-lg !text-blue-900 font-bold" placeholder="Customer Name">
+                        </div>
+                        <div class="flex items-end gap-3 min-w-0">
+                            <span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">Mobile</span>
+                            <input type="text" id="f-phone" class="dotted-line text-sm sm:text-base" placeholder="Phone number">
+                        </div>
+                        
+                        <!-- 🗺️ Map Trigger in Address Row -->
+                        <div class="flex items-end gap-3 min-w-0 relative group">
+                            <span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">Address</span>
+                            <div class="relative flex-grow">
+                                <input type="text" id="f-address" class="dotted-line text-sm sm:text-base w-full pr-8" placeholder="Address">
+                                <button onclick="App.openMap()" class="no-print absolute right-0 bottom-1 text-red-500 hover:text-red-600 transition p-1 bg-white" title="Choose on Map">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="w-full space-y-3">
+
+                    <!-- Right Column: Invoice Meta -->
+                    <div class="w-full sm:w-[320px] flex flex-col justify-end mt-4 sm:mt-0 space-y-3">
                         <div class="flex items-end justify-between gap-3">
                             <span class="font-bold text-xs uppercase text-slate-400 pb-1">Tel:</span>
                             <input type="text" class="dotted-line text-right font-bold !text-slate-700 w-36 sm:w-36 flex-none" value="098 28 29 93">
                         </div>
                         <div class="flex items-end justify-between gap-3">
-                            <span class="font-black text-sm uppercase text-red-600 pb-1">Invoice No:</span>
+                            <span class="font-black text-sm uppercase text-red-600 pb-1">No.</span>
                             <input type="text" id="f-no" class="dotted-line text-right font-black text-lg sm:text-xl !text-red-600 w-36 sm:w-36 flex-none" value="000107">
                         </div>
                         <div class="flex items-end justify-between gap-3">
@@ -517,29 +520,26 @@
             });
         },
 
-        // 🗺️ MAP LOGIC (Leaflet + OpenStreetMap)
+        // 🗺️ MAP LOGIC (Modern CartoDB Voyager Style)
         openMap() {
             this.dom.modals.map.classList.remove('hidden');
             
-            // If we already have an address typed in, put it in the map result box
             if(this.dom.fields.address.value) {
                 this.dom.mapInputs.result.value = this.dom.fields.address.value;
             }
 
-            // Initialize map only once
             if (!this.mapInstance) {
-                // Default center: Phnom Penh
                 this.mapInstance = L.map('map-container').setView([11.5564, 104.9282], 13);
                 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                // 💎 Modern, clean map style (CartoDB Voyager)
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                     maxZoom: 19,
-                    attribution: '© OpenStreetMap'
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
                 }).addTo(this.mapInstance);
 
                 this.mapInstance.on('click', (e) => this.onMapClick(e));
             }
 
-            // Fix for Leaflet rendering inside a hidden div
             setTimeout(() => {
                 this.mapInstance.invalidateSize();
                 this.dom.mapInputs.search.focus();
@@ -553,14 +553,12 @@
         onMapClick(e) {
             const { lat, lng } = e.latlng;
             
-            // Move or create marker
             if (this.mapMarker) {
                 this.mapMarker.setLatLng([lat, lng]);
             } else {
                 this.mapMarker = L.marker([lat, lng]).addTo(this.mapInstance);
             }
             
-            // Reverse Geocode to get address name
             this.reverseGeocode(lat, lng);
         },
 
@@ -597,10 +595,8 @@
                     const lat = parseFloat(data[0].lat);
                     const lon = parseFloat(data[0].lon);
                     
-                    // Move map
                     this.mapInstance.setView([lat, lon], 16);
                     
-                    // Set marker
                     if (this.mapMarker) {
                         this.mapMarker.setLatLng([lat, lon]);
                     } else {
