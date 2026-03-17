@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Invoice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root { --js-blue: #004a99; --invoice-font: 'Inter', 'Kantumruy Pro', sans-serif; }
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
+        .receipt-paper {
+            font-family: var(--invoice-font);
+            width: 100%; max-width: 800px; min-height: 297mm; background: white; margin: 20px auto;
+            padding: 40px; color: var(--js-blue); position: relative;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        }
+        input, .edit-txt { border: none; background: transparent; outline: none; width: 100%; color: inherit; font-family: inherit; font-weight: inherit; text-align: inherit; }
+        .dotted-line { border-bottom: 1.5px dotted #ccc; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #eef5f9; border: 1.5px solid var(--js-blue); padding: 8px; font-weight: bold; font-size: 13px; text-transform: uppercase; color: var(--js-blue); }
+        td { border: 1.5px solid var(--js-blue); height: 38px; padding: 8px; color: black; }
+        .total-box { border: 1.5px solid var(--js-blue); border-radius: 4px; overflow: hidden; }
+        .total-row { display: flex; border-bottom: 1.5px solid var(--js-blue); }
+        .total-row:last-child { border-bottom: none; }
+        .total-lbl { background: #eef5f9; width: 110px; padding: 8px; font-weight: bold; border-right: 1.5px solid var(--js-blue); font-size: 12px; }
+        .total-val { flex: 1; text-align: right; padding: 8px; font-weight: bold; color: black; }
+        body.pdf-mode { background: white; }
+        body.pdf-mode .no-pdf { display: none; }
+        body.pdf-mode .receipt-paper { margin:0; box-shadow:none; }
+    </style>
+</head>
+<body>
+    <div id="loader" class="fixed inset-0 bg-slate-100 z-[110] flex items-center justify-center text-slate-500 text-center">
+        <div>
+            <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500 mx-auto mb-4"></div>
+            <p id="loader-text" class="font-bold uppercase tracking-widest text-xs">Loading Invoice...</p>
+        </div>
+    </div>
+
+    <header class="no-pdf bg-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center">
+        <h1 class="font-bold text-lg text-slate-800">Invoice Viewer</h1>
+        <button onclick="generatePDF()" class="bg-emerald-600 hover:bg-emerald-500 px-5 py-2 rounded-lg font-bold text-xs uppercase text-white transition active:scale-95 shadow-lg flex items-center gap-2">
+            Download PDF
+        </button>
+    </header>
+
+    <div id="receipt-area" class="receipt-paper" style="display: none;">
+        <!-- The entire invoice structure is copied here, but it will be populated by JS -->
+        <div class="flex flex-col sm:flex-row justify-between items-center border-b-2 border-[#004a99] pb-4 mb-8 gap-4 sm:gap-0">
+            <div id="logo-container" class="w-[80px] h-[80px] flex-shrink-0 flex items-center justify-center"><img id="logo-img" class="w-full h-full object-contain"></div>
+            <div class="text-center px-2 flex-1 w-full">
+                <input type="text" class="edit-txt text-xl sm:text-2xl font-bold text-center" id="company-name-kh">
+                <input type="text" class="edit-txt text-base sm:text-lg font-bold uppercase tracking-[0.1em] text-center" id="company-name-en">
+                <input type="text" class="edit-txt text-[10px] font-bold text-slate-500 mt-1 text-center" id="company-address">
+            </div>
+            <div class="hidden sm:block w-[80px]"></div>
+        </div>
+        <div class="w-full mb-8">
+            <div class="flex justify-center mb-8">
+                <div class="text-center inline-flex flex-col items-center">
+                    <input type="text" class="edit-txt font-bold text-3xl leading-none italic !text-blue-900 text-center pb-2" value="វិក្កយបត្រ">
+                    <p class="text-[11px] border-t-2 border-blue-900 pt-1 px-8 font-bold uppercase tracking-[0.25em] text-blue-900">Invoice</p>
+                </div>
+            </div>
+            <div class="flex flex-col sm:flex-row justify-between gap-6 sm:gap-8">
+                <div class="flex-1 space-y-4">
+                    <div class="flex items-end gap-3 min-w-0"><span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">To</span><input type="text" id="f-to" class="dotted-line text-base sm:text-lg !text-blue-900 font-bold"></div>
+                    <div class="flex items-end gap-3 min-w-0"><span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">Mobile</span><input type="text" id="f-phone" class="dotted-line text-sm sm:text-base"></div>
+                    <div class="flex items-end gap-3 min-w-0"><span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">Address</span><input type="text" id="f-address" class="dotted-line text-sm sm:text-base w-full"></div>
+                </div>
+                <div class="w-full sm:w-[320px] flex flex-col justify-end mt-4 sm:mt-0 space-y-3">
+                    <div class="flex items-end justify-between gap-3"><span class="font-bold text-xs uppercase text-slate-400 pb-1">Tel:</span><input type="text" class="dotted-line text-right font-bold !text-slate-700 w-36 sm:w-36 flex-none" id="company-tel"></div>
+                    <div class="flex items-end justify-between gap-3"><span class="font-black text-sm uppercase text-red-600 pb-1">No.</span><input type="text" id="f-no" class="dotted-line text-right font-black text-lg sm:text-xl !text-red-600 w-36 sm:w-36 flex-none"></div>
+                    <div class="flex items-end justify-between gap-3"><span class="font-bold text-xs uppercase text-slate-400 pb-1">Date:</span><input type="text" id="f-date" class="dotted-line text-right font-bold !text-blue-900 w-36 sm:w-36 flex-none"></div>
+                </div>
+            </div>
+        </div>
+        <div class="overflow-x-auto"><table class="min-w-[650px]"><thead><tr><th width="40">No</th><th>Description</th><th width="90">Size</th><th width="60">Qty</th><th width="80">Unit/$</th><th width="90">Amount</th></tr></thead><tbody id="rows"></tbody></table></div>
+        <div class="flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-end mt-10"><div class="w-full sm:flex-1 grid grid-cols-1 sm:grid-cols-2 gap-10 sm:gap-12 sm:pr-12 mt-6 sm:mt-0"><div class="flex flex-col h-20 sm:h-24 text-center"><input type="text" class="edit-txt text-[10px] font-bold uppercase text-slate-500 text-center" id="sig-auth-title"><div class="flex-grow"></div><div class="border-t border-blue-900 mx-8 sm:mx-6 mb-1"></div><input type="text" class="edit-txt text-[10px] italic font-bold opacity-50 text-center" id="sig-auth-name"></div><div class="flex flex-col h-20 sm:h-24 text-center"><input type="text" class="edit-txt text-[10px] font-bold uppercase text-slate-500 text-center" value="Customer's Signature"><div class="flex-grow"></div><div class="border-t border-blue-900 mx-8 sm:mx-6 mb-1"></div></div></div><div class="total-box w-full sm:w-[260px] sm:ml-auto flex-shrink-0"><div class="total-row"><div class="total-lbl">Sub Total</div><div class="total-val">$ <span id="v-sub">0.00</span></div></div><div class="total-row"><div class="total-lbl">Deposit</div><div class="total-val">$ <span id="f-dep">0.00</span></div></div><div class="total-row"><div class="total-lbl text-blue-900 !text-sm">Balance</div><div class="total-val text-blue-900 text-lg">$ <span id="v-bal">0.00</span></div></div></div></div>
+    </div>
+
+    <script>
+        const SB_URL = "https://bgqeqiyfgpdvgeepignt.supabase.co";
+        const SB_KEY = "sb_publishable_eLoAp9t0x-t7id3a-3LUow_SaBM6EC6";
+        const db = supabase.createClient(SB_URL, SB_KEY);
+
+        const loader = document.getElementById('loader');
+        const receiptArea = document.getElementById('receipt-area');
+
+        async function loadInvoice() {
+            const params = new URLSearchParams(window.location.search);
+            const invoiceId = params.get('id');
+
+            if (!invoiceId) {
+                loader.innerHTML = '<p class="font-bold text-red-500">ERROR: No Invoice ID provided.</p>';
+                return;
+            }
+
+            const { data, error } = await db.from('invoices').select('invoice_data').eq('id', invoiceId).single();
+
+            if (error || !data) {
+                loader.innerHTML = `<p class="font-bold text-red-500">ERROR: Could not find invoice #${invoiceId}.</p>`;
+                return;
+            }
+
+            populateView(data.invoice_data);
+        }
+
+        function populateView(d) {
+            // Load custom fonts if any
+            const activeFont = d.active_font || "'Inter', 'Kantumruy Pro', sans-serif";
+            const customFonts = d.custom_fonts || [];
+            customFonts.forEach(font => {
+                if (!document.querySelector(`link[href="${font.url}"]`)) {
+                    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = font.url; document.head.appendChild(link);
+                }
+            });
+            document.documentElement.style.setProperty('--invoice-font', activeFont);
+            
+            // Populate Fields
+            document.getElementById('f-to').value = d.to || '';
+            document.getElementById('f-phone').value = d.phone || '';
+            document.getElementById('f-address').value = d.address || '';
+            document.getElementById('f-no').value = d.no || '';
+            document.getElementById('f-date').value = d.date || '';
+
+            // This data is not saved in invoice_data, so we take defaults. In a real app, this would be saved too.
+            document.getElementById('company-name-kh').value = "ជេ អែន អេស អ៊ែដវើថាយស៊ីង";
+            document.getElementById('company-name-en').value = "J&S Advertising";
+            document.getElementById('company-address').value = "ភូមីថ្មី សង្កាត់ដង្កោ ខណ្ឌដង្កោ ភ្នំពេញ";
+            document.getElementById('company-tel').value = "098 28 29 93";
+            document.getElementById('sig-auth-title').value = "Authorized Signature";
+            document.getElementById('sig-auth-name').value = "សេសសិន ប៊ុន";
+            
+            // Populate logo
+            if(d.logo) document.getElementById('logo-img').src = d.logo;
+
+            // Populate Table
+            const rowsContainer = document.getElementById('rows');
+            rowsContainer.innerHTML = '';
+            let subTotal = 0;
+            (d.rows || []).forEach((row, i) => {
+                const qty = parseFloat(row.qty) || 0;
+                const unit = parseFloat(row.unit) || 0;
+                const amount = qty * unit;
+                if (!isNaN(amount)) subTotal += amount;
+                
+                rowsContainer.innerHTML += `<tr>
+                    <td class="text-center">${i + 1}</td>
+                    <td>${row.desc || ''}</td>
+                    <td class="text-center">${row.size || '—'}</td>
+                    <td class="text-center">${row.qty || ''}</td>
+                    <td class="text-center">${unit > 0 ? unit.toFixed(2) : ''}</td>
+                    <td class="text-right font-bold">${amount > 0 ? amount.toFixed(2) : ''}</td>
+                </tr>`;
+            });
+
+            // Populate Totals
+            const deposit = parseFloat(d.dep) || 0;
+            document.getElementById('v-sub').textContent = subTotal.toFixed(2);
+            document.getElementById('f-dep').textContent = deposit.toFixed(2);
+            document.getElementById('v-bal').textContent = (subTotal - deposit).toFixed(2);
+            
+            // Make all inputs read-only
+            document.querySelectorAll('input').forEach(el => el.readOnly = true);
+            
+            // Show content
+            loader.style.display = 'none';
+            receiptArea.style.display = 'block';
+        }
+
+        function generatePDF() {
+            document.body.classList.add('pdf-mode');
+            const el = document.getElementById('receipt-area');
+            const invNo = document.getElementById('f-no').value || 'invoice';
+            
+            html2pdf().set({
+                margin: 0,
+                filename: `Invoice_${invNo}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).from(el).save().then(() => {
+                document.body.classList.remove('pdf-mode');
+            });
+        }
+
+        window.onload = loadInvoice;
+    </script>
+</body>
+</html>

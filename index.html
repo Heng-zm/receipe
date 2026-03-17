@@ -145,10 +145,13 @@
                 <svg class="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg> New
             </button>
             
-            <!-- 🎨 Font Settings Button -->
             <button onclick="App.toggleFontModal()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded transition border border-slate-700" title="Appearance Settings">🎨</button>
-            
             <button onclick="App.toggleSettings()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded transition border border-slate-700" title="AI Settings">⚙️</button>
+            
+            <button onclick="App.shareInvoice()" class="flex-1 sm:flex-none justify-center bg-indigo-600 hover:bg-indigo-500 px-3 sm:px-5 py-2 rounded font-bold text-xs uppercase transition active:scale-95 shadow-lg flex items-center gap-2">
+                <svg class="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342a8.985 8.985 0 00-2.386 5.174 8.985 8.985 0 001.272 6.075M8.684 13.342V11.25a2.25 2.25 0 012.25-2.25h2.25a2.25 2.25 0 012.25 2.25v2.092m-10.5 0a2.25 2.25 0 002.25 2.25h5.25a2.25 2.25 0 002.25-2.25m-10.5 0a2.25 2.25 0 012.25-2.25h5.25a2.25 2.25 0 012.25 2.25m0 0v2.092a2.25 2.25 0 002.25 2.25h2.25a2.25 2.25 0 002.25-2.25v-5.25a2.25 2.25 0 00-2.25-2.25h-2.25a2.25 2.25 0 00-2.25 2.25v2.092"></path></svg>
+                Share
+            </button>
             <button id="save-btn" onclick="App.saveToCloud()" class="flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-500 px-3 sm:px-5 py-2 rounded font-bold text-xs uppercase transition active:scale-95 shadow-lg flex items-center gap-2">
                 <svg class="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 002-2v-4M17 8l-5-5-5 5M12 3v12"></path></svg>
                 <span id="save-btn-text">Save</span>
@@ -163,6 +166,19 @@
     <!-- ══ Toasts & Modals... ══ -->
     <div id="toast" class="fixed bottom-5 right-5 transform translate-y-20 opacity-0 transition-all duration-300 z-[200] px-6 py-3 rounded-xl font-bold text-white shadow-2xl pointer-events-none flex items-center gap-2">
         <span id="toast-icon"></span> <span id="toast-msg"></span>
+    </div>
+
+    <!-- 🔗 Share Modal -->
+    <div id="share-modal" class="hidden fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onclick="if(event.target===this)App.toggleShareModal()">
+        <div class="bg-white p-8 rounded-3xl max-w-lg w-full shadow-2xl relative">
+            <button onclick="App.toggleShareModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-800 font-bold text-xl transition">✕</button>
+            <h3 class="font-black text-xl mb-6 text-slate-800">Share Public Link</h3>
+            <p class="text-sm text-slate-500 mb-4">Anyone with this link can view a read-only version of the invoice.</p>
+            <div class="flex gap-2">
+                <input type="text" id="share-link-input" readonly class="flex-1 w-full p-4 bg-slate-100 text-blue-800 font-mono text-sm rounded-xl outline-none border-2 border-slate-200">
+                <button onclick="App.copyShareLink()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 rounded-xl font-bold transition">Copy</button>
+            </div>
+        </div>
     </div>
 
     <!-- 🎨 Font Settings Modal -->
@@ -416,14 +432,9 @@
     const db = supabase.createClient(SB_URL, SB_KEY);
 
     const App = {
-        dom: {},
-        aiData: null,
-        _draftTimer: null,
-        _toastTimer: null, 
-        mapInstance: null,
-        mapMarker: null,
-
-        // 🎨 Default Fonts
+        dom: {}, aiData: null, _draftTimer: null, _toastTimer: null, 
+        mapInstance: null, mapMarker: null,
+        
         DEFAULT_FONTS: [
             { name: "Inter + Kantumruy Pro", value: "'Inter', 'Kantumruy Pro', sans-serif" },
             { name: "Roboto", value: "'Roboto', 'Kantumruy Pro', sans-serif" },
@@ -432,301 +443,154 @@
         ],
         
         PRODUCTS: [
-            { desc: "Vinyl Banner Printing", size: "1m x 1m", unit: 4.50 },
-            { desc: "Sticker Clear / White", size: "1m x 1m", unit: 5.00 },
-            { desc: "X-Stand Banner", size: "0.6m x 1.6m", unit: 12.00 },
-            { desc: "Roll Up Banner", size: "0.8m x 2.0m", unit: 25.00 },
-            { desc: "Light Box Signage", size: "1m x 1m", unit: 150.00 },
-            { desc: "Acrylic Letters", size: "10cm", unit: 3.50 },
-            { desc: "Name Card Printing", size: "Standard", unit: 10.00 },
-            { desc: "Flyer A4 / A5", size: "A4", unit: 0.15 }
+            { desc: "Vinyl Banner Printing", size: "1m x 1m", unit: 4.50 }, { desc: "Sticker Clear / White", size: "1m x 1m", unit: 5.00 },
+            { desc: "X-Stand Banner", size: "0.6m x 1.6m", unit: 12.00 }, { desc: "Roll Up Banner", size: "0.8m x 2.0m", unit: 25.00 },
+            { desc: "Light Box Signage", size: "1m x 1m", unit: 150.00 }, { desc: "Acrylic Letters", size: "10cm", unit: 3.50 },
+            { desc: "Name Card Printing", size: "Standard", unit: 10.00 }, { desc: "Flyer A4 / A5", size: "A4", unit: 0.15 }
         ],
 
         init() {
             this.dom = {
                 views:  { editor: document.getElementById('view-editor'), history: document.getElementById('view-history') },
                 nav:    { editor: document.getElementById('nav-editor'),  history: document.getElementById('nav-history') },
-                fields: {
-                    no:      document.getElementById('f-no'),
-                    to:      document.getElementById('f-to'),
-                    phone:   document.getElementById('f-phone'),
-                    address: document.getElementById('f-address'),
-                    date:    document.getElementById('f-date'),
-                    deposit: document.getElementById('f-dep'),
-                },
+                fields: { no:document.getElementById('f-no'), to:document.getElementById('f-to'), phone:document.getElementById('f-phone'), address:document.getElementById('f-address'), date:document.getElementById('f-date'), deposit:document.getElementById('f-dep'),},
                 values: { subTotal: document.getElementById('v-sub'), balance: document.getElementById('v-bal') },
-                rowsContainer: document.getElementById('rows'),
-                loader:        document.getElementById('loader'),
-                loaderText:    document.getElementById('loader-text'),
-                toast:         { el: document.getElementById('toast'), icon: document.getElementById('toast-icon'), msg: document.getElementById('toast-msg') },
-                modals:        { settings: document.getElementById('settings-modal'), aiConfirm: document.getElementById('ai-confirm-modal'), map: document.getElementById('map-modal'), font: document.getElementById('font-modal') },
-                apiKeyInput:   document.getElementById('api-key-input'),
-                dropZone:      document.getElementById('drop-zone'),
-                productList:   document.getElementById('product-list'),
-                mapInputs: {
-                    search: document.getElementById('map-search-input'),
-                    result: document.getElementById('map-selected-address')
-                },
-                fontUI: {
-                    select: document.getElementById('font-select'),
-                    urlInput: document.getElementById('google-font-url'),
-                    list: document.getElementById('imported-fonts-list'),
-                }
+                rowsContainer: document.getElementById('rows'), loader: document.getElementById('loader'), loaderText: document.getElementById('loader-text'),
+                toast: { el: document.getElementById('toast'), icon: document.getElementById('toast-icon'), msg: document.getElementById('toast-msg') },
+                modals: { settings: document.getElementById('settings-modal'), aiConfirm: document.getElementById('ai-confirm-modal'), map: document.getElementById('map-modal'), font: document.getElementById('font-modal'), share: document.getElementById('share-modal') },
+                apiKeyInput: document.getElementById('api-key-input'), dropZone: document.getElementById('drop-zone'), productList: document.getElementById('product-list'),
+                mapInputs: { search: document.getElementById('map-search-input'), result: document.getElementById('map-selected-address') },
+                fontUI: { select: document.getElementById('font-select'), urlInput: document.getElementById('google-font-url'), list: document.getElementById('imported-fonts-list'),},
+                shareLinkInput: document.getElementById('share-link-input'),
             };
 
-            this._setupEventListeners();
-            this._populateProductList();
-            this.loadLogo();
-            this.loadFonts();
-            
-            Object.values(this.dom.fields).forEach(el => {
-                if(el) el.addEventListener('input', () => this.scheduleDraftSave());
-            });
+            this._setupEventListeners(); this._populateProductList(); this.loadLogo(); this.loadFonts();
+            Object.values(this.dom.fields).forEach(el => { if(el) el.addEventListener('input', () => this.scheduleDraftSave()); });
+            this.loadDraft(); this.showView('editor');
+        },
+        
+        // 🔗 SHARE FUNCTIONALITY
+        toggleShareModal() { this.dom.modals.share.classList.toggle('hidden'); },
 
-            this.loadDraft();
-            this.showView('editor');
+        async shareInvoice() {
+            const invNo = this.dom.fields.no.value.trim();
+            if (!invNo) {
+                this.dom.fields.no.classList.add('field-error');
+                this.showToast('Please enter an Invoice Number before sharing.', 'error');
+                setTimeout(() => this.dom.fields.no.classList.remove('field-error'), 2500);
+                return;
+            }
+
+            this.setLoading(true, 'Creating Share Link...');
+            
+            const dataToSave = this.getFormData();
+            const { data, error } = await db.from('invoices')
+                .upsert({ 
+                    invoice_no: invNo,
+                    customer_name: dataToSave.to || 'Unspecified',
+                    total_amount:  parseFloat(this.dom.values.subTotal.innerText) || 0,
+                    invoice_data:  dataToSave
+                }, { onConflict: 'invoice_no' })
+                .select('id')
+                .single();
+
+            this.setLoading(false);
+
+            if (error) {
+                return this.showToast('Could not save to cloud: ' + error.message, 'error');
+            }
+
+            if (data && data.id) {
+                // Construct the URL using the invoice's unique ID
+                const shareUrl = `${window.location.origin}${window.location.pathname.replace('index.html', '')}view.html?id=${data.id}`;
+                this.dom.shareLinkInput.value = shareUrl;
+                this.toggleShareModal();
+            } else {
+                this.showToast('Failed to get a shareable ID from the database.', 'error');
+            }
         },
 
-        //... (other functions unchanged)
+        copyShareLink() {
+            this.dom.shareLinkInput.select();
+            navigator.clipboard.writeText(this.dom.shareLinkInput.value);
+            this.showToast('Link copied to clipboard!', 'success');
+        },
         
-        // 🎨 FONT CUSTOMIZATION LOGIC
+        // FONT CUSTOMIZATION LOGIC
         toggleFontModal() { this.dom.modals.font.classList.toggle('hidden'); },
-
         loadFonts() {
-            // Load custom fonts from localStorage and create <link> tags
             const customFonts = JSON.parse(localStorage.getItem('custom_fonts') || '[]');
             customFonts.forEach(font => {
                 if (!document.querySelector(`link[href="${font.url}"]`)) {
-                    const link = document.createElement('link');
-                    link.rel = 'stylesheet';
-                    link.href = font.url;
-                    document.head.appendChild(link);
+                    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = font.url; document.head.appendChild(link);
                 }
             });
-
-            // Apply the active font
             const activeFont = localStorage.getItem('active_font');
-            if (activeFont) {
-                this.applyFont(activeFont, true);
-            } else {
-                this.applyFont(this.DEFAULT_FONTS[0].value, true);
-            }
+            this.applyFont(activeFont ? activeFont : this.DEFAULT_FONTS[0].value, true);
             this.populateFontUI();
         },
-        
         populateFontUI() {
             const customFonts = JSON.parse(localStorage.getItem('custom_fonts') || '[]');
             const activeFont = localStorage.getItem('active_font') || this.DEFAULT_FONTS[0].value;
-            
-            // Populate dropdown
             this.dom.fontUI.select.innerHTML = '';
-            
             const allFonts = [...this.DEFAULT_FONTS, ...customFonts.map(f => ({ name: f.name, value: `'${f.name}', sans-serif` }))];
             allFonts.forEach(font => {
-                const option = document.createElement('option');
-                option.value = font.value;
-                option.textContent = font.name;
-                option.selected = (font.value === activeFont);
-                this.dom.fontUI.select.appendChild(option);
+                const option = document.createElement('option'); option.value = font.value; option.textContent = font.name;
+                option.selected = (font.value === activeFont); this.dom.fontUI.select.appendChild(option);
             });
-
-            // Populate imported list
             this.dom.fontUI.list.innerHTML = customFonts.length > 0 ? '' : '<p class="text-xs text-slate-400">No custom fonts imported yet.</p>';
-            customFonts.forEach(font => {
-                this.dom.fontUI.list.innerHTML += `<div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg"><span>${font.name}</span><button onclick="App.deleteCustomFont('${font.name}')" class="text-red-500 text-xs font-bold hover:underline">DELETE</button></div>`;
-            });
+            customFonts.forEach(font => { this.dom.fontUI.list.innerHTML += `<div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg"><span>${font.name}</span><button onclick="App.deleteCustomFont('${font.name}')" class="text-red-500 text-xs font-bold hover:underline">DELETE</button></div>`; });
         },
-
         applyFont(fontValue, isInitialLoad = false) {
             document.documentElement.style.setProperty('--invoice-font', fontValue);
-            if (!isInitialLoad) {
-                localStorage.setItem('active_font', fontValue);
-            }
+            if (!isInitialLoad) { localStorage.setItem('active_font', fontValue); }
         },
-
         importGoogleFont() {
             const url = this.dom.fontUI.urlInput.value.trim();
-            if (!url.startsWith('https://fonts.googleapis.com/css2?family=')) {
-                return this.showToast('Invalid Google Fonts URL', 'error');
-            }
-
-            // Extract font name from URL
+            if (!url.startsWith('https://fonts.googleapis.com/css2?family=')) { return this.showToast('Invalid Google Fonts URL', 'error'); }
             const fontNameMatch = url.match(/family=([^:&]+)/);
-            if (!fontNameMatch || !fontNameMatch[1]) {
-                return this.showToast('Could not extract font name from URL', 'error');
-            }
+            if (!fontNameMatch || !fontNameMatch[1]) { return this.showToast('Could not extract font name from URL', 'error'); }
             const fontName = fontNameMatch[1].replace(/\+/g, ' ');
-
             const customFonts = JSON.parse(localStorage.getItem('custom_fonts') || '[]');
-            if (customFonts.some(f => f.name === fontName)) {
-                return this.showToast('This font is already imported', 'error');
-            }
-
-            // Dynamically load the stylesheet
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = url;
-            document.head.appendChild(link);
-            
-            // Save and update UI
-            customFonts.push({ name: fontName, url: url });
-            localStorage.setItem('custom_fonts', JSON.stringify(customFonts));
-            
-            this.dom.fontUI.urlInput.value = '';
-            this.showToast(`Font "${fontName}" imported successfully!`, 'success');
-            
-            const newFontValue = `'${fontName}', sans-serif`;
-            this.applyFont(newFontValue);
-            this.populateFontUI();
+            if (customFonts.some(f => f.name === fontName)) { return this.showToast('This font is already imported', 'error'); }
+            const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = url; document.head.appendChild(link);
+            customFonts.push({ name: fontName, url: url }); localStorage.setItem('custom_fonts', JSON.stringify(customFonts));
+            this.dom.fontUI.urlInput.value = ''; this.showToast(`Font "${fontName}" imported!`, 'success');
+            this.applyFont(`'${fontName}', sans-serif`); this.populateFontUI();
         },
-
         deleteCustomFont(fontNameToDelete) {
-            let customFonts = JSON.parse(localStorage.getItem('custom_fonts') || '[]');
-            const fontToDelete = customFonts.find(f => f.name === fontNameToDelete);
-
+            let customFonts = JSON.parse(localStorage.getItem('custom_fonts') || '[]'); const fontToDelete = customFonts.find(f => f.name === fontNameToDelete);
             if (fontToDelete) {
-                // Remove the stylesheet from the document
-                const link = document.querySelector(`link[href="${fontToDelete.url}"]`);
-                if (link) link.remove();
-                
-                // Update localStorage
-                customFonts = customFonts.filter(f => f.name !== fontNameToDelete);
-                localStorage.setItem('custom_fonts', JSON.stringify(customFonts));
-
-                // If the deleted font was the active one, revert to default
+                const link = document.querySelector(`link[href="${fontToDelete.url}"]`); if (link) link.remove();
+                customFonts = customFonts.filter(f => f.name !== fontNameToDelete); localStorage.setItem('custom_fonts', JSON.stringify(customFonts));
                 const activeFont = localStorage.getItem('active_font');
-                if (activeFont.includes(fontNameToDelete)) {
-                    this.applyFont(this.DEFAULT_FONTS[0].value);
-                }
-
-                this.populateFontUI();
-                this.showToast(`Font "${fontNameToDelete}" removed.`, 'success');
+                if (activeFont.includes(fontNameToDelete)) { this.applyFont(this.DEFAULT_FONTS[0].value); }
+                this.populateFontUI(); this.showToast(`Font "${fontNameToDelete}" removed.`, 'success');
             }
         },
 
-        // Other functions...
-        _updateAutosaveUI(state) {
-            const dots = document.querySelectorAll('#autosave-dot');
-            dots.forEach(dot => dot.className = state);
-        },
-        _setupEventListeners() {
-            this.dom.dropZone.addEventListener('dragover', e => { e.preventDefault(); this.dom.dropZone.classList.add('border-emerald-500', 'bg-emerald-50'); });
-            this.dom.dropZone.addEventListener('dragleave', e => { e.preventDefault(); this.dom.dropZone.classList.remove('border-emerald-500', 'bg-emerald-50'); });
-            this.dom.dropZone.addEventListener('drop', e => {
-                e.preventDefault(); this.dom.dropZone.classList.remove('border-emerald-500', 'bg-emerald-50');
-                if (e.dataTransfer.files.length) {
-                    const fi = document.getElementById('imageInput'); fi.files = e.dataTransfer.files; fi.dispatchEvent(new Event('change'));
-                }
-            });
-            this.dom.rowsContainer.addEventListener('keydown', e => {
-                if (e.key !== 'Enter') return;
-                const target = e.target;
-                if (target.classList.contains('qty') || target.classList.contains('unit') || target.classList.contains('size') || target.classList.contains('desc')) {
-                    e.preventDefault();
-                    if(target.classList.contains('unit')){
-                         const nextRow = target.closest('tr').nextElementSibling;
-                        if (nextRow) { nextRow.querySelector('.desc')?.focus(); } 
-                        else { this.addRow(); setTimeout(() => this.dom.rowsContainer.lastElementChild?.querySelector('.desc')?.focus(), 50); }
-                    } else if (target.classList.contains('desc')) { target.closest('tr').querySelector('.size')?.focus();
-                    } else if (target.classList.contains('size')) { target.closest('tr').querySelector('.qty')?.focus();
-                    } else if (target.classList.contains('qty')) { target.closest('tr').querySelector('.unit')?.focus(); }
-                }
-            });
-        },
-        openMap() {
-            this.dom.modals.map.classList.remove('hidden');
-            if(this.dom.fields.address.value) { this.dom.mapInputs.result.value = this.dom.fields.address.value; }
-            if (!this.mapInstance) {
-                this.mapInstance = L.map('map-container').setView([11.5564, 104.9282], 13);
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>' }).addTo(this.mapInstance);
-                this.mapInstance.on('click', (e) => this.onMapClick(e));
-            }
-            setTimeout(() => { this.mapInstance.invalidateSize(); this.dom.mapInputs.search.focus(); }, 100);
-        },
+        //... other functions (minified for brevity)
+        _updateAutosaveUI(state) { const dots = document.querySelectorAll('#autosave-dot'); dots.forEach(dot => dot.className = state); },
+        _setupEventListeners() { this.dom.dropZone.addEventListener('dragover', e => { e.preventDefault(); this.dom.dropZone.classList.add('border-emerald-500', 'bg-emerald-50'); }); this.dom.dropZone.addEventListener('dragleave', e => { e.preventDefault(); this.dom.dropZone.classList.remove('border-emerald-500', 'bg-emerald-50'); }); this.dom.dropZone.addEventListener('drop', e => { e.preventDefault(); this.dom.dropZone.classList.remove('border-emerald-500', 'bg-emerald-50'); if (e.dataTransfer.files.length) { const fi = document.getElementById('imageInput'); fi.files = e.dataTransfer.files; fi.dispatchEvent(new Event('change')); } }); this.dom.rowsContainer.addEventListener('keydown', e => { if (e.key !== 'Enter') return; const target = e.target; if (target.classList.contains('qty') || target.classList.contains('unit') || target.classList.contains('size') || target.classList.contains('desc')) { e.preventDefault(); if(target.classList.contains('unit')){ const nextRow = target.closest('tr').nextElementSibling; if (nextRow) { nextRow.querySelector('.desc')?.focus(); } else { this.addRow(); setTimeout(() => this.dom.rowsContainer.lastElementChild?.querySelector('.desc')?.focus(), 50); } } else if (target.classList.contains('desc')) { target.closest('tr').querySelector('.size')?.focus(); } else if (target.classList.contains('size')) { target.closest('tr').querySelector('.qty')?.focus(); } else if (target.classList.contains('qty')) { target.closest('tr').querySelector('.unit')?.focus(); } } }); },
+        openMap() { this.dom.modals.map.classList.remove('hidden'); if(this.dom.fields.address.value) { this.dom.mapInputs.result.value = this.dom.fields.address.value; } if (!this.mapInstance) { this.mapInstance = L.map('map-container').setView([11.5564, 104.9282], 13); L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>' }).addTo(this.mapInstance); this.mapInstance.on('click', (e) => this.onMapClick(e)); } setTimeout(() => { this.mapInstance.invalidateSize(); this.dom.mapInputs.search.focus(); }, 100); },
         closeMap() { this.dom.modals.map.classList.add('hidden'); },
-        onMapClick(e) {
-            const { lat, lng } = e.latlng;
-            if (this.mapMarker) { this.mapMarker.setLatLng([lat, lng]); } else { this.mapMarker = L.marker([lat, lng]).addTo(this.mapInstance); }
-            this.reverseGeocode(lat, lng);
-        },
-        async reverseGeocode(lat, lng) {
-            this.dom.mapInputs.result.placeholder = "Loading address...";
-            try {
-                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
-                const data = await response.json();
-                this.dom.mapInputs.result.value = (data && data.display_name) ? data.display_name : `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-            } catch (err) { this.dom.mapInputs.result.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`; }
-        },
-        async searchMap() {
-            const query = this.dom.mapInputs.search.value.trim(); if (!query) return;
-            const searchBtn = this.dom.mapInputs.search.nextElementSibling;
-            const originalText = searchBtn.innerText; searchBtn.innerText = '...'; searchBtn.disabled = true;
-            try {
-                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
-                const data = await response.json();
-                if (data && data.length > 0) {
-                    const lat = parseFloat(data[0].lat); const lon = parseFloat(data[0].lon);
-                    this.mapInstance.setView([lat, lon], 16);
-                    if (this.mapMarker) { this.mapMarker.setLatLng([lat, lon]); } else { this.mapMarker = L.marker([lat, lon]).addTo(this.mapInstance); }
-                    this.dom.mapInputs.result.value = data[0].display_name;
-                } else { this.showToast('Location not found', 'error'); }
-            } catch (err) { this.showToast('Search failed', 'error'); } finally { searchBtn.innerText = originalText; searchBtn.disabled = false; }
-        },
-        confirmMapSelection() {
-            const selectedAddress = this.dom.mapInputs.result.value.trim();
-            if (selectedAddress) { this.dom.fields.address.value = selectedAddress; this.scheduleDraftSave(); }
-            this.closeMap();
-        },
-        loadLogo() {
-            const logoBase64 = localStorage.getItem('company_logo');
-            if (logoBase64) {
-                document.getElementById('logo-placeholder').classList.add('hidden');
-                const img = document.getElementById('logo-img'); img.src = logoBase64; img.classList.remove('hidden');
-            }
-        },
-        handleLogoUpload(e) {
-            const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                localStorage.setItem('company_logo', event.target.result); this.loadLogo(); this.showToast('Logo Updated successfully!', 'success');
-            };
-            reader.readAsDataURL(file);
-        },
+        onMapClick(e) { const { lat, lng } = e.latlng; if (this.mapMarker) { this.mapMarker.setLatLng([lat, lng]); } else { this.mapMarker = L.marker([lat, lng]).addTo(this.mapInstance); } this.reverseGeocode(lat, lng); },
+        async reverseGeocode(lat, lng) { this.dom.mapInputs.result.placeholder = "Loading address..."; try { const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`); const data = await response.json(); this.dom.mapInputs.result.value = (data && data.display_name) ? data.display_name : `${lat.toFixed(5)}, ${lng.toFixed(5)}`; } catch (err) { this.dom.mapInputs.result.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`; } },
+        async searchMap() { const query = this.dom.mapInputs.search.value.trim(); if (!query) return; const searchBtn = this.dom.mapInputs.search.nextElementSibling; const originalText = searchBtn.innerText; searchBtn.innerText = '...'; searchBtn.disabled = true; try { const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`); const data = await response.json(); if (data && data.length > 0) { const lat = parseFloat(data[0].lat); const lon = parseFloat(data[0].lon); this.mapInstance.setView([lat, lon], 16); if (this.mapMarker) { this.mapMarker.setLatLng([lat, lon]); } else { this.mapMarker = L.marker([lat, lon]).addTo(this.mapInstance); } this.dom.mapInputs.result.value = data[0].display_name; } else { this.showToast('Location not found', 'error'); } } catch (err) { this.showToast('Search failed', 'error'); } finally { searchBtn.innerText = originalText; searchBtn.disabled = false; } },
+        confirmMapSelection() { const selectedAddress = this.dom.mapInputs.result.value.trim(); if (selectedAddress) { this.dom.fields.address.value = selectedAddress; this.scheduleDraftSave(); } this.closeMap(); },
+        loadLogo() { const logoBase64 = localStorage.getItem('company_logo'); if (logoBase64) { document.getElementById('logo-placeholder').classList.add('hidden'); const img = document.getElementById('logo-img'); img.src = logoBase64; img.classList.remove('hidden'); } },
+        handleLogoUpload(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { localStorage.setItem('company_logo', event.target.result); this.loadLogo(); this.showToast('Logo Updated successfully!', 'success'); }; reader.readAsDataURL(file); },
         _populateProductList() { this.PRODUCTS.forEach(product => { const option = document.createElement('option'); option.value = product.desc; this.dom.productList.appendChild(option); }); },
-        checkProduct(el) {
-            this.scheduleDraftSave(); const val = el.value; const match = this.PRODUCTS.find(p => p.desc === val);
-            if (match) {
-                const tr = el.closest('tr'); tr.querySelector('.size').value = match.size; tr.querySelector('.unit').value = match.unit.toFixed(2);
-                const qtyBox = tr.querySelector('.qty'); qtyBox.focus(); this.calcRow(qtyBox);
-            }
-        },
-        showView(view) {
-            Object.values(this.dom.views).forEach(v => v.classList.add('hidden')); if(this.dom.views[view]) this.dom.views[view].classList.remove('hidden');
-            Object.values(this.dom.nav).forEach(b => b.classList.remove('active')); if(this.dom.nav[view]) this.dom.nav[view].classList.add('active');
-        },
-        showToast(msg, type = 'success') {
-            const { el, icon, msg: msgEl } = this.dom.toast; if(this._toastTimer) clearTimeout(this._toastTimer);
-            el.className = `fixed bottom-5 right-5 transform transition-all duration-300 z-[800] px-6 py-3 rounded-xl font-bold text-white shadow-2xl flex items-center gap-2 ${type === 'error' ? 'bg-red-500' : 'bg-emerald-500'}`;
-            icon.innerHTML = type === 'error' ? '✕' : '✓'; msgEl.innerText = msg; el.classList.remove('translate-y-20', 'opacity-0');
-            this._toastTimer = setTimeout(() => el.classList.add('translate-y-20', 'opacity-0'), 4000);
-        },
+        checkProduct(el) { this.scheduleDraftSave(); const val = el.value; const match = this.PRODUCTS.find(p => p.desc === val); if (match) { const tr = el.closest('tr'); tr.querySelector('.size').value = match.size; tr.querySelector('.unit').value = match.unit.toFixed(2); const qtyBox = tr.querySelector('.qty'); qtyBox.focus(); this.calcRow(qtyBox); } },
+        showView(view) { Object.values(this.dom.views).forEach(v => v.classList.add('hidden')); if(this.dom.views[view]) this.dom.views[view].classList.remove('hidden'); Object.values(this.dom.nav).forEach(b => b.classList.remove('active')); if(this.dom.nav[view]) this.dom.nav[view].classList.add('active'); },
+        showToast(msg, type = 'success') { const { el, icon, msg: msgEl } = this.dom.toast; if(this._toastTimer) clearTimeout(this._toastTimer); el.className = `fixed bottom-5 right-5 transform transition-all duration-300 z-[800] px-6 py-3 rounded-xl font-bold text-white shadow-2xl flex items-center gap-2 ${type === 'error' ? 'bg-red-500' : 'bg-emerald-500'}`; icon.innerHTML = type === 'error' ? '✕' : '✓'; msgEl.innerText = msg; el.classList.remove('translate-y-20', 'opacity-0'); this._toastTimer = setTimeout(() => el.classList.add('translate-y-20', 'opacity-0'), 4000); },
         setLoading(state, text = 'Processing...') { this.dom.loader.classList.toggle('hidden', !state); this.dom.loaderText.innerText = text; },
-        toggleSettings() {
-            const isHidden = this.dom.modals.settings.classList.contains('hidden'); if (isHidden) this.dom.apiKeyInput.value = localStorage.getItem('openai_key') || '';
-            this.dom.modals.settings.classList.toggle('hidden');
-        },
+        toggleSettings() { const isHidden = this.dom.modals.settings.classList.contains('hidden'); if (isHidden) this.dom.apiKeyInput.value = localStorage.getItem('openai_key') || ''; this.dom.modals.settings.classList.toggle('hidden'); },
         saveSettings() { const key = this.dom.apiKeyInput.value.trim(); localStorage.setItem('openai_key', key); this.toggleSettings(); if (key) this.showToast('OpenAI API Key Saved'); },
-        formatDate(input) {
-            const str = String(input); if (/^\d{2}\s*\/\s*\d{2}\s*\/\s*\d{4}$/.test(str.trim())) return str.trim();
-            const d = new Date(input); if (isNaN(d.getTime())) return str; 
-            return `${String(d.getDate()).padStart(2,'0')} / ${String(d.getMonth()+1).padStart(2,'0')} / ${d.getFullYear()}`;
-        },
+        formatDate(input) { const str = String(input); if (/^\d{2}\s*\/\s*\d{2}\s*\/\s*\d{4}$/.test(str.trim())) return str.trim(); const d = new Date(input); if (isNaN(d.getTime())) return str; return `${String(d.getDate()).padStart(2,'0')} / ${String(d.getMonth()+1).padStart(2,'0')} / ${d.getFullYear()}`; },
         setTodayDate() { this.dom.fields.date.value = this.formatDate(new Date()); },
         formatCurrency(el) { const value = parseFloat(el.value); if (!isNaN(value)) el.value = value.toFixed(2); },
-        scheduleDraftSave() {
-            this._updateAutosaveUI('saving'); clearTimeout(this._draftTimer);
-            this._draftTimer = setTimeout(() => { this.saveDraft(); this._updateAutosaveUI('saved'); setTimeout(() => { this._updateAutosaveUI(''); }, 2000); }, 600);
-        },
+        scheduleDraftSave() { this._updateAutosaveUI('saving'); clearTimeout(this._draftTimer); this._draftTimer = setTimeout(() => { this.saveDraft(); this._updateAutosaveUI('saved'); setTimeout(() => { this._updateAutosaveUI(''); }, 2000); }, 600); },
         _createRowHTML(index) { return `<td class="text-center font-bold text-xs text-slate-400 row-num">${index}</td><td><input type="text" class="cell-in desc" placeholder="" list="product-list" oninput="App.checkProduct(this)"></td><td><input type="text" class="cell-in text-center size" placeholder="—" oninput="App.scheduleDraftSave()"></td><td><input type="number" class="cell-in text-center qty"  min="0" oninput="App.calcRow(this)"></td><td><input type="number" step="0.01" class="cell-in text-center unit" min="0" oninput="App.calcRow(this)" onblur="App.formatCurrency(this)"></td><td><input type="text" class="cell-in text-right font-bold pr-2 amt text-blue-800" readonly tabindex="-1"></td><td class="no-print bg-transparent border-none align-middle"><button class="delete-row-btn" onclick="App.removeRow(this)" title="Delete row">✕</button></td>`; },
         _renumberRows() { this.dom.rowsContainer.querySelectorAll('.row-num').forEach((el, i) => { el.textContent = i + 1; }); },
         addRow(doSave = true) { const tr = document.createElement('tr'); tr.innerHTML = this._createRowHTML(this.dom.rowsContainer.children.length + 1); this.dom.rowsContainer.appendChild(tr); if (doSave) this.scheduleDraftSave(); },
@@ -734,86 +598,18 @@
         initTable(rowCount = 9) { this.dom.rowsContainer.innerHTML = ''; for (let i = 0; i < rowCount; i++) this.addRow(false); },
         calcRow(el) { const tr = el.closest('tr'); const qty = parseFloat(tr.querySelector('.qty').value); const unit= parseFloat(tr.querySelector('.unit').value); const amt = tr.querySelector('.amt'); amt.value = (!isNaN(qty) && !isNaN(unit)) ? (qty * unit).toFixed(2) : ''; this.calc(false); },
         calc(scheduleSave = true) { let subTotal = 0; this.dom.rowsContainer.querySelectorAll('.amt').forEach(el => { const v = parseFloat(el.value); if (!isNaN(v)) subTotal += v; }); const deposit = parseFloat(this.dom.fields.deposit.value) || 0; this.dom.values.subTotal.innerText = subTotal.toFixed(2); this.dom.values.balance.innerText = (subTotal - deposit).toFixed(2); if (scheduleSave) this.scheduleDraftSave(); },
-        getFormData() {
-            const data = { no: this.dom.fields.no.value, to: this.dom.fields.to.value, phone: this.dom.fields.phone.value, address: this.dom.fields.address.value, date: this.dom.fields.date.value, dep: this.dom.fields.deposit.value, rows: [] };
-            this.dom.rowsContainer.querySelectorAll('tr').forEach(tr => { data.rows.push({ desc: tr.querySelector('.desc').value, size: tr.querySelector('.size').value, qty: tr.querySelector('.qty').value, unit: tr.querySelector('.unit').value }); });
-            return data;
-        },
-        resetForm(increment = true) {
-            const currentNo = this.dom.fields.no.value || ''; let nextNo = currentNo;
-            if (increment) { const numMatch = currentNo.match(/(\D*)(\d+)(\D*)$/); if (numMatch) { const prefix = currentNo.slice(0, currentNo.lastIndexOf(numMatch[2])); const numStr = numMatch[2]; nextNo = prefix + String(parseInt(numStr, 10) + 1).padStart(numStr.length, '0'); } }
-            ['to','phone','address'].forEach(k => { this.dom.fields[k].value = ''; }); this.dom.fields.deposit.value = '0.00'; this.dom.fields.no.value = nextNo;
-            this.initTable(); this.calc(false); this.setTodayDate(); this.showView('editor'); localStorage.removeItem('invoice_draft');
-            this.showToast('Ready for new invoice.', 'success'); window.scrollTo(0,0);
-        },
+        getFormData() { const data = { no: this.dom.fields.no.value, to: this.dom.fields.to.value, phone: this.dom.fields.phone.value, address: this.dom.fields.address.value, date: this.dom.fields.date.value, dep: this.dom.fields.deposit.value, rows: [] }; this.dom.rowsContainer.querySelectorAll('tr').forEach(tr => { data.rows.push({ desc: tr.querySelector('.desc').value, size: tr.querySelector('.size').value, qty: tr.querySelector('.qty').value, unit: tr.querySelector('.unit').value }); }); return data; },
+        resetForm(increment = true) { const currentNo = this.dom.fields.no.value || ''; let nextNo = currentNo; if (increment) { const numMatch = currentNo.match(/(\D*)(\d+)(\D*)$/); if (numMatch) { const prefix = currentNo.slice(0, currentNo.lastIndexOf(numMatch[2])); const numStr = numMatch[2]; nextNo = prefix + String(parseInt(numStr, 10) + 1).padStart(numStr.length, '0'); } } ['to','phone','address'].forEach(k => { this.dom.fields[k].value = ''; }); this.dom.fields.deposit.value = '0.00'; this.dom.fields.no.value = nextNo; this.initTable(); this.calc(false); this.setTodayDate(); this.showView('editor'); localStorage.removeItem('invoice_draft'); this.showToast('Ready for new invoice.', 'success'); window.scrollTo(0,0); },
         saveDraft() { try { localStorage.setItem('invoice_draft', JSON.stringify(this.getFormData())); } catch(e) { console.warn('Draft save failed:', e); } },
-        loadDraft() {
-            try { const draftStr = localStorage.getItem('invoice_draft'); if (draftStr) { const data = JSON.parse(draftStr); if (data && typeof data === 'object') { this.populateForm(data); return; } } }
-            catch(e) { console.warn('Corrupt draft cleared:', e); localStorage.removeItem('invoice_draft'); }
-            this.initTable(); this.setTodayDate();
-        },
-        populateForm(data) {
-            if (!data || typeof data !== 'object') return this.initTable(), this.setTodayDate();
-            this.dom.fields.no.value = data.no || ''; this.dom.fields.to.value = data.to || ''; this.dom.fields.phone.value = data.phone || ''; this.dom.fields.address.value = data.address || ''; this.dom.fields.date.value = data.date || ''; this.dom.fields.deposit.value = data.dep || '0.00';
-            const rowCount = Math.max(Array.isArray(data.rows) ? data.rows.length : 0, 9); this.initTable(rowCount);
-            if (Array.isArray(data.rows)) { data.rows.forEach((row, i) => { const rowEl = this.dom.rowsContainer.rows[i]; if (!rowEl) return; rowEl.querySelector('.desc').value = row.desc || ''; rowEl.querySelector('.size').value = row.size || ''; rowEl.querySelector('.qty').value = row.qty || ''; rowEl.querySelector('.unit').value = row.unit || ''; if (row.qty && row.unit) this.calcRow(rowEl.querySelector('.qty')); }); }
-            this.calc(false);
-        },
-        async handleImageUpload(e) {
-            const file = e.target.files[0]; const apiKey = localStorage.getItem('openai_key'); if (!apiKey) { this.toggleSettings(); this.showToast('Please enter OpenAI API key', 'error'); return; } if (!file) return;
-            this.setLoading(true, 'Parsing Receipt with AI…');
-            try {
-                const base64Image = await this._compressImage(file);
-                const response = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` }, body: JSON.stringify({ model: 'gpt-4o-mini', response_format: { type: "json_object" }, messages: [{ role: 'system', content: 'You are an expert receipt data extractor. Your output MUST be ONLY a JSON object.' }, { role: 'user', content: [{ type: 'text', text: 'Extract data from this receipt. Return ONLY valid JSON: {"invoice_no":"string","date":"string","name":"string","items":[{"desc":"string","qty":number,"unit_price":number}]}. Format date as DD / MM / YYYY. Missing values = empty string or null. Do not include markdown formatting.' }, { type: 'image_url', image_url: { url: base64Image } }] }], temperature: 0.1, }), });
-                const res = await response.json(); if (res.error) throw new Error(res.error.message);
-                const raw = res.choices[0].message.content; this.aiData = JSON.parse(raw); this.dom.modals.aiConfirm.classList.remove('hidden');
-            } catch (err) { this.showToast('Scan Error: ' + err.message, 'error'); console.error(err); } finally { this.setLoading(false); e.target.value = ''; }
-        },
-        populateFromAi(mode) {
-            this.dom.modals.aiConfirm.classList.add('hidden'); if (!this.aiData) return; const data = this.aiData;
-            if (mode === 'overwrite') { if (data.invoice_no) this.dom.fields.no.value = data.invoice_no; if (data.name) this.dom.fields.to.value = data.name; if (data.date) this.dom.fields.date.value = data.date; this.initTable(Math.max(Array.isArray(data.items) ? data.items.length : 0, 9)); }
-            if (Array.isArray(data.items) && data.items.length > 0) {
-                let startIndex = 0;
-                if (mode === 'append') { const rows = Array.from(this.dom.rowsContainer.querySelectorAll('tr')); startIndex = rows.length; for (let i = 0; i < rows.length; i++) { if (!rows[i].querySelector('.desc').value.trim()) { startIndex = i; break; } } }
-                while (this.dom.rowsContainer.rows.length < startIndex + data.items.length) { this.addRow(false); }
-                data.items.forEach((item, i) => { const rowEl = this.dom.rowsContainer.rows[startIndex + i]; if (!rowEl) return; rowEl.querySelector('.desc').value = item.desc || ''; rowEl.querySelector('.qty').value = item.qty || ''; rowEl.querySelector('.unit').value = item.unit_price || ''; if (item.qty && item.unit_price) this.calcRow(rowEl.querySelector('.qty')); });
-            }
-            this.calc(false); this.scheduleDraftSave(); this.showToast(`AI data applied (${mode}).`); this.aiData = null;
-        },
+        loadDraft() { try { const draftStr = localStorage.getItem('invoice_draft'); if (draftStr) { const data = JSON.parse(draftStr); if (data && typeof data === 'object') { this.populateForm(data); return; } } } catch(e) { console.warn('Corrupt draft cleared:', e); localStorage.removeItem('invoice_draft'); } this.initTable(); this.setTodayDate(); },
+        populateForm(data) { if (!data || typeof data !== 'object') return this.initTable(), this.setTodayDate(); this.dom.fields.no.value = data.no || ''; this.dom.fields.to.value = data.to || ''; this.dom.fields.phone.value = data.phone || ''; this.dom.fields.address.value = data.address || ''; this.dom.fields.date.value = data.date || ''; this.dom.fields.deposit.value = data.dep || '0.00'; const rowCount = Math.max(Array.isArray(data.rows) ? data.rows.length : 0, 9); this.initTable(rowCount); if (Array.isArray(data.rows)) { data.rows.forEach((row, i) => { const rowEl = this.dom.rowsContainer.rows[i]; if (!rowEl) return; rowEl.querySelector('.desc').value = row.desc || ''; rowEl.querySelector('.size').value = row.size || ''; rowEl.querySelector('.qty').value = row.qty || ''; rowEl.querySelector('.unit').value = row.unit || ''; if (row.qty && row.unit) this.calcRow(rowEl.querySelector('.qty')); }); } this.calc(false); },
+        async handleImageUpload(e) { const file = e.target.files[0]; const apiKey = localStorage.getItem('openai_key'); if (!apiKey) { this.toggleSettings(); this.showToast('Please enter OpenAI API key', 'error'); return; } if (!file) return; this.setLoading(true, 'Parsing Receipt with AI…'); try { const base64Image = await this._compressImage(file); const response = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` }, body: JSON.stringify({ model: 'gpt-4o-mini', response_format: { type: "json_object" }, messages: [{ role: 'system', content: 'You are an expert receipt data extractor. Your output MUST be ONLY a JSON object.' }, { role: 'user', content: [{ type: 'text', text: 'Extract data from this receipt. Return ONLY valid JSON: {"invoice_no":"string","date":"string","name":"string","items":[{"desc":"string","qty":number,"unit_price":number}]}. Format date as DD / MM / YYYY. Missing values = empty string or null. Do not include markdown formatting.' }, { type: 'image_url', image_url: { url: base64Image } }] }], temperature: 0.1, }), }); const res = await response.json(); if (res.error) throw new Error(res.error.message); const raw = res.choices[0].message.content; this.aiData = JSON.parse(raw); this.dom.modals.aiConfirm.classList.remove('hidden'); } catch (err) { this.showToast('Scan Error: ' + err.message, 'error'); console.error(err); } finally { this.setLoading(false); e.target.value = ''; } },
+        populateFromAi(mode) { this.dom.modals.aiConfirm.classList.add('hidden'); if (!this.aiData) return; const data = this.aiData; if (mode === 'overwrite') { if (data.invoice_no) this.dom.fields.no.value = data.invoice_no; if (data.name) this.dom.fields.to.value = data.name; if (data.date) this.dom.fields.date.value = data.date; this.initTable(Math.max(Array.isArray(data.items) ? data.items.length : 0, 9)); } if (Array.isArray(data.items) && data.items.length > 0) { let startIndex = 0; if (mode === 'append') { const rows = Array.from(this.dom.rowsContainer.querySelectorAll('tr')); startIndex = rows.length; for (let i = 0; i < rows.length; i++) { if (!rows[i].querySelector('.desc').value.trim()) { startIndex = i; break; } } } while (this.dom.rowsContainer.rows.length < startIndex + data.items.length) { this.addRow(false); } data.items.forEach((item, i) => { const rowEl = this.dom.rowsContainer.rows[startIndex + i]; if (!rowEl) return; rowEl.querySelector('.desc').value = item.desc || ''; rowEl.querySelector('.qty').value = item.qty || ''; rowEl.querySelector('.unit').value = item.unit_price || ''; if (item.qty && item.unit_price) this.calcRow(rowEl.querySelector('.qty')); }); } this.calc(false); this.scheduleDraftSave(); this.showToast(`AI data applied (${mode}).`); this.aiData = null; },
         _compressImage(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = e => { const img = new Image(); img.onload = () => { const MAX_WIDTH = 1200; const canvas = document.createElement('canvas'); if (img.width <= MAX_WIDTH) { canvas.width = img.width; canvas.height = img.height; } else { const scale = MAX_WIDTH / img.width; canvas.width = MAX_WIDTH; canvas.height = Math.round(img.height * scale); } canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); resolve(canvas.toDataURL('image/jpeg', 0.85)); }; img.onerror = reject; img.src = e.target.result; }; reader.onerror = reject; reader.readAsDataURL(file); }); },
-        async saveToCloud() {
-            const invNo = this.dom.fields.no.value.trim(); const custName = this.dom.fields.to.value.trim();
-            if (!invNo) { this.dom.fields.no.classList.add('field-error'); this.showToast('Invoice number is required.', 'error'); setTimeout(() => this.dom.fields.no.classList.remove('field-error'), 2500); return; }
-            const saveBtn = document.getElementById('save-btn'); const saveBtnText = document.getElementById('save-btn-text');
-            saveBtn.disabled = true; saveBtnText.innerHTML = `<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block"></div>`;
-            const data = this.getFormData();
-            const { error } = await db.from('invoices').insert([{ invoice_no: invNo, customer_name: custName || 'Unspecified', total_amount: parseFloat(this.dom.values.subTotal.innerText) || 0, invoice_data: data, }]);
-            saveBtn.disabled = false; saveBtnText.innerText = 'Save';
-            if (error) { this.showToast('Database Error: ' + error.message, 'error'); } 
-            else { this.showToast('Invoice Saved to Cloud! ☁'); setTimeout(() => { if(confirm("Invoice saved successfully! Would you like to clear the form for a new invoice?")) { this.resetForm(true); } }, 500); }
-        },
-        async loadHistory() {
-            this.showView('history');
-            const { data, error } = await db.from('invoices').select('id, invoice_no, customer_name, total_amount, created_at').order('created_at', { ascending: false }).limit(50);
-            if (error) return this.showToast('Error loading history: ' + error.message, 'error');
-            const listEl = document.getElementById('hist-list');
-            if (data && data.length > 0) { listEl.innerHTML = data.map(inv => `<tr class="border-b border-slate-100 hover:bg-blue-50 transition cursor-pointer" onclick="App.loadInvoiceFromHistory('${inv.id}')"><td class="p-4 sm:p-5 font-bold text-blue-600">#${inv.invoice_no || '—'}</td><td class="p-4 sm:p-5 text-xs text-slate-500 font-bold whitespace-nowrap">${this.formatDate(inv.created_at)}</td><td class="p-4 sm:p-5 font-black uppercase text-slate-800">${inv.customer_name || 'Unspecified'}</td><td class="p-4 sm:p-5 text-right font-black text-blue-900 whitespace-nowrap">$ ${parseFloat(inv.total_amount || 0).toFixed(2)}</td></tr>`).join(''); } 
-            else { listEl.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-400"><div class="font-bold text-lg mb-2">No Invoices Yet</div><p class="text-xs tracking-widest uppercase">Go to the Editor to create one.</p></td></tr>`; }
-        },
-        async loadInvoiceFromHistory(id) {
-            this.setLoading(true, 'Loading Invoice…');
-            const { data, error } = await db.from('invoices').select('invoice_data').eq('id', id).single();
-            this.setLoading(false); if (error) return this.showToast('Error fetching invoice: ' + error.message, 'error');
-            if (!data?.invoice_data) return this.showToast('No data found for this invoice.', 'error');
-            this.populateForm(data.invoice_data); this.showView('editor'); this.showToast(`Loaded invoice #${data.invoice_data.no || '?'}.`); window.scrollTo(0,0);
-        },
-        generatePDF() {
-            const el = document.getElementById('receipt-area'); const invNo = this.dom.fields.no.value || 'Draft';
-            const custName = (this.dom.fields.to.value || 'Customer').replace(/[^a-z0-9]/gi, '_');
-            this.showToast('Generating PDF…', 'success'); window.scrollTo(0, 0); document.body.classList.add('pdf-render-mode');
-            const opt = { margin: 0, filename: `JS_Invoice_${invNo}_${custName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, windowWidth: 800, scrollY: 0, scrollX: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, };
-            html2pdf().set(opt).from(el).save().finally(() => { document.body.classList.remove('pdf-render-mode'); });
-        },
+        async saveToCloud() { const invNo = this.dom.fields.no.value.trim(); const custName = this.dom.fields.to.value.trim(); if (!invNo) { this.dom.fields.no.classList.add('field-error'); this.showToast('Invoice number is required.', 'error'); setTimeout(() => this.dom.fields.no.classList.remove('field-error'), 2500); return; } const saveBtn = document.getElementById('save-btn'); const saveBtnText = document.getElementById('save-btn-text'); saveBtn.disabled = true; saveBtnText.innerHTML = `<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block"></div>`; const data = this.getFormData(); const { error } = await db.from('invoices').insert([{ invoice_no: invNo, customer_name: custName || 'Unspecified', total_amount: parseFloat(this.dom.values.subTotal.innerText) || 0, invoice_data: data, }]); saveBtn.disabled = false; saveBtnText.innerText = 'Save'; if (error) { this.showToast('Database Error: ' + error.message, 'error'); } else { this.showToast('Invoice Saved to Cloud! ☁'); setTimeout(() => { if(confirm("Invoice saved successfully! Would you like to clear the form for a new invoice?")) { this.resetForm(true); } }, 500); } },
+        async loadHistory() { this.showView('history'); const { data, error } = await db.from('invoices').select('id, invoice_no, customer_name, total_amount, created_at').order('created_at', { ascending: false }).limit(50); if (error) return this.showToast('Error loading history: ' + error.message, 'error'); const listEl = document.getElementById('hist-list'); if (data && data.length > 0) { listEl.innerHTML = data.map(inv => `<tr class="border-b border-slate-100 hover:bg-blue-50 transition cursor-pointer" onclick="App.loadInvoiceFromHistory('${inv.id}')"><td class="p-4 sm:p-5 font-bold text-blue-600">#${inv.invoice_no || '—'}</td><td class="p-4 sm:p-5 text-xs text-slate-500 font-bold whitespace-nowrap">${this.formatDate(inv.created_at)}</td><td class="p-4 sm:p-5 font-black uppercase text-slate-800">${inv.customer_name || 'Unspecified'}</td><td class="p-4 sm:p-5 text-right font-black text-blue-900 whitespace-nowrap">$ ${parseFloat(inv.total_amount || 0).toFixed(2)}</td></tr>`).join(''); } else { listEl.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-400"><div class="font-bold text-lg mb-2">No Invoices Yet</div><p class="text-xs tracking-widest uppercase">Go to the Editor to create one.</p></td></tr>`; } },
+        async loadInvoiceFromHistory(id) { this.setLoading(true, 'Loading Invoice…'); const { data, error } = await db.from('invoices').select('invoice_data').eq('id', id).single(); this.setLoading(false); if (error) return this.showToast('Error fetching invoice: ' + error.message, 'error'); if (!data?.invoice_data) return this.showToast('No data found for this invoice.', 'error'); this.populateForm(data.invoice_data); this.showView('editor'); this.showToast(`Loaded invoice #${data.invoice_data.no || '?'}.`); window.scrollTo(0,0); },
+        generatePDF() { const el = document.getElementById('receipt-area'); const invNo = this.dom.fields.no.value || 'Draft'; const custName = (this.dom.fields.to.value || 'Customer').replace(/[^a-z0-9]/gi, '_'); this.showToast('Generating PDF…', 'success'); window.scrollTo(0, 0); document.body.classList.add('pdf-render-mode'); const opt = { margin: 0, filename: `JS_Invoice_${invNo}_${custName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, windowWidth: 800, scrollY: 0, scrollX: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, }; html2pdf().set(opt).from(el).save().finally(() => { document.body.classList.remove('pdf-render-mode'); }); },
     };
 
     window.onload = () => App.init();
