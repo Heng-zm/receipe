@@ -1,3 +1,5 @@
+--- START OF FILE: view.html ---
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -29,6 +31,7 @@
         body.pdf-mode { background: white; }
         body.pdf-mode .no-pdf { display: none; }
         body.pdf-mode .receipt-paper { margin:0; box-shadow:none; }
+        input:read-only { background: transparent !important; cursor: default; } /* CSS Tweak Added */
     </style>
 </head>
 <body>
@@ -112,11 +115,13 @@
             // Load custom fonts if any
             const activeFont = d.active_font || "'Inter', 'Kantumruy Pro', sans-serif";
             const customFonts = d.custom_fonts || [];
-            customFonts.forEach(font => {
-                if (!document.querySelector(`link[href="${font.url}"]`)) {
-                    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = font.url; document.head.appendChild(link);
-                }
-            });
+            if (customFonts.length > 0) {
+                customFonts.forEach(font => {
+                    if (!document.querySelector(`link[href="${font.url}"]`)) {
+                        const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = font.url; document.head.appendChild(link);
+                    }
+                });
+            }
             document.documentElement.style.setProperty('--invoice-font', activeFont);
             
             // Populate Fields
@@ -135,7 +140,11 @@
             document.getElementById('sig-auth-name').value = "សេសសិន ប៊ុន";
             
             // Populate logo
-            if(d.logo) document.getElementById('logo-img').src = d.logo;
+            if(d.logo) {
+                document.getElementById('logo-img').src = d.logo;
+            } else {
+                document.getElementById('logo-container').style.display = 'none'; // Hide if no logo
+            }
 
             // Populate Table
             const rowsContainer = document.getElementById('rows');

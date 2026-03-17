@@ -1,3 +1,5 @@
+--- START OF FILE: index.html ---
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -543,7 +545,7 @@
         },
         applyFont(fontValue, isInitialLoad = false) {
             document.documentElement.style.setProperty('--invoice-font', fontValue);
-            if (!isInitialLoad) { localStorage.setItem('active_font', fontValue); }
+            if (!isInitialLoad) { localStorage.setItem('active_font', fontValue); this.scheduleDraftSave(); }
         },
         importGoogleFont() {
             const url = this.dom.fontUI.urlInput.value.trim();
@@ -579,7 +581,7 @@
         async searchMap() { const query = this.dom.mapInputs.search.value.trim(); if (!query) return; const searchBtn = this.dom.mapInputs.search.nextElementSibling; const originalText = searchBtn.innerText; searchBtn.innerText = '...'; searchBtn.disabled = true; try { const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`); const data = await response.json(); if (data && data.length > 0) { const lat = parseFloat(data[0].lat); const lon = parseFloat(data[0].lon); this.mapInstance.setView([lat, lon], 16); if (this.mapMarker) { this.mapMarker.setLatLng([lat, lon]); } else { this.mapMarker = L.marker([lat, lon]).addTo(this.mapInstance); } this.dom.mapInputs.result.value = data[0].display_name; } else { this.showToast('Location not found', 'error'); } } catch (err) { this.showToast('Search failed', 'error'); } finally { searchBtn.innerText = originalText; searchBtn.disabled = false; } },
         confirmMapSelection() { const selectedAddress = this.dom.mapInputs.result.value.trim(); if (selectedAddress) { this.dom.fields.address.value = selectedAddress; this.scheduleDraftSave(); } this.closeMap(); },
         loadLogo() { const logoBase64 = localStorage.getItem('company_logo'); if (logoBase64) { document.getElementById('logo-placeholder').classList.add('hidden'); const img = document.getElementById('logo-img'); img.src = logoBase64; img.classList.remove('hidden'); } },
-        handleLogoUpload(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { localStorage.setItem('company_logo', event.target.result); this.loadLogo(); this.showToast('Logo Updated successfully!', 'success'); }; reader.readAsDataURL(file); },
+        handleLogoUpload(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { localStorage.setItem('company_logo', event.target.result); this.loadLogo(); this.showToast('Logo Updated successfully!', 'success'); this.scheduleDraftSave(); }; reader.readAsDataURL(file); },
         _populateProductList() { this.PRODUCTS.forEach(product => { const option = document.createElement('option'); option.value = product.desc; this.dom.productList.appendChild(option); }); },
         checkProduct(el) { this.scheduleDraftSave(); const val = el.value; const match = this.PRODUCTS.find(p => p.desc === val); if (match) { const tr = el.closest('tr'); tr.querySelector('.size').value = match.size; tr.querySelector('.unit').value = match.unit.toFixed(2); const qtyBox = tr.querySelector('.qty'); qtyBox.focus(); this.calcRow(qtyBox); } },
         showView(view) { Object.values(this.dom.views).forEach(v => v.classList.add('hidden')); if(this.dom.views[view]) this.dom.views[view].classList.remove('hidden'); Object.values(this.dom.nav).forEach(b => b.classList.remove('active')); if(this.dom.nav[view]) this.dom.nav[view].classList.add('active'); },
@@ -598,7 +600,32 @@
         initTable(rowCount = 9) { this.dom.rowsContainer.innerHTML = ''; for (let i = 0; i < rowCount; i++) this.addRow(false); },
         calcRow(el) { const tr = el.closest('tr'); const qty = parseFloat(tr.querySelector('.qty').value); const unit= parseFloat(tr.querySelector('.unit').value); const amt = tr.querySelector('.amt'); amt.value = (!isNaN(qty) && !isNaN(unit)) ? (qty * unit).toFixed(2) : ''; this.calc(false); },
         calc(scheduleSave = true) { let subTotal = 0; this.dom.rowsContainer.querySelectorAll('.amt').forEach(el => { const v = parseFloat(el.value); if (!isNaN(v)) subTotal += v; }); const deposit = parseFloat(this.dom.fields.deposit.value) || 0; this.dom.values.subTotal.innerText = subTotal.toFixed(2); this.dom.values.balance.innerText = (subTotal - deposit).toFixed(2); if (scheduleSave) this.scheduleDraftSave(); },
-        getFormData() { const data = { no: this.dom.fields.no.value, to: this.dom.fields.to.value, phone: this.dom.fields.phone.value, address: this.dom.fields.address.value, date: this.dom.fields.date.value, dep: this.dom.fields.deposit.value, rows: [] }; this.dom.rowsContainer.querySelectorAll('tr').forEach(tr => { data.rows.push({ desc: tr.querySelector('.desc').value, size: tr.querySelector('.size').value, qty: tr.querySelector('.qty').value, unit: tr.querySelector('.unit').value }); }); return data; },
+        
+        // --- 🔴 BUG FIX APPLIED HERE 🔴 ---
+        getFormData() {
+            const data = {
+                no: this.dom.fields.no.value,
+                to: this.dom.fields.to.value,
+                phone: this.dom.fields.phone.value,
+                address: this.dom.fields.address.value,
+                date: this.dom.fields.date.value,
+                dep: this.dom.fields.deposit.value,
+                logo: localStorage.getItem('company_logo') || null,
+                active_font: localStorage.getItem('active_font') || null,
+                custom_fonts: JSON.parse(localStorage.getItem('custom_fonts') || '[]'),
+                rows: []
+            };
+            this.dom.rowsContainer.querySelectorAll('tr').forEach(tr => {
+                data.rows.push({
+                    desc: tr.querySelector('.desc').value,
+                    size: tr.querySelector('.size').value,
+                    qty: tr.querySelector('.qty').value,
+                    unit: tr.querySelector('.unit').value
+                });
+            });
+            return data;
+        },
+
         resetForm(increment = true) { const currentNo = this.dom.fields.no.value || ''; let nextNo = currentNo; if (increment) { const numMatch = currentNo.match(/(\D*)(\d+)(\D*)$/); if (numMatch) { const prefix = currentNo.slice(0, currentNo.lastIndexOf(numMatch[2])); const numStr = numMatch[2]; nextNo = prefix + String(parseInt(numStr, 10) + 1).padStart(numStr.length, '0'); } } ['to','phone','address'].forEach(k => { this.dom.fields[k].value = ''; }); this.dom.fields.deposit.value = '0.00'; this.dom.fields.no.value = nextNo; this.initTable(); this.calc(false); this.setTodayDate(); this.showView('editor'); localStorage.removeItem('invoice_draft'); this.showToast('Ready for new invoice.', 'success'); window.scrollTo(0,0); },
         saveDraft() { try { localStorage.setItem('invoice_draft', JSON.stringify(this.getFormData())); } catch(e) { console.warn('Draft save failed:', e); } },
         loadDraft() { try { const draftStr = localStorage.getItem('invoice_draft'); if (draftStr) { const data = JSON.parse(draftStr); if (data && typeof data === 'object') { this.populateForm(data); return; } } } catch(e) { console.warn('Corrupt draft cleared:', e); localStorage.removeItem('invoice_draft'); } this.initTable(); this.setTodayDate(); },
