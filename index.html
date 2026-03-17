@@ -2,13 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Optimized viewport to prevent annoying iOS auto-zoom on input focus -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>J&S Advertising - Pro Cloud System</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- 🗺️ Leaflet CSS & JS for OpenStreetMap -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
@@ -75,6 +78,10 @@
         .field-error { border-bottom-color: #ef4444 !important; background-color: #fef2f2 !important; }
         .field-error::placeholder { color: #ef4444; }
 
+        /* ── Map Modal Z-Index fix ── */
+        .leaflet-container { z-index: 10 !important; font-family: 'Inter', sans-serif; }
+        .leaflet-top, .leaflet-bottom { z-index: 400 !important; }
+
         /* ── Print / PDF ── */
         @media print {
             .no-print { display: none !important; }
@@ -86,7 +93,6 @@
             .cell-in[readonly] { background: transparent !important; }
         }
         
-        /* Fixed PDF Render Mode */
         body.pdf-render-mode { background: white; overflow: hidden; }
         body.pdf-render-mode #view-editor { padding: 0 !important; }
         body.pdf-render-mode .receipt-paper {
@@ -103,13 +109,11 @@
             #view-editor { padding: 0; }
             .total-box { width: 100% !important; margin-top: 10px; }
             
-            /* Custom Scrollbar for table on mobile */
             .table-container::-webkit-scrollbar { height: 6px; }
             .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
             .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         }
 
-        /* ── Autosave indicator ── */
         #autosave-dot { width:8px; height:8px; border-radius:50%; background:#64748b; transition: background 0.4s; flex-shrink:0; }
         #autosave-dot.saved { background: #10b981; }
         #autosave-dot.saving { background: #f59e0b; animation: pulse-dot 0.8s infinite; }
@@ -126,14 +130,12 @@
                 <button id="nav-history" onclick="App.loadHistory()" class="nav-btn text-xs font-bold uppercase hover:text-blue-300 transition">History</button>
             </div>
             
-            <!-- Mobile Draft Status (Hidden on desktop) -->
             <div class="flex items-center gap-1.5 sm:hidden ml-auto" title="Draft autosave status">
                 <div id="autosave-dot" class="mobile-dot"></div>
             </div>
         </div>
 
         <div class="flex flex-wrap gap-2 sm:gap-3 items-center justify-end w-full sm:w-auto">
-            <!-- Desktop Draft Status -->
             <div class="hidden sm:flex items-center gap-1.5 mr-2" title="Draft autosave status">
                 <div id="autosave-dot" class="desktop-dot"></div>
                 <span class="text-[10px] text-slate-400 uppercase tracking-wider">Draft</span>
@@ -153,11 +155,12 @@
         </div>
     </nav>
 
-    <!-- ══ Toast & Modals... (Unchanged) ══ -->
+    <!-- ══ Toast ══ -->
     <div id="toast" class="fixed bottom-5 right-5 transform translate-y-20 opacity-0 transition-all duration-300 z-[200] px-6 py-3 rounded-xl font-bold text-white shadow-2xl pointer-events-none flex items-center gap-2">
         <span id="toast-icon"></span> <span id="toast-msg"></span>
     </div>
 
+    <!-- ══ Settings Modal ══ -->
     <div id="settings-modal" class="hidden fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onclick="if(event.target===this)App.toggleSettings()">
         <div class="bg-white p-8 rounded-3xl max-w-md w-full shadow-2xl relative">
             <button onclick="App.toggleSettings()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-800 font-bold text-xl transition">✕</button>
@@ -169,13 +172,7 @@
         </div>
     </div>
 
-    <div id="loader" class="hidden fixed inset-0 bg-slate-900/80 z-[110] flex items-center justify-center text-white text-center backdrop-blur-sm">
-        <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-emerald-400 mx-auto mb-4"></div>
-            <p id="loader-text" class="font-bold uppercase tracking-widest text-xs animate-pulse text-emerald-200">Processing...</p>
-        </div>
-    </div>
-
+    <!-- ══ AI Confirm Modal ══ -->
     <div id="ai-confirm-modal" class="hidden fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white p-8 rounded-3xl max-w-md w-full shadow-2xl text-center">
             <h3 class="font-black text-xl mb-2 text-slate-800">Scan Complete</h3>
@@ -184,6 +181,40 @@
                 <button onclick="App.populateFromAi('overwrite')" class="flex-1 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-bold py-3 rounded-xl transition text-sm">Overwrite</button>
                 <button onclick="App.populateFromAi('append')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition text-sm shadow-md">Append to List</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ══ 🗺️ Map Search Modal ══ -->
+    <div id="map-modal" class="hidden fixed inset-0 bg-slate-900/70 z-[100] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm">
+        <div class="bg-white p-4 sm:p-6 rounded-2xl w-full max-w-3xl shadow-2xl relative flex flex-col h-[85vh] sm:h-[650px]">
+            <button onclick="App.closeMap()" class="absolute -top-3 -right-3 sm:top-4 sm:right-4 text-slate-500 hover:text-slate-900 font-black text-xl z-[500] bg-white rounded-full w-10 h-10 shadow-lg border border-slate-200 flex items-center justify-center transition">✕</button>
+            
+            <h3 class="font-black text-lg text-slate-800 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg>
+                Drop Pin or Search
+            </h3>
+            
+            <div class="flex flex-col sm:flex-row gap-2 mb-4 relative z-[450]">
+                <input type="text" id="map-search-input" class="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-blue-500 font-medium transition" placeholder="Search a place (e.g., Phnom Penh, Aeon Mall)" onkeydown="if(event.key==='Enter') App.searchMap()">
+                <button onclick="App.searchMap()" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-md whitespace-nowrap">Search</button>
+            </div>
+
+            <!-- Leaflet Container -->
+            <div id="map-container" class="flex-1 w-full bg-slate-100 rounded-xl border border-slate-300 overflow-hidden relative z-0"></div>
+            
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-4 mb-1 pl-1">Selected Location:</p>
+            <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center relative z-[450]">
+                <input type="text" id="map-selected-address" class="flex-1 bg-blue-50 border border-blue-200 text-blue-900 rounded-lg px-4 py-3 w-full outline-none focus:border-blue-500 font-bold" placeholder="Tap on the map to drop a pin...">
+                <button onclick="App.confirmMapSelection()" class="w-full sm:w-auto bg-emerald-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-emerald-700 transition shadow-lg whitespace-nowrap text-lg sm:text-base">Use This Address</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ Loader ══ -->
+    <div id="loader" class="hidden fixed inset-0 bg-slate-900/80 z-[600] flex items-center justify-center text-white text-center backdrop-blur-sm">
+        <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-emerald-400 mx-auto mb-4"></div>
+            <p id="loader-text" class="font-bold uppercase tracking-widest text-xs animate-pulse text-emerald-200">Processing...</p>
         </div>
     </div>
 
@@ -248,21 +279,25 @@
                         <span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">Mobile</span>
                         <input type="text" id="f-phone" class="dotted-line text-sm sm:text-base" placeholder="Phone number">
                     </div>
-                    <div class="flex items-end gap-3 min-w-0">
+                    
+                    <!-- 🗺️ Map Trigger in Address Row -->
+                    <div class="flex items-end gap-3 min-w-0 relative group">
                         <span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">Address</span>
-                        <input type="text" id="f-address" class="dotted-line text-sm sm:text-base" placeholder="Address">
+                        <div class="relative flex-grow">
+                            <input type="text" id="f-address" class="dotted-line text-sm sm:text-base w-full pr-8" placeholder="Address">
+                            <button onclick="App.openMap()" class="no-print absolute right-0 bottom-1 text-red-500 hover:text-red-600 transition p-1 bg-white" title="Choose on Map">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Right Column: Invoice Meta -->
                 <div class="w-full sm:w-[320px] flex flex-col mt-4 sm:mt-0">
-                    <!-- Title -->
                     <div class="text-left sm:text-right mb-4 sm:mb-6 border-b-2 border-blue-900 pb-2 w-full">
                         <input type="text" class="edit-txt font-bold text-2xl sm:text-3xl leading-none !text-blue-900 text-left sm:text-right" value="វិក្កយបត្រ">
                         <input type="text" class="edit-txt font-bold text-xs text-slate-400 text-left sm:text-right tracking-[0.4em] uppercase mt-1 sm:mt-2" value="Invoice">
                     </div>
-
-                    <!-- Details Stack -->
                     <div class="w-full space-y-3">
                         <div class="flex items-end justify-between gap-3">
                             <span class="font-bold text-xs uppercase text-slate-400 pb-1">Tel:</span>
@@ -377,6 +412,10 @@
         aiData: null,
         _draftTimer: null,
         _toastTimer: null, 
+        
+        // Leaflet Map properties
+        mapInstance: null,
+        mapMarker: null,
 
         // 📦 Product Database for Autocomplete
         PRODUCTS: [
@@ -407,10 +446,14 @@
                 loader:        document.getElementById('loader'),
                 loaderText:    document.getElementById('loader-text'),
                 toast:         { el: document.getElementById('toast'), icon: document.getElementById('toast-icon'), msg: document.getElementById('toast-msg') },
-                modals:        { settings: document.getElementById('settings-modal'), aiConfirm: document.getElementById('ai-confirm-modal') },
+                modals:        { settings: document.getElementById('settings-modal'), aiConfirm: document.getElementById('ai-confirm-modal'), map: document.getElementById('map-modal') },
                 apiKeyInput:   document.getElementById('api-key-input'),
                 dropZone:      document.getElementById('drop-zone'),
                 productList:   document.getElementById('product-list'),
+                mapInputs: {
+                    search: document.getElementById('map-search-input'),
+                    result: document.getElementById('map-selected-address')
+                }
             };
 
             this._setupEventListeners();
@@ -474,6 +517,117 @@
             });
         },
 
+        // 🗺️ MAP LOGIC (Leaflet + OpenStreetMap)
+        openMap() {
+            this.dom.modals.map.classList.remove('hidden');
+            
+            // If we already have an address typed in, put it in the map result box
+            if(this.dom.fields.address.value) {
+                this.dom.mapInputs.result.value = this.dom.fields.address.value;
+            }
+
+            // Initialize map only once
+            if (!this.mapInstance) {
+                // Default center: Phnom Penh
+                this.mapInstance = L.map('map-container').setView([11.5564, 104.9282], 13);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap'
+                }).addTo(this.mapInstance);
+
+                this.mapInstance.on('click', (e) => this.onMapClick(e));
+            }
+
+            // Fix for Leaflet rendering inside a hidden div
+            setTimeout(() => {
+                this.mapInstance.invalidateSize();
+                this.dom.mapInputs.search.focus();
+            }, 100);
+        },
+
+        closeMap() {
+            this.dom.modals.map.classList.add('hidden');
+        },
+
+        onMapClick(e) {
+            const { lat, lng } = e.latlng;
+            
+            // Move or create marker
+            if (this.mapMarker) {
+                this.mapMarker.setLatLng([lat, lng]);
+            } else {
+                this.mapMarker = L.marker([lat, lng]).addTo(this.mapInstance);
+            }
+            
+            // Reverse Geocode to get address name
+            this.reverseGeocode(lat, lng);
+        },
+
+        async reverseGeocode(lat, lng) {
+            this.dom.mapInputs.result.placeholder = "Loading address...";
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+                const data = await response.json();
+                if (data && data.display_name) {
+                    this.dom.mapInputs.result.value = data.display_name;
+                } else {
+                    this.dom.mapInputs.result.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                }
+            } catch (err) {
+                console.error(err);
+                this.dom.mapInputs.result.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            }
+        },
+
+        async searchMap() {
+            const query = this.dom.mapInputs.search.value.trim();
+            if (!query) return;
+
+            const searchBtn = this.dom.mapInputs.search.nextElementSibling;
+            const originalText = searchBtn.innerText;
+            searchBtn.innerText = '...';
+            searchBtn.disabled = true;
+
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lon = parseFloat(data[0].lon);
+                    
+                    // Move map
+                    this.mapInstance.setView([lat, lon], 16);
+                    
+                    // Set marker
+                    if (this.mapMarker) {
+                        this.mapMarker.setLatLng([lat, lon]);
+                    } else {
+                        this.mapMarker = L.marker([lat, lon]).addTo(this.mapInstance);
+                    }
+                    
+                    this.dom.mapInputs.result.value = data[0].display_name;
+                } else {
+                    this.showToast('Location not found', 'error');
+                }
+            } catch (err) {
+                this.showToast('Search failed', 'error');
+            } finally {
+                searchBtn.innerText = originalText;
+                searchBtn.disabled = false;
+            }
+        },
+
+        confirmMapSelection() {
+            const selectedAddress = this.dom.mapInputs.result.value.trim();
+            if (selectedAddress) {
+                this.dom.fields.address.value = selectedAddress;
+                this.scheduleDraftSave();
+            }
+            this.closeMap();
+        },
+
         // 🖼️ Logo Handlers
         loadLogo() {
             const logoBase64 = localStorage.getItem('company_logo');
@@ -518,11 +672,8 @@
                 tr.querySelector('.size').value = match.size;
                 tr.querySelector('.unit').value = match.unit.toFixed(2);
                 
-                // Focus Qty box immediately for fast entry
                 const qtyBox = tr.querySelector('.qty');
                 qtyBox.focus();
-                
-                // Trigger calculation update
                 this.calcRow(qtyBox);
             }
         },
@@ -536,14 +687,11 @@
 
         showToast(msg, type = 'success') {
             const { el, icon, msg: msgEl } = this.dom.toast;
-            
             if(this._toastTimer) clearTimeout(this._toastTimer);
-            
-            el.className = `fixed bottom-5 right-5 transform transition-all duration-300 z-[200] px-6 py-3 rounded-xl font-bold text-white shadow-2xl flex items-center gap-2 ${type === 'error' ? 'bg-red-500' : 'bg-emerald-500'}`;
+            el.className = `fixed bottom-5 right-5 transform transition-all duration-300 z-[800] px-6 py-3 rounded-xl font-bold text-white shadow-2xl flex items-center gap-2 ${type === 'error' ? 'bg-red-500' : 'bg-emerald-500'}`;
             icon.innerHTML = type === 'error' ? '✕' : '✓';
             msgEl.innerText = msg;
             el.classList.remove('translate-y-20', 'opacity-0');
-            
             this._toastTimer = setTimeout(() => el.classList.add('translate-y-20', 'opacity-0'), 4000);
         },
 
