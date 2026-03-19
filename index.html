@@ -1,643 +1,594 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>J&S Advertising - Pro Cloud System</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WalkieTalk</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f12;
+    --panel: #13171e;
+    --border: #1e2530;
+    --green: #00e676;
+    --green-dim: #00e67622;
+    --green-mid: #00e67644;
+    --red: #ff3d57;
+    --red-dim: #ff3d5722;
+    --amber: #ffb300;
+    --text: #c8d6e0;
+    --muted: #4a5a6a;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Barlow', sans-serif;
+  }
 
-    <!-- 🗺️ Leaflet CSS & JS for OpenStreetMap -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    <!-- 🎨 Pre-loaded Default Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;700&family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Noto+Serif:wght@400;700&family=Battambang:wght@400;700&display=swap" rel="stylesheet">
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
 
-    <style>
-        :root { 
-            --js-blue: #004a99; 
-            --js-bg: #e3f2fd;
-            /* 🎨 Font Variable - JS will update this! */
-            --invoice-font: 'Inter', 'Kantumruy Pro', sans-serif;
-        }
-        body { font-family: 'Inter', 'Kantumruy Pro', sans-serif; background: #f1f5f9; overflow-x: hidden; }
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.07) 2px,
+      rgba(0,0,0,0.07) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
 
-        /* Apply the custom font to the receipt paper */
-        .receipt-paper {
-            font-family: var(--invoice-font);
-            width: 100%; max-width: 210mm; min-height: 148mm; background: white; margin: 20px auto;
-            padding: 40px; color: var(--js-blue); position: relative;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.08); border-radius: 8px; transition: all 0.3s;
-        }
-        
-        .edit-txt {
-            border: none; background: transparent; outline: none; width: 100%;
-            color: inherit; font-weight: inherit; font-family: inherit; text-align: inherit;
-            border-radius: 4px; transition: background 0.2s; display: block;
-        }
-        .edit-txt:hover, .edit-txt:focus { background: #f8fafc; }
-        .dotted-line {
-            border: none; border-bottom: 1.5px dotted #94a3b8; outline: none; flex-grow: 1;
-            padding: 2px 5px; color: black; font-weight: 600; background: transparent; transition: 0.2s;
-            min-width: 0; 
-        }
-        .dotted-line:focus { border-bottom-color: var(--js-blue); background: #f8fafc; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 650px; }
-        tbody tr { transition: background-color 0.1s ease-in-out; }
-        tbody tr:focus-within { background-color: #f0fdf4; }
-        th {
-            background: #eef5f9; border: 1.5px solid var(--js-blue); padding: 8px 6px;
-            font-weight: bold; font-size: 13px; text-transform: uppercase; color: var(--js-blue);
-        }
-        td { border: 1.5px solid var(--js-blue); height: 38px; position: relative; padding: 0;}
-        .cell-in {
-            width: 100%; height: 100%; border: none; outline: none; background: transparent;
-            padding: 8px; color: black; font-size: 14px; transition: background 0.2s;
-        }
-        .cell-in:focus { background: #f8fafc; }
-        .cell-in[readonly] { background: #f8fafc; color: #333; cursor: default; }
-        
-        .delete-row-btn {
-            background: #fee2e2; color: #dc2626; border: none; cursor: pointer;
-            opacity: 0.3; transition: all 0.2s; width: 26px; height: 26px; border-radius: 99px;
-            font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center;
-            margin: 0 auto;
-        }
-        tr:hover .delete-row-btn { opacity: 1; }
-        .delete-row-btn:hover { background: #dc2626; color: white; opacity: 1; }
+  .device {
+    width: 340px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 28px 24px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+    box-shadow: 0 0 60px rgba(0,230,118,0.04), 0 24px 60px rgba(0,0,0,0.6);
+  }
 
-        .total-box { border: 1.5px solid var(--js-blue); border-radius: 4px; overflow: hidden; }
-        .total-row { display: flex; border-bottom: 1.5px solid var(--js-blue); background: white; }
-        .total-row:last-child { border-bottom: none; background: #eef5f9; }
-        .total-lbl { background: #eef5f9; width: 110px; padding: 8px; font-weight: bold; border-right: 1.5px solid var(--js-blue); font-size: 12px; }
-        .total-val { flex: 1; text-align: right; padding: 8px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+  /* Top grill detail */
+  .grill {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    margin-bottom: -4px;
+  }
+  .grill span {
+    width: 28px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+  }
 
-        .nav-btn.active { color: #38bdf8; border-bottom: 2px solid #38bdf8; padding-bottom: 4px; }
-        .field-error { border-bottom-color: #ef4444 !important; background-color: #fef2f2 !important; }
-        .field-error::placeholder { color: #ef4444; }
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .brand {
+    font-family: var(--mono);
+    font-size: 18px;
+    color: var(--green);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .signal-bars {
+    display: flex;
+    gap: 3px;
+    align-items: flex-end;
+    height: 18px;
+  }
+  .signal-bars span {
+    width: 5px;
+    background: var(--muted);
+    border-radius: 2px;
+    transition: background 0.3s;
+  }
+  .signal-bars span:nth-child(1) { height: 5px; }
+  .signal-bars span:nth-child(2) { height: 9px; }
+  .signal-bars span:nth-child(3) { height: 13px; }
+  .signal-bars span:nth-child(4) { height: 18px; }
+  .signal-bars.connected span { background: var(--green); }
+  .signal-bars.connected span:nth-child(4) { background: var(--muted); }
 
-        .leaflet-container { z-index: 10 !important; font-family: 'Inter', sans-serif; }
-        .leaflet-top, .leaflet-bottom { z-index: 400 !important; }
+  /* Display screen */
+  .screen {
+    background: #080b0e;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+    overflow: hidden;
+  }
+  .screen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0,230,118,0.03) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .screen-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .screen-label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .screen-value { color: var(--green); font-size: 13px; }
+  .screen-value.amber { color: var(--amber); }
+  .screen-value.red { color: var(--red); }
+  .screen-divider { height: 1px; background: var(--border); }
 
-        @media print {
-            .no-print { display: none !important; }
-            body { background: white; padding: 0; overflow: visible; }
-            .receipt-paper { box-shadow: none; margin: 0; padding: 0; width: 100%; max-width: none; border-radius: 0; }
-            input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-            .dotted-line { border-bottom: 1px dotted #333 !important; }
-            .edit-txt:hover, .edit-txt:focus, .cell-in:focus { background: transparent !important; }
-            .cell-in[readonly] { background: transparent !important; }
-        }
-        
-        body.pdf-render-mode { background: white; overflow: hidden; }
-        body.pdf-render-mode #view-editor { padding: 0 !important; }
-        body.pdf-render-mode .receipt-paper {
-            margin: 0 !important; padding: 40px !important; width: 800px !important; max-width: 800px !important;
-            box-shadow: none !important; border-radius: 0 !important; position: relative !important; left: 0 !important; top: 0 !important;
-        }
-        body.pdf-render-mode .dotted-line { border-bottom: 1px dotted #777 !important; background: transparent !important; }
-        body.pdf-render-mode .edit-txt, body.pdf-render-mode .cell-in { background: transparent !important; box-shadow: none !important; }
-        body.pdf-render-mode .no-print { display: none !important; }
+  /* Status log */
+  .log {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-family: var(--mono);
+    min-height: 14px;
+    transition: color 0.3s;
+  }
+  .log.ok { color: var(--green); }
+  .log.warn { color: var(--amber); }
+  .log.err { color: var(--red); }
 
-        @media (max-width: 640px) {
-            .receipt-paper { padding: 16px; margin: 10px 0; border-radius: 0; }
-            #view-editor { padding: 0; }
-            .total-box { width: 100% !important; margin-top: 10px; }
-            
-            .table-container::-webkit-scrollbar { height: 6px; }
-            .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
-            .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        }
+  /* Room input row */
+  .input-row {
+    display: flex;
+    gap: 8px;
+  }
+  .room-input {
+    flex: 1;
+    background: #080b0e;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    letter-spacing: 1px;
+  }
+  .room-input::placeholder { color: var(--muted); }
+  .room-input:focus { border-color: var(--green); }
 
-        #autosave-dot { width:8px; height:8px; border-radius:50%; background:#64748b; transition: background 0.4s; flex-shrink:0; }
-        #autosave-dot.saved { background: #10b981; }
-        #autosave-dot.saving { background: #f59e0b; animation: pulse-dot 0.8s infinite; }
-        @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
-    </style>
+  .join-btn {
+    background: var(--green-dim);
+    border: 1px solid var(--green);
+    border-radius: 8px;
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 10px 14px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: background 0.2s;
+  }
+  .join-btn:hover { background: var(--green-mid); }
+  .join-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* PTT Button */
+  .ptt-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .ptt-ring {
+    width: 148px;
+    height: 148px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s;
+    position: relative;
+  }
+  .ptt-ring::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .ptt-ring.active { border-color: var(--red); }
+  .ptt-ring.active::before {
+    border-color: var(--red);
+    box-shadow: 0 0 24px var(--red-dim);
+    animation: pulse-ring 1s ease-in-out infinite;
+  }
+  .ptt-ring.ready { border-color: var(--green); }
+
+  @keyframes pulse-ring {
+    0%, 100% { box-shadow: 0 0 20px var(--red-dim); }
+    50% { box-shadow: 0 0 40px rgba(255,61,87,0.35); }
+  }
+
+  .ptt-btn {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: none;
+    background: #0d1117;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.15s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+  }
+  .ptt-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .ptt-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--green-dim);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .ptt-btn.ready::before { opacity: 1; }
+  .ptt-btn.active { background: rgba(255,61,87,0.12); transform: scale(0.97); }
+  .ptt-btn.active::before { opacity: 0; }
+
+  .ptt-icon {
+    width: 32px;
+    height: 32px;
+    position: relative;
+    z-index: 1;
+  }
+  .ptt-icon circle { transition: fill 0.2s; }
+  .ptt-icon path { transition: stroke 0.2s; }
+
+  .ptt-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    position: relative;
+    z-index: 1;
+    transition: color 0.2s;
+  }
+  .ptt-btn.ready .ptt-label { color: var(--green); }
+  .ptt-btn.active .ptt-label { color: var(--red); }
+
+  /* Volume indicator */
+  .vol-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .vol-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--green);
+    border-radius: 2px;
+    transition: width 0.05s;
+  }
+  .vol-fill.active { background: var(--red); }
+
+  /* Bottom grill */
+  .grill-bottom {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+    margin-top: -4px;
+  }
+  .grill-bottom span {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+  }
+
+  /* Blink animation for TX */
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  .blink { animation: blink 0.6s step-start infinite; }
+</style>
 </head>
 <body>
-    <!-- ══ Navigation ══ -->
-    <nav class="no-print bg-slate-900 text-white p-3 sm:p-4 sticky top-0 z-50 shadow-xl flex flex-col sm:flex-row justify-between gap-3">
-        <div class="flex items-center justify-between sm:justify-start gap-4 sm:gap-6 w-full sm:w-auto">
-            <span class="text-xl font-black text-blue-400 italic tracking-wider">J&S <span class="hidden sm:inline">PRO</span></span>
-            <div class="flex gap-4">
-                <button id="nav-editor" onclick="App.showView('editor')" class="nav-btn text-xs font-bold uppercase hover:text-blue-300 transition">Editor</button>
-                <button id="nav-history" onclick="App.loadHistory()" class="nav-btn text-xs font-bold uppercase hover:text-blue-300 transition">History</button>
-            </div>
-            
-            <div class="flex items-center gap-1.5 sm:hidden ml-auto" title="Draft autosave status">
-                <div id="autosave-dot" class="mobile-dot"></div>
-            </div>
-        </div>
 
-        <div class="flex flex-wrap gap-2 sm:gap-3 items-center justify-end w-full sm:w-auto">
-            <div class="hidden sm:flex items-center gap-1.5 mr-2" title="Draft autosave status">
-                <div id="autosave-dot" class="desktop-dot"></div>
-                <span class="text-[10px] text-slate-400 uppercase tracking-wider">Draft</span>
-            </div>
-            <button onclick="App.resetForm()" class="text-xs font-bold uppercase text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1 px-2 py-1">
-                <svg class="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg> New
-            </button>
-            
-            <button onclick="App.toggleFontModal()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded transition border border-slate-700" title="Appearance Settings">🎨</button>
-            <button onclick="App.toggleSettings()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded transition border border-slate-700" title="AI Settings">⚙️</button>
-            
-            <button onclick="App.shareInvoice()" class="flex-1 sm:flex-none justify-center bg-indigo-600 hover:bg-indigo-500 px-3 sm:px-5 py-2 rounded font-bold text-xs uppercase transition active:scale-95 shadow-lg flex items-center gap-2">
-                <svg class="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342a8.985 8.985 0 00-2.386 5.174 8.985 8.985 0 001.272 6.075M8.684 13.342V11.25a2.25 2.25 0 012.25-2.25h2.25a2.25 2.25 0 012.25 2.25v2.092m-10.5 0a2.25 2.25 0 002.25 2.25h5.25a2.25 2.25 0 002.25-2.25m-10.5 0a2.25 2.25 0 012.25-2.25h5.25a2.25 2.25 0 012.25 2.25m0 0v2.092a2.25 2.25 0 002.25 2.25h2.25a2.25 2.25 0 002.25-2.25v-5.25a2.25 2.25 0 00-2.25-2.25h-2.25a2.25 2.25 0 00-2.25 2.25v2.092"></path></svg>
-                Share
-            </button>
-            <button id="save-btn" onclick="App.saveToCloud()" class="flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-500 px-3 sm:px-5 py-2 rounded font-bold text-xs uppercase transition active:scale-95 shadow-lg flex items-center gap-2">
-                <svg class="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 002-2v-4M17 8l-5-5-5 5M12 3v12"></path></svg>
-                <span id="save-btn-text">Save</span>
-            </button>
-            <button onclick="App.generatePDF()" class="flex-1 sm:flex-none justify-center bg-emerald-600 hover:bg-emerald-500 px-3 sm:px-5 py-2 rounded font-bold text-xs uppercase text-white transition active:scale-95 shadow-lg flex items-center gap-2">
-                <svg class="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                PDF
-            </button>
-        </div>
-    </nav>
+<div class="device">
+  <div class="grill">
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
 
-    <!-- ══ Toasts & Modals... ══ -->
-    <div id="toast" class="fixed bottom-5 right-5 transform translate-y-20 opacity-0 transition-all duration-300 z-[200] px-6 py-3 rounded-xl font-bold text-white shadow-2xl pointer-events-none flex items-center gap-2">
-        <span id="toast-icon"></span> <span id="toast-msg"></span>
+  <div class="header">
+    <div class="brand">WT-01</div>
+    <div class="signal-bars" id="signalBars">
+      <span></span><span></span><span></span><span></span>
     </div>
+  </div>
 
-    <!-- 🔗 Share Modal -->
-    <div id="share-modal" class="hidden fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onclick="if(event.target===this)App.toggleShareModal()">
-        <div class="bg-white p-8 rounded-3xl max-w-lg w-full shadow-2xl relative">
-            <button onclick="App.toggleShareModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-800 font-bold text-xl transition">✕</button>
-            <h3 class="font-black text-xl mb-6 text-slate-800">Share Public Link</h3>
-            <p class="text-sm text-slate-500 mb-4">Anyone with this link can view a read-only version of the invoice.</p>
-            <div class="flex gap-2">
-                <input type="text" id="share-link-input" readonly class="flex-1 w-full p-4 bg-slate-100 text-blue-800 font-mono text-sm rounded-xl outline-none border-2 border-slate-200">
-                <button onclick="App.copyShareLink()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 rounded-xl font-bold transition">Copy</button>
-            </div>
-        </div>
+  <div class="screen">
+    <div class="screen-row">
+      <span class="screen-label">Channel</span>
+      <span class="screen-value" id="screenChannel">---</span>
     </div>
-
-    <!-- 🎨 Font Settings Modal -->
-    <div id="font-modal" class="hidden fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onclick="if(event.target===this)App.toggleFontModal()">
-        <div class="bg-white p-8 rounded-3xl max-w-lg w-full shadow-2xl relative">
-            <button onclick="App.toggleFontModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-800 font-bold text-xl transition">✕</button>
-            <h3 class="font-black text-xl mb-6 text-slate-800">Invoice Appearance</h3>
-
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select Invoice Font</label>
-            <select id="font-select" onchange="App.applyFont(this.value)" class="w-full p-4 bg-slate-50 rounded-xl mt-2 outline-none border-2 border-slate-200 focus:border-blue-500 transition font-medium"></select>
-
-            <h4 class="font-bold text-slate-800 mt-8 mb-4">Import New Font</h4>
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Paste Google Fonts URL</label>
-            <div class="flex gap-2 mt-2">
-                <input type="text" id="google-font-url" class="flex-1 w-full p-4 bg-slate-50 rounded-xl outline-none border-2 border-slate-200 focus:border-green-500 transition" placeholder="https://fonts.googleapis.com/css2?family=...">
-                <button onclick="App.importGoogleFont()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 rounded-xl font-bold transition shadow-lg shadow-emerald-200">Import</button>
-            </div>
-
-            <h4 class="font-bold text-slate-800 mt-8 mb-2">Imported Fonts</h4>
-            <div id="imported-fonts-list" class="text-sm text-slate-600 space-y-2"></div>
-        </div>
+    <div class="screen-divider"></div>
+    <div class="screen-row">
+      <span class="screen-label">Status</span>
+      <span class="screen-value amber" id="screenStatus">STANDBY</span>
     </div>
-
-    <div id="settings-modal" class="hidden fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onclick="if(event.target===this)App.toggleSettings()">
-        <div class="bg-white p-8 rounded-3xl max-w-md w-full shadow-2xl relative">
-            <button onclick="App.toggleSettings()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-800 font-bold text-xl transition">✕</button>
-            <h3 class="font-black text-xl mb-6 text-slate-800">OpenAI API Settings</h3>
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">OpenAI Secret Key (sk-...)</label>
-            <input type="password" id="api-key-input" class="w-full p-4 bg-slate-50 rounded-xl mt-2 outline-none border-2 border-slate-200 focus:border-green-500 transition" placeholder="Enter your secret key here">
-            <button onclick="App.saveSettings()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl mt-6 font-bold transition shadow-lg shadow-emerald-200">Save Securely</button>
-            <p class="text-xs text-slate-400 mt-4 text-center">Your key is stored securely in your browser's local storage.</p>
-        </div>
+    <div class="screen-row">
+      <span class="screen-label">Peer</span>
+      <span class="screen-value" id="screenPeer" style="font-size:10px;color:var(--muted)">waiting...</span>
     </div>
-    
-    <div id="ai-confirm-modal" class="hidden fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white p-8 rounded-3xl max-w-md w-full shadow-2xl text-center">
-            <h3 class="font-black text-xl mb-2 text-slate-800">Scan Complete</h3>
-            <p class="text-slate-500 mb-6 text-sm">How would you like to apply the extracted items?</p>
-            <div class="flex gap-4">
-                <button onclick="App.populateFromAi('overwrite')" class="flex-1 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-bold py-3 rounded-xl transition text-sm">Overwrite</button>
-                <button onclick="App.populateFromAi('append')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition text-sm shadow-md">Append to List</button>
-            </div>
-        </div>
+    <div class="log" id="logLine">Ready to connect</div>
+  </div>
+
+  <div class="input-row">
+    <input class="room-input" id="roomInput" placeholder="CHANNEL-01" maxlength="20" />
+    <button class="join-btn" id="joinBtn">JOIN</button>
+  </div>
+
+  <div class="ptt-wrap">
+    <div class="ptt-ring" id="pttRing">
+      <button class="ptt-btn" id="pttBtn" disabled>
+        <svg class="ptt-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle id="micCircle" cx="16" cy="16" r="15" fill="#1a2030"/>
+          <rect x="12" y="8" width="8" height="12" rx="4" fill="none" stroke="#4a5a6a" stroke-width="1.5" id="micBody"/>
+          <path d="M10 18c0 3.3 2.7 6 6 6s6-2.7 6-6" stroke="#4a5a6a" stroke-width="1.5" stroke-linecap="round" fill="none" id="micArc"/>
+          <line x1="16" y1="24" x2="16" y2="27" stroke="#4a5a6a" stroke-width="1.5" stroke-linecap="round" id="micStand"/>
+          <line x1="13" y1="27" x2="19" y2="27" stroke="#4a5a6a" stroke-width="1.5" stroke-linecap="round" id="micBase"/>
+        </svg>
+        <span class="ptt-label" id="pttLabel">PTT</span>
+      </button>
     </div>
+    <div class="vol-bar"><div class="vol-fill" id="volFill"></div></div>
+  </div>
 
-    <div id="map-modal" class="hidden fixed inset-0 bg-slate-900/70 z-[100] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm">
-        <div class="bg-white p-4 sm:p-6 rounded-2xl w-full max-w-3xl shadow-2xl relative flex flex-col h-[85vh] sm:h-[650px]">
-            <button onclick="App.closeMap()" class="absolute -top-3 -right-3 sm:top-4 sm:right-4 text-slate-500 hover:text-slate-900 font-black text-xl z-[500] bg-white rounded-full w-10 h-10 shadow-lg border border-slate-200 flex items-center justify-center transition">✕</button>
-            
-            <h3 class="font-black text-lg text-slate-800 mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg>
-                Drop Pin or Search
-            </h3>
-            
-            <div class="flex flex-col sm:flex-row gap-2 mb-4 relative z-[450]">
-                <input type="text" id="map-search-input" class="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-blue-500 font-medium transition" placeholder="Search a place (e.g., Phnom Penh, Aeon Mall)" onkeydown="if(event.key==='Enter') App.searchMap()">
-                <button onclick="App.searchMap()" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-md whitespace-nowrap">Search</button>
-            </div>
+  <div class="grill-bottom">
+    <span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span>
+  </div>
+</div>
 
-            <div id="map-container" class="flex-1 w-full bg-slate-100 rounded-xl border border-slate-300 overflow-hidden relative z-0"></div>
-            
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-4 mb-1 pl-1">Selected Location:</p>
-            <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center relative z-[450]">
-                <input type="text" id="map-selected-address" class="flex-1 bg-blue-50 border border-blue-200 text-blue-900 rounded-lg px-4 py-3 w-full outline-none focus:border-blue-500 font-bold" placeholder="Tap on the map to drop a pin...">
-                <button onclick="App.confirmMapSelection()" class="w-full sm:w-auto bg-emerald-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-emerald-700 transition shadow-lg whitespace-nowrap text-lg sm:text-base">Use This Address</button>
-            </div>
-        </div>
-    </div>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+const SERVER_URL = 'https://wearied-francisco-abortedly.ngrok-free.dev';  // ← this number
 
-    <div id="loader" class="hidden fixed inset-0 bg-slate-900/80 z-[600] flex items-center justify-center text-white text-center backdrop-blur-sm">
-        <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-emerald-400 mx-auto mb-4"></div>
-            <p id="loader-text" class="font-bold uppercase tracking-widest text-xs animate-pulse text-emerald-200">Processing...</p>
-        </div>
-    </div>
+const socket = io(SERVER_URL, { transports: ['websocket'] });
 
-    <!-- ══ Editor View ══ -->
-    <div id="view-editor" class="pb-20 px-0 sm:px-4 max-w-5xl mx-auto">
-        
-        <div id="drop-zone"
-            class="no-print mx-4 sm:mx-auto mt-6 p-6 sm:p-8 bg-white border-2 border-dashed border-slate-300 rounded-2xl sm:rounded-3xl text-center shadow-sm transition hover:border-emerald-400 hover:bg-emerald-50 cursor-pointer"
-            onclick="document.getElementById('imageInput').click()">
-            <p class="text-slate-400 font-bold mb-3 uppercase text-[10px] sm:text-[11px] tracking-widest italic flex items-center justify-center gap-2">
-                <svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
-                OpenAI Vision Recognition
-            </p>
-            <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="App.handleImageUpload(event)">
-            <div class="bg-slate-900 text-white px-4 sm:px-10 py-3 rounded-xl font-bold uppercase text-xs shadow-xl inline-flex items-center gap-2 pointer-events-none">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                Click or Drop Receipt Photo
-            </div>
-        </div>
+let pc = null;
+let localStream = null;
+let peerId = null;
+let audioCtx = null;
+let analyser = null;
+let volInterval = null;
 
-        <div id="receipt-area" class="receipt-paper">
-            
-            <div class="flex flex-col sm:flex-row justify-between items-center border-b-2 border-[#004a99] pb-4 mb-8 gap-4 sm:gap-0">
-                
-                <div id="logo-container" class="relative group cursor-pointer w-[80px] h-[80px] flex-shrink-0 flex items-center justify-center border border-transparent hover:border-dashed hover:border-slate-300 rounded transition overflow-hidden bg-white shadow-sm" onclick="document.getElementById('logoInputHidden').click()" title="Click to upload Logo">
-                    <div id="logo-placeholder" class="bg-[#004a99] text-white p-2 font-bold text-center w-full h-full flex flex-col justify-center items-center rounded">
-                        <span class="text-xl">JS</span>
-                        <span class="text-[8px] uppercase tracking-tighter opacity-90">Advertising</span>
-                    </div>
-                    <img id="logo-img" class="hidden w-full h-full object-contain bg-white">
-                    <div class="absolute inset-0 bg-black/60 text-white text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition no-print uppercase tracking-wider backdrop-blur-sm rounded">Edit Logo</div>
-                </div>
-                <input type="file" id="logoInputHidden" accept="image/*" class="hidden" onchange="App.handleLogoUpload(event)">
+// UI refs
+const roomInput = document.getElementById('roomInput');
+const joinBtn = document.getElementById('joinBtn');
+const pttBtn = document.getElementById('pttBtn');
+const pttRing = document.getElementById('pttRing');
+const pttLabel = document.getElementById('pttLabel');
+const logLine = document.getElementById('logLine');
+const screenChannel = document.getElementById('screenChannel');
+const screenStatus = document.getElementById('screenStatus');
+const screenPeer = document.getElementById('screenPeer');
+const signalBars = document.getElementById('signalBars');
+const volFill = document.getElementById('volFill');
+const micBody = document.getElementById('micBody');
+const micArc = document.getElementById('micArc');
+const micStand = document.getElementById('micStand');
+const micBase = document.getElementById('micBase');
 
-                <div class="text-center px-2 flex-1 w-full">
-                    <input type="text" class="edit-txt text-xl sm:text-2xl font-bold text-center" value="ជេ អែន អេស អ៊ែដវើថាយស៊ីង">
-                    <input type="text" class="edit-txt text-base sm:text-lg font-bold uppercase tracking-[0.1em] text-center" value="J&S Advertising">
-                    <input type="text" class="edit-txt text-[10px] font-bold text-slate-500 mt-1 text-center" value="ភូមីថ្មី សង្កាត់ដង្កោ ខណ្ឌដង្កោ ភ្នំពេញ">
-                </div>
+function setLog(msg, type = '') {
+  logLine.textContent = msg;
+  logLine.className = 'log ' + type;
+}
 
-                <div class="hidden sm:block w-[80px]"></div>
-            </div>
+function setStatus(text, color) {
+  screenStatus.textContent = text;
+  screenStatus.style.color = color || 'var(--amber)';
+}
 
-            <div class="w-full mb-8">
-                
-                <div class="flex justify-center mb-8">
-                    <div class="text-center inline-flex flex-col items-center">
-                        <input type="text" class="edit-txt font-bold text-3xl leading-none italic !text-blue-900 text-center pb-2" value="វិក្កយបត្រ">
-                        <p class="text-[11px] border-t-2 border-blue-900 pt-1 px-8 font-bold uppercase tracking-[0.25em] text-blue-900">Invoice</p>
-                    </div>
-                </div>
+function setMicColor(color) {
+  [micBody, micArc, micStand, micBase].forEach(el => el.setAttribute('stroke', color));
+}
 
-                <div class="flex flex-col sm:flex-row justify-between gap-6 sm:gap-8">
-                    
-                    <div class="flex-1 space-y-4">
-                        <div class="flex items-end gap-3 min-w-0">
-                            <span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">To</span>
-                            <input type="text" id="f-to" class="dotted-line text-base sm:text-lg !text-blue-900 font-bold" placeholder="Customer Name">
-                        </div>
-                        <div class="flex items-end gap-3 min-w-0">
-                            <span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">Mobile</span>
-                            <input type="text" id="f-phone" class="dotted-line text-sm sm:text-base" placeholder="Phone number">
-                        </div>
-                        
-                        <div class="flex items-end gap-3 min-w-0 relative group">
-                            <span class="font-bold text-xs uppercase text-slate-400 flex-shrink-0 w-16 pb-1">Address</span>
-                            <div class="relative flex-grow">
-                                <input type="text" id="f-address" class="dotted-line text-sm sm:text-base w-full pr-8" placeholder="Address">
-                                <button onclick="App.openMap()" class="no-print absolute right-0 bottom-1 text-red-500 hover:text-red-600 transition p-1 bg-white" title="Choose on Map">
-                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+// Socket events
+socket.on('connect', () => {
+  setLog('Server connected', 'ok');
+  signalBars.classList.add('connected');
+});
 
-                    <div class="w-full sm:w-[320px] flex flex-col justify-end mt-4 sm:mt-0 space-y-3">
-                        <div class="flex items-end justify-between gap-3">
-                            <span class="font-bold text-xs uppercase text-slate-400 pb-1">Tel:</span>
-                            <input type="text" class="dotted-line text-right font-bold !text-slate-700 w-36 sm:w-36 flex-none" value="098 28 29 93">
-                        </div>
-                        <div class="flex items-end justify-between gap-3">
-                            <span class="font-black text-sm uppercase text-red-600 pb-1">No.</span>
-                            <input type="text" id="f-no" class="dotted-line text-right font-black text-lg sm:text-xl !text-red-600 w-36 sm:w-36 flex-none" value="000107">
-                        </div>
-                        <div class="flex items-end justify-between gap-3">
-                            <span class="font-bold text-xs uppercase text-slate-400 pb-1">Date:</span>
-                            <input type="text" id="f-date" class="dotted-line text-right font-bold !text-blue-900 w-36 sm:w-36 flex-none" placeholder="DD / MM / YYYY">
-                        </div>
-                    </div>
-                </div>
-            </div>
+socket.on('disconnect', () => {
+  setLog('Server disconnected', 'err');
+  signalBars.classList.remove('connected');
+  setStatus('OFFLINE', 'var(--red)');
+});
 
-            <datalist id="product-list"></datalist>
+socket.on('peer-joined', id => {
+  peerId = id;
+  screenPeer.textContent = id.slice(0, 8) + '...';
+  screenPeer.style.color = 'var(--green)';
+  setStatus('LINKED', 'var(--green)');
+  setLog('Peer connected — channel open', 'ok');
+  pttBtn.disabled = false;
+  pttBtn.classList.add('ready');
+  pttRing.classList.add('ready');
+  setMicColor('var(--green)');
+});
 
-            <div class="-mx-4 sm:mx-0 px-4 sm:px-0">
-                <div class="table-container overflow-x-auto pb-4">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th width="40">No</th>
-                                <th>Description</th>
-                                <th width="90">Size</th>
-                                <th width="60">Qty</th>
-                                <th width="80">Unit/$</th>
-                                <th width="90">Amount</th>
-                                <th class="no-print bg-transparent border-none" width="30"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="rows"></tbody>
-                    </table>
-                </div>
-            </div>
+socket.on('peer-left', () => {
+  peerId = null;
+  screenPeer.textContent = 'waiting...';
+  screenPeer.style.color = 'var(--muted)';
+  setStatus('STANDBY', '');
+  setLog('Peer disconnected', 'warn');
+  pttBtn.disabled = true;
+  pttBtn.classList.remove('ready', 'active');
+  pttRing.classList.remove('ready', 'active');
+  setMicColor('#4a5a6a');
+  stopVolumeMeter();
+});
 
-            <div id="add-row-container" class="no-print mt-2 flex gap-2 justify-end">
-                <button onclick="App.addRow()" class="text-xs font-bold text-blue-700 bg-blue-100 px-4 py-2 rounded-lg hover:bg-blue-200 transition shadow-sm">+ Add Row</button>
-            </div>
+socket.on('signal', async ({ from, data }) => {
+  peerId = peerId || from;
+  if (!pc) createPeerConnection();
+  if (data.sdp) {
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    if (data.sdp.type === 'offer') {
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit('signal', { to: from, data: { sdp: pc.localDescription } });
+    }
+  } else if (data.candidate) {
+    await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+  }
+});
 
-            <div class="flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-end mt-10 break-inside-avoid gap-8 sm:gap-4">
-                
-                <div class="w-full sm:flex-1 grid grid-cols-1 sm:grid-cols-2 gap-10 sm:gap-12 sm:pr-12 mt-6 sm:mt-0">
-                    <div class="flex flex-col h-20 sm:h-24 text-center">
-                        <input type="text" class="edit-txt text-[10px] font-bold uppercase text-slate-500 text-center" value="Authorized Signature">
-                        <div class="flex-grow"></div>
-                        <div class="border-t border-blue-900 mx-8 sm:mx-6 mb-1"></div>
-                        <input type="text" class="edit-txt text-[10px] italic font-bold opacity-50 text-center" value="សេសសិន ប៊ុន">
-                    </div>
-                    <div class="flex flex-col h-20 sm:h-24 text-center">
-                        <input type="text" class="edit-txt text-[10px] font-bold uppercase text-slate-500 text-center" value="Customer's Signature">
-                        <div class="flex-grow"></div>
-                        <div class="border-t border-blue-900 mx-8 sm:mx-6 mb-1"></div>
-                    </div>
-                </div>
+// Join room — note: underscore for Python server
+joinBtn.onclick = () => {
+  const room = roomInput.value.trim().toUpperCase();
+  if (!room) return;
+  socket.emit('join_room', room);   // ← underscore (Python)
+  screenChannel.textContent = room;
+  setStatus('SCANNING', 'var(--amber)');
+  setLog('Joined channel ' + room, 'ok');
+  joinBtn.disabled = true;
+  roomInput.disabled = true;
+};
 
-                <div class="total-box w-full sm:w-[260px] sm:ml-auto flex-shrink-0">
-                    <div class="total-row">
-                        <div class="total-lbl">Sub Total</div>
-                        <div class="total-val"><span class="text-xs text-slate-400">$</span> <span id="v-sub">0.00</span></div>
-                    </div>
-                    <div class="total-row">
-                        <div class="total-lbl">Deposit</div>
-                        <div class="total-val">
-                            <span class="text-xs text-slate-400">$</span>
-                            <input type="number" id="f-dep" step="0.01" value="0.00"
-                                class="w-20 text-right font-bold bg-transparent outline-none border-b border-dashed border-slate-300 focus:border-blue-500 text-red-600 transition"
-                                oninput="App.calc()" onblur="App.formatCurrency(this)">
-                        </div>
-                    </div>
-                    <div class="total-row">
-                        <div class="total-lbl text-blue-900 !text-sm">Balance</div>
-                        <div class="total-val text-blue-900 text-lg"><span class="text-xs opacity-70">$</span> <span id="v-bal">0.00</span></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+// WebRTC
+function createPeerConnection() {
+  pc = new RTCPeerConnection({
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+  });
+  pc.onicecandidate = e => {
+    if (e.candidate) socket.emit('signal', { to: peerId, data: { candidate: e.candidate } });
+  };
+  pc.ontrack = e => {
+    const audio = new Audio();
+    audio.srcObject = e.streams[0];
+    audio.autoplay = true;
+    setLog('Receiving audio...', 'ok');
+  };
+}
 
-    <!-- ══ History View ══ -->
-    <div id="view-history" class="hidden max-w-5xl mx-auto p-4 sm:p-10">
-        <h2 class="text-2xl font-black mb-6 border-l-8 border-blue-600 pl-4 uppercase italic text-slate-800">Saved Invoices</h2>
-        <div class="bg-white rounded-2xl shadow-xl overflow-x-auto border border-slate-100">
-            <table class="w-full text-left min-w-[600px]">
-                <thead class="bg-slate-50 border-b border-slate-200">
-                    <tr class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                        <th class="p-4 sm:p-5">No.</th>
-                        <th class="p-4 sm:p-5">Date Saved</th>
-                        <th class="p-4 sm:p-5">Customer</th>
-                        <th class="p-4 sm:p-5 text-right">Total Amount</th>
-                    </tr>
-                </thead>
-                <tbody id="hist-list"></tbody>
-            </table>
-        </div>
-    </div>
+// PTT logic
+async function startTalking() {
+  if (!peerId || pttBtn.disabled) return;
+  pttBtn.classList.add('active');
+  pttBtn.classList.remove('ready');
+  pttRing.classList.add('active');
+  pttRing.classList.remove('ready');
+  pttLabel.textContent = 'TX';
+  pttLabel.classList.add('blink');
+  setStatus('TRANSMIT', 'var(--red)');
+  setLog('Transmitting...', 'err');
 
-    <script>
-    const SB_URL = "https://bgqeqiyfgpdvgeepignt.supabase.co";
-    const SB_KEY = "sb_publishable_eLoAp9t0x-t7id3a-3LUow_SaBM6EC6";
-    const db = supabase.createClient(SB_URL, SB_KEY);
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    if (!pc) createPeerConnection();
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
-    const App = {
-        dom: {}, aiData: null, _draftTimer: null, _toastTimer: null, 
-        mapInstance: null, mapMarker: null,
-        
-        DEFAULT_FONTS: [
-            { name: "Inter + Kantumruy Pro", value: "'Inter', 'Kantumruy Pro', sans-serif" },
-            { name: "Roboto", value: "'Roboto', 'Kantumruy Pro', sans-serif" },
-            { name: "Noto Serif", value: "'Noto Serif', 'Kantumruy Pro', serif" },
-            { name: "Battambang", value: "'Battambang', sans-serif" }
-        ],
-        
-        PRODUCTS: [
-            { desc: "Vinyl Banner Printing", size: "1m x 1m", unit: 4.50 }, { desc: "Sticker Clear / White", size: "1m x 1m", unit: 5.00 },
-            { desc: "X-Stand Banner", size: "0.6m x 1.6m", unit: 12.00 }, { desc: "Roll Up Banner", size: "0.8m x 2.0m", unit: 25.00 },
-            { desc: "Light Box Signage", size: "1m x 1m", unit: 150.00 }, { desc: "Acrylic Letters", size: "10cm", unit: 3.50 },
-            { desc: "Name Card Printing", size: "Standard", unit: 10.00 }, { desc: "Flyer A4 / A5", size: "A4", unit: 0.15 }
-        ],
+    startVolumeMeter(localStream);
 
-        init() {
-            this.dom = {
-                views:  { editor: document.getElementById('view-editor'), history: document.getElementById('view-history') },
-                nav:    { editor: document.getElementById('nav-editor'),  history: document.getElementById('nav-history') },
-                fields: { no:document.getElementById('f-no'), to:document.getElementById('f-to'), phone:document.getElementById('f-phone'), address:document.getElementById('f-address'), date:document.getElementById('f-date'), deposit:document.getElementById('f-dep'),},
-                values: { subTotal: document.getElementById('v-sub'), balance: document.getElementById('v-bal') },
-                rowsContainer: document.getElementById('rows'), loader: document.getElementById('loader'), loaderText: document.getElementById('loader-text'),
-                toast: { el: document.getElementById('toast'), icon: document.getElementById('toast-icon'), msg: document.getElementById('toast-msg') },
-                modals: { settings: document.getElementById('settings-modal'), aiConfirm: document.getElementById('ai-confirm-modal'), map: document.getElementById('map-modal'), font: document.getElementById('font-modal'), share: document.getElementById('share-modal') },
-                apiKeyInput: document.getElementById('api-key-input'), dropZone: document.getElementById('drop-zone'), productList: document.getElementById('product-list'),
-                mapInputs: { search: document.getElementById('map-search-input'), result: document.getElementById('map-selected-address') },
-                fontUI: { select: document.getElementById('font-select'), urlInput: document.getElementById('google-font-url'), list: document.getElementById('imported-fonts-list'),},
-                shareLinkInput: document.getElementById('share-link-input'),
-            };
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('signal', { to: peerId, data: { sdp: pc.localDescription } });
+  } catch (err) {
+    setLog('Mic error: ' + err.message, 'err');
+    stopTalking();
+  }
+}
 
-            this._setupEventListeners(); this._populateProductList(); this.loadLogo(); this.loadFonts();
-            Object.values(this.dom.fields).forEach(el => { if(el) el.addEventListener('input', () => this.scheduleDraftSave()); });
-            this.loadDraft(); this.showView('editor');
-        },
-        
-        // 🔗 SHARE FUNCTIONALITY
-        toggleShareModal() { this.dom.modals.share.classList.toggle('hidden'); },
+function stopTalking() {
+  pttBtn.classList.remove('active');
+  pttBtn.classList.add('ready');
+  pttRing.classList.remove('active');
+  pttRing.classList.add('ready');
+  pttLabel.textContent = 'PTT';
+  pttLabel.classList.remove('blink');
+  setStatus('LINKED', 'var(--green)');
+  setLog('Standing by', 'ok');
+  localStream?.getTracks().forEach(t => t.stop());
+  localStream = null;
+  stopVolumeMeter();
+}
 
-        async shareInvoice() {
-            const invNo = this.dom.fields.no.value.trim();
-            if (!invNo) {
-                this.dom.fields.no.classList.add('field-error');
-                this.showToast('Please enter an Invoice Number before sharing.', 'error');
-                setTimeout(() => this.dom.fields.no.classList.remove('field-error'), 2500);
-                return;
-            }
+// Volume meter
+function startVolumeMeter(stream) {
+  audioCtx = new AudioContext();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 256;
+  const src = audioCtx.createMediaStreamSource(stream);
+  src.connect(analyser);
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  volFill.classList.add('active');
+  volInterval = setInterval(() => {
+    analyser.getByteFrequencyData(data);
+    const avg = data.reduce((a, b) => a + b, 0) / data.length;
+    volFill.style.width = Math.min(100, avg * 2.5) + '%';
+  }, 50);
+}
 
-            this.setLoading(true, 'Creating Share Link...');
-            
-            const dataToSave = this.getFormData();
-            const { data, error } = await db.from('invoices')
-                .upsert({ 
-                    invoice_no: invNo,
-                    customer_name: dataToSave.to || 'Unspecified',
-                    total_amount:  parseFloat(this.dom.values.subTotal.innerText) || 0,
-                    invoice_data:  dataToSave
-                }, { onConflict: 'invoice_no' })
-                .select('id')
-                .single();
+function stopVolumeMeter() {
+  clearInterval(volInterval);
+  audioCtx?.close();
+  audioCtx = null;
+  volFill.style.width = '0%';
+  volFill.classList.remove('active');
+}
 
-            this.setLoading(false);
+// PTT button events (mouse + touch)
+pttBtn.addEventListener('mousedown', startTalking);
+pttBtn.addEventListener('mouseup', stopTalking);
+pttBtn.addEventListener('mouseleave', stopTalking);
+pttBtn.addEventListener('touchstart', e => { e.preventDefault(); startTalking(); });
+pttBtn.addEventListener('touchend', e => { e.preventDefault(); stopTalking(); });
 
-            if (error) {
-                return this.showToast('Could not save to cloud: ' + error.message, 'error');
-            }
+// Keyboard shortcut: hold Space to talk
+document.addEventListener('keydown', e => { if (e.code === 'Space' && !e.repeat) startTalking(); });
+document.addEventListener('keyup', e => { if (e.code === 'Space') stopTalking(); });
 
-            if (data && data.id) {
-                // Construct the URL using the invoice's unique ID
-                const shareUrl = `${window.location.origin}${window.location.pathname.replace('index.html', '')}view.html?id=${data.id}`;
-                this.dom.shareLinkInput.value = shareUrl;
-                this.toggleShareModal();
-            } else {
-                this.showToast('Failed to get a shareable ID from the database.', 'error');
-            }
-        },
-
-        copyShareLink() {
-            this.dom.shareLinkInput.select();
-            navigator.clipboard.writeText(this.dom.shareLinkInput.value);
-            this.showToast('Link copied to clipboard!', 'success');
-        },
-        
-        // FONT CUSTOMIZATION LOGIC
-        toggleFontModal() { this.dom.modals.font.classList.toggle('hidden'); },
-        loadFonts() {
-            const customFonts = JSON.parse(localStorage.getItem('custom_fonts') || '[]');
-            customFonts.forEach(font => {
-                if (!document.querySelector(`link[href="${font.url}"]`)) {
-                    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = font.url; document.head.appendChild(link);
-                }
-            });
-            const activeFont = localStorage.getItem('active_font');
-            this.applyFont(activeFont ? activeFont : this.DEFAULT_FONTS[0].value, true);
-            this.populateFontUI();
-        },
-        populateFontUI() {
-            const customFonts = JSON.parse(localStorage.getItem('custom_fonts') || '[]');
-            const activeFont = localStorage.getItem('active_font') || this.DEFAULT_FONTS[0].value;
-            this.dom.fontUI.select.innerHTML = '';
-            const allFonts = [...this.DEFAULT_FONTS, ...customFonts.map(f => ({ name: f.name, value: `'${f.name}', sans-serif` }))];
-            allFonts.forEach(font => {
-                const option = document.createElement('option'); option.value = font.value; option.textContent = font.name;
-                option.selected = (font.value === activeFont); this.dom.fontUI.select.appendChild(option);
-            });
-            this.dom.fontUI.list.innerHTML = customFonts.length > 0 ? '' : '<p class="text-xs text-slate-400">No custom fonts imported yet.</p>';
-            customFonts.forEach(font => { this.dom.fontUI.list.innerHTML += `<div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg"><span>${font.name}</span><button onclick="App.deleteCustomFont('${font.name}')" class="text-red-500 text-xs font-bold hover:underline">DELETE</button></div>`; });
-        },
-        applyFont(fontValue, isInitialLoad = false) {
-            document.documentElement.style.setProperty('--invoice-font', fontValue);
-            if (!isInitialLoad) { localStorage.setItem('active_font', fontValue); this.scheduleDraftSave(); }
-        },
-        importGoogleFont() {
-            const url = this.dom.fontUI.urlInput.value.trim();
-            if (!url.startsWith('https://fonts.googleapis.com/css2?family=')) { return this.showToast('Invalid Google Fonts URL', 'error'); }
-            const fontNameMatch = url.match(/family=([^:&]+)/);
-            if (!fontNameMatch || !fontNameMatch[1]) { return this.showToast('Could not extract font name from URL', 'error'); }
-            const fontName = fontNameMatch[1].replace(/\+/g, ' ');
-            const customFonts = JSON.parse(localStorage.getItem('custom_fonts') || '[]');
-            if (customFonts.some(f => f.name === fontName)) { return this.showToast('This font is already imported', 'error'); }
-            const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = url; document.head.appendChild(link);
-            customFonts.push({ name: fontName, url: url }); localStorage.setItem('custom_fonts', JSON.stringify(customFonts));
-            this.dom.fontUI.urlInput.value = ''; this.showToast(`Font "${fontName}" imported!`, 'success');
-            this.applyFont(`'${fontName}', sans-serif`); this.populateFontUI();
-        },
-        deleteCustomFont(fontNameToDelete) {
-            let customFonts = JSON.parse(localStorage.getItem('custom_fonts') || '[]'); const fontToDelete = customFonts.find(f => f.name === fontNameToDelete);
-            if (fontToDelete) {
-                const link = document.querySelector(`link[href="${fontToDelete.url}"]`); if (link) link.remove();
-                customFonts = customFonts.filter(f => f.name !== fontNameToDelete); localStorage.setItem('custom_fonts', JSON.stringify(customFonts));
-                const activeFont = localStorage.getItem('active_font');
-                if (activeFont.includes(fontNameToDelete)) { this.applyFont(this.DEFAULT_FONTS[0].value); }
-                this.populateFontUI(); this.showToast(`Font "${fontNameToDelete}" removed.`, 'success');
-            }
-        },
-
-        //... other functions (minified for brevity)
-        _updateAutosaveUI(state) { const dots = document.querySelectorAll('#autosave-dot'); dots.forEach(dot => dot.className = state); },
-        _setupEventListeners() { this.dom.dropZone.addEventListener('dragover', e => { e.preventDefault(); this.dom.dropZone.classList.add('border-emerald-500', 'bg-emerald-50'); }); this.dom.dropZone.addEventListener('dragleave', e => { e.preventDefault(); this.dom.dropZone.classList.remove('border-emerald-500', 'bg-emerald-50'); }); this.dom.dropZone.addEventListener('drop', e => { e.preventDefault(); this.dom.dropZone.classList.remove('border-emerald-500', 'bg-emerald-50'); if (e.dataTransfer.files.length) { const fi = document.getElementById('imageInput'); fi.files = e.dataTransfer.files; fi.dispatchEvent(new Event('change')); } }); this.dom.rowsContainer.addEventListener('keydown', e => { if (e.key !== 'Enter') return; const target = e.target; if (target.classList.contains('qty') || target.classList.contains('unit') || target.classList.contains('size') || target.classList.contains('desc')) { e.preventDefault(); if(target.classList.contains('unit')){ const nextRow = target.closest('tr').nextElementSibling; if (nextRow) { nextRow.querySelector('.desc')?.focus(); } else { this.addRow(); setTimeout(() => this.dom.rowsContainer.lastElementChild?.querySelector('.desc')?.focus(), 50); } } else if (target.classList.contains('desc')) { target.closest('tr').querySelector('.size')?.focus(); } else if (target.classList.contains('size')) { target.closest('tr').querySelector('.qty')?.focus(); } else if (target.classList.contains('qty')) { target.closest('tr').querySelector('.unit')?.focus(); } } }); },
-        openMap() { this.dom.modals.map.classList.remove('hidden'); if(this.dom.fields.address.value) { this.dom.mapInputs.result.value = this.dom.fields.address.value; } if (!this.mapInstance) { this.mapInstance = L.map('map-container').setView([11.5564, 104.9282], 13); L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>' }).addTo(this.mapInstance); this.mapInstance.on('click', (e) => this.onMapClick(e)); } setTimeout(() => { this.mapInstance.invalidateSize(); this.dom.mapInputs.search.focus(); }, 100); },
-        closeMap() { this.dom.modals.map.classList.add('hidden'); },
-        onMapClick(e) { const { lat, lng } = e.latlng; if (this.mapMarker) { this.mapMarker.setLatLng([lat, lng]); } else { this.mapMarker = L.marker([lat, lng]).addTo(this.mapInstance); } this.reverseGeocode(lat, lng); },
-        async reverseGeocode(lat, lng) { this.dom.mapInputs.result.placeholder = "Loading address..."; try { const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`); const data = await response.json(); this.dom.mapInputs.result.value = (data && data.display_name) ? data.display_name : `${lat.toFixed(5)}, ${lng.toFixed(5)}`; } catch (err) { this.dom.mapInputs.result.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`; } },
-        async searchMap() { const query = this.dom.mapInputs.search.value.trim(); if (!query) return; const searchBtn = this.dom.mapInputs.search.nextElementSibling; const originalText = searchBtn.innerText; searchBtn.innerText = '...'; searchBtn.disabled = true; try { const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`); const data = await response.json(); if (data && data.length > 0) { const lat = parseFloat(data[0].lat); const lon = parseFloat(data[0].lon); this.mapInstance.setView([lat, lon], 16); if (this.mapMarker) { this.mapMarker.setLatLng([lat, lon]); } else { this.mapMarker = L.marker([lat, lon]).addTo(this.mapInstance); } this.dom.mapInputs.result.value = data[0].display_name; } else { this.showToast('Location not found', 'error'); } } catch (err) { this.showToast('Search failed', 'error'); } finally { searchBtn.innerText = originalText; searchBtn.disabled = false; } },
-        confirmMapSelection() { const selectedAddress = this.dom.mapInputs.result.value.trim(); if (selectedAddress) { this.dom.fields.address.value = selectedAddress; this.scheduleDraftSave(); } this.closeMap(); },
-        loadLogo() { const logoBase64 = localStorage.getItem('company_logo'); if (logoBase64) { document.getElementById('logo-placeholder').classList.add('hidden'); const img = document.getElementById('logo-img'); img.src = logoBase64; img.classList.remove('hidden'); } },
-        handleLogoUpload(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { localStorage.setItem('company_logo', event.target.result); this.loadLogo(); this.showToast('Logo Updated successfully!', 'success'); this.scheduleDraftSave(); }; reader.readAsDataURL(file); },
-        _populateProductList() { this.PRODUCTS.forEach(product => { const option = document.createElement('option'); option.value = product.desc; this.dom.productList.appendChild(option); }); },
-        checkProduct(el) { this.scheduleDraftSave(); const val = el.value; const match = this.PRODUCTS.find(p => p.desc === val); if (match) { const tr = el.closest('tr'); tr.querySelector('.size').value = match.size; tr.querySelector('.unit').value = match.unit.toFixed(2); const qtyBox = tr.querySelector('.qty'); qtyBox.focus(); this.calcRow(qtyBox); } },
-        showView(view) { Object.values(this.dom.views).forEach(v => v.classList.add('hidden')); if(this.dom.views[view]) this.dom.views[view].classList.remove('hidden'); Object.values(this.dom.nav).forEach(b => b.classList.remove('active')); if(this.dom.nav[view]) this.dom.nav[view].classList.add('active'); },
-        showToast(msg, type = 'success') { const { el, icon, msg: msgEl } = this.dom.toast; if(this._toastTimer) clearTimeout(this._toastTimer); el.className = `fixed bottom-5 right-5 transform transition-all duration-300 z-[800] px-6 py-3 rounded-xl font-bold text-white shadow-2xl flex items-center gap-2 ${type === 'error' ? 'bg-red-500' : 'bg-emerald-500'}`; icon.innerHTML = type === 'error' ? '✕' : '✓'; msgEl.innerText = msg; el.classList.remove('translate-y-20', 'opacity-0'); this._toastTimer = setTimeout(() => el.classList.add('translate-y-20', 'opacity-0'), 4000); },
-        setLoading(state, text = 'Processing...') { this.dom.loader.classList.toggle('hidden', !state); this.dom.loaderText.innerText = text; },
-        toggleSettings() { const isHidden = this.dom.modals.settings.classList.contains('hidden'); if (isHidden) this.dom.apiKeyInput.value = localStorage.getItem('openai_key') || ''; this.dom.modals.settings.classList.toggle('hidden'); },
-        saveSettings() { const key = this.dom.apiKeyInput.value.trim(); localStorage.setItem('openai_key', key); this.toggleSettings(); if (key) this.showToast('OpenAI API Key Saved'); },
-        formatDate(input) { const str = String(input); if (/^\d{2}\s*\/\s*\d{2}\s*\/\s*\d{4}$/.test(str.trim())) return str.trim(); const d = new Date(input); if (isNaN(d.getTime())) return str; return `${String(d.getDate()).padStart(2,'0')} / ${String(d.getMonth()+1).padStart(2,'0')} / ${d.getFullYear()}`; },
-        setTodayDate() { this.dom.fields.date.value = this.formatDate(new Date()); },
-        formatCurrency(el) { const value = parseFloat(el.value); if (!isNaN(value)) el.value = value.toFixed(2); },
-        scheduleDraftSave() { this._updateAutosaveUI('saving'); clearTimeout(this._draftTimer); this._draftTimer = setTimeout(() => { this.saveDraft(); this._updateAutosaveUI('saved'); setTimeout(() => { this._updateAutosaveUI(''); }, 2000); }, 600); },
-        _createRowHTML(index) { return `<td class="text-center font-bold text-xs text-slate-400 row-num">${index}</td><td><input type="text" class="cell-in desc" placeholder="" list="product-list" oninput="App.checkProduct(this)"></td><td><input type="text" class="cell-in text-center size" placeholder="—" oninput="App.scheduleDraftSave()"></td><td><input type="number" class="cell-in text-center qty"  min="0" oninput="App.calcRow(this)"></td><td><input type="number" step="0.01" class="cell-in text-center unit" min="0" oninput="App.calcRow(this)" onblur="App.formatCurrency(this)"></td><td><input type="text" class="cell-in text-right font-bold pr-2 amt text-blue-800" readonly tabindex="-1"></td><td class="no-print bg-transparent border-none align-middle"><button class="delete-row-btn" onclick="App.removeRow(this)" title="Delete row">✕</button></td>`; },
-        _renumberRows() { this.dom.rowsContainer.querySelectorAll('.row-num').forEach((el, i) => { el.textContent = i + 1; }); },
-        addRow(doSave = true) { const tr = document.createElement('tr'); tr.innerHTML = this._createRowHTML(this.dom.rowsContainer.children.length + 1); this.dom.rowsContainer.appendChild(tr); if (doSave) this.scheduleDraftSave(); },
-        removeRow(btn) { if (this.dom.rowsContainer.children.length > 1) { btn.closest('tr').remove(); this._renumberRows(); this.calc(); } else { this.showToast('Cannot delete the last row.', 'error'); } },
-        initTable(rowCount = 9) { this.dom.rowsContainer.innerHTML = ''; for (let i = 0; i < rowCount; i++) this.addRow(false); },
-        calcRow(el) { const tr = el.closest('tr'); const qty = parseFloat(tr.querySelector('.qty').value); const unit= parseFloat(tr.querySelector('.unit').value); const amt = tr.querySelector('.amt'); amt.value = (!isNaN(qty) && !isNaN(unit)) ? (qty * unit).toFixed(2) : ''; this.calc(false); },
-        calc(scheduleSave = true) { let subTotal = 0; this.dom.rowsContainer.querySelectorAll('.amt').forEach(el => { const v = parseFloat(el.value); if (!isNaN(v)) subTotal += v; }); const deposit = parseFloat(this.dom.fields.deposit.value) || 0; this.dom.values.subTotal.innerText = subTotal.toFixed(2); this.dom.values.balance.innerText = (subTotal - deposit).toFixed(2); if (scheduleSave) this.scheduleDraftSave(); },
-        
-        // --- 🔴 BUG FIX APPLIED HERE 🔴 ---
-        getFormData() {
-            const data = {
-                no: this.dom.fields.no.value,
-                to: this.dom.fields.to.value,
-                phone: this.dom.fields.phone.value,
-                address: this.dom.fields.address.value,
-                date: this.dom.fields.date.value,
-                dep: this.dom.fields.deposit.value,
-                logo: localStorage.getItem('company_logo') || null,
-                active_font: localStorage.getItem('active_font') || null,
-                custom_fonts: JSON.parse(localStorage.getItem('custom_fonts') || '[]'),
-                rows: []
-            };
-            this.dom.rowsContainer.querySelectorAll('tr').forEach(tr => {
-                data.rows.push({
-                    desc: tr.querySelector('.desc').value,
-                    size: tr.querySelector('.size').value,
-                    qty: tr.querySelector('.qty').value,
-                    unit: tr.querySelector('.unit').value
-                });
-            });
-            return data;
-        },
-
-        resetForm(increment = true) { const currentNo = this.dom.fields.no.value || ''; let nextNo = currentNo; if (increment) { const numMatch = currentNo.match(/(\D*)(\d+)(\D*)$/); if (numMatch) { const prefix = currentNo.slice(0, currentNo.lastIndexOf(numMatch[2])); const numStr = numMatch[2]; nextNo = prefix + String(parseInt(numStr, 10) + 1).padStart(numStr.length, '0'); } } ['to','phone','address'].forEach(k => { this.dom.fields[k].value = ''; }); this.dom.fields.deposit.value = '0.00'; this.dom.fields.no.value = nextNo; this.initTable(); this.calc(false); this.setTodayDate(); this.showView('editor'); localStorage.removeItem('invoice_draft'); this.showToast('Ready for new invoice.', 'success'); window.scrollTo(0,0); },
-        saveDraft() { try { localStorage.setItem('invoice_draft', JSON.stringify(this.getFormData())); } catch(e) { console.warn('Draft save failed:', e); } },
-        loadDraft() { try { const draftStr = localStorage.getItem('invoice_draft'); if (draftStr) { const data = JSON.parse(draftStr); if (data && typeof data === 'object') { this.populateForm(data); return; } } } catch(e) { console.warn('Corrupt draft cleared:', e); localStorage.removeItem('invoice_draft'); } this.initTable(); this.setTodayDate(); },
-        populateForm(data) { if (!data || typeof data !== 'object') return this.initTable(), this.setTodayDate(); this.dom.fields.no.value = data.no || ''; this.dom.fields.to.value = data.to || ''; this.dom.fields.phone.value = data.phone || ''; this.dom.fields.address.value = data.address || ''; this.dom.fields.date.value = data.date || ''; this.dom.fields.deposit.value = data.dep || '0.00'; const rowCount = Math.max(Array.isArray(data.rows) ? data.rows.length : 0, 9); this.initTable(rowCount); if (Array.isArray(data.rows)) { data.rows.forEach((row, i) => { const rowEl = this.dom.rowsContainer.rows[i]; if (!rowEl) return; rowEl.querySelector('.desc').value = row.desc || ''; rowEl.querySelector('.size').value = row.size || ''; rowEl.querySelector('.qty').value = row.qty || ''; rowEl.querySelector('.unit').value = row.unit || ''; if (row.qty && row.unit) this.calcRow(rowEl.querySelector('.qty')); }); } this.calc(false); },
-        async handleImageUpload(e) { const file = e.target.files[0]; const apiKey = localStorage.getItem('openai_key'); if (!apiKey) { this.toggleSettings(); this.showToast('Please enter OpenAI API key', 'error'); return; } if (!file) return; this.setLoading(true, 'Parsing Receipt with AI…'); try { const base64Image = await this._compressImage(file); const response = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` }, body: JSON.stringify({ model: 'gpt-4o-mini', response_format: { type: "json_object" }, messages: [{ role: 'system', content: 'You are an expert receipt data extractor. Your output MUST be ONLY a JSON object.' }, { role: 'user', content: [{ type: 'text', text: 'Extract data from this receipt. Return ONLY valid JSON: {"invoice_no":"string","date":"string","name":"string","items":[{"desc":"string","qty":number,"unit_price":number}]}. Format date as DD / MM / YYYY. Missing values = empty string or null. Do not include markdown formatting.' }, { type: 'image_url', image_url: { url: base64Image } }] }], temperature: 0.1, }), }); const res = await response.json(); if (res.error) throw new Error(res.error.message); const raw = res.choices[0].message.content; this.aiData = JSON.parse(raw); this.dom.modals.aiConfirm.classList.remove('hidden'); } catch (err) { this.showToast('Scan Error: ' + err.message, 'error'); console.error(err); } finally { this.setLoading(false); e.target.value = ''; } },
-        populateFromAi(mode) { this.dom.modals.aiConfirm.classList.add('hidden'); if (!this.aiData) return; const data = this.aiData; if (mode === 'overwrite') { if (data.invoice_no) this.dom.fields.no.value = data.invoice_no; if (data.name) this.dom.fields.to.value = data.name; if (data.date) this.dom.fields.date.value = data.date; this.initTable(Math.max(Array.isArray(data.items) ? data.items.length : 0, 9)); } if (Array.isArray(data.items) && data.items.length > 0) { let startIndex = 0; if (mode === 'append') { const rows = Array.from(this.dom.rowsContainer.querySelectorAll('tr')); startIndex = rows.length; for (let i = 0; i < rows.length; i++) { if (!rows[i].querySelector('.desc').value.trim()) { startIndex = i; break; } } } while (this.dom.rowsContainer.rows.length < startIndex + data.items.length) { this.addRow(false); } data.items.forEach((item, i) => { const rowEl = this.dom.rowsContainer.rows[startIndex + i]; if (!rowEl) return; rowEl.querySelector('.desc').value = item.desc || ''; rowEl.querySelector('.qty').value = item.qty || ''; rowEl.querySelector('.unit').value = item.unit_price || ''; if (item.qty && item.unit_price) this.calcRow(rowEl.querySelector('.qty')); }); } this.calc(false); this.scheduleDraftSave(); this.showToast(`AI data applied (${mode}).`); this.aiData = null; },
-        _compressImage(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = e => { const img = new Image(); img.onload = () => { const MAX_WIDTH = 1200; const canvas = document.createElement('canvas'); if (img.width <= MAX_WIDTH) { canvas.width = img.width; canvas.height = img.height; } else { const scale = MAX_WIDTH / img.width; canvas.width = MAX_WIDTH; canvas.height = Math.round(img.height * scale); } canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); resolve(canvas.toDataURL('image/jpeg', 0.85)); }; img.onerror = reject; img.src = e.target.result; }; reader.onerror = reject; reader.readAsDataURL(file); }); },
-        async saveToCloud() { const invNo = this.dom.fields.no.value.trim(); const custName = this.dom.fields.to.value.trim(); if (!invNo) { this.dom.fields.no.classList.add('field-error'); this.showToast('Invoice number is required.', 'error'); setTimeout(() => this.dom.fields.no.classList.remove('field-error'), 2500); return; } const saveBtn = document.getElementById('save-btn'); const saveBtnText = document.getElementById('save-btn-text'); saveBtn.disabled = true; saveBtnText.innerHTML = `<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block"></div>`; const data = this.getFormData(); const { error } = await db.from('invoices').insert([{ invoice_no: invNo, customer_name: custName || 'Unspecified', total_amount: parseFloat(this.dom.values.subTotal.innerText) || 0, invoice_data: data, }]); saveBtn.disabled = false; saveBtnText.innerText = 'Save'; if (error) { this.showToast('Database Error: ' + error.message, 'error'); } else { this.showToast('Invoice Saved to Cloud! ☁'); setTimeout(() => { if(confirm("Invoice saved successfully! Would you like to clear the form for a new invoice?")) { this.resetForm(true); } }, 500); } },
-        async loadHistory() { this.showView('history'); const { data, error } = await db.from('invoices').select('id, invoice_no, customer_name, total_amount, created_at').order('created_at', { ascending: false }).limit(50); if (error) return this.showToast('Error loading history: ' + error.message, 'error'); const listEl = document.getElementById('hist-list'); if (data && data.length > 0) { listEl.innerHTML = data.map(inv => `<tr class="border-b border-slate-100 hover:bg-blue-50 transition cursor-pointer" onclick="App.loadInvoiceFromHistory('${inv.id}')"><td class="p-4 sm:p-5 font-bold text-blue-600">#${inv.invoice_no || '—'}</td><td class="p-4 sm:p-5 text-xs text-slate-500 font-bold whitespace-nowrap">${this.formatDate(inv.created_at)}</td><td class="p-4 sm:p-5 font-black uppercase text-slate-800">${inv.customer_name || 'Unspecified'}</td><td class="p-4 sm:p-5 text-right font-black text-blue-900 whitespace-nowrap">$ ${parseFloat(inv.total_amount || 0).toFixed(2)}</td></tr>`).join(''); } else { listEl.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-400"><div class="font-bold text-lg mb-2">No Invoices Yet</div><p class="text-xs tracking-widest uppercase">Go to the Editor to create one.</p></td></tr>`; } },
-        async loadInvoiceFromHistory(id) { this.setLoading(true, 'Loading Invoice…'); const { data, error } = await db.from('invoices').select('invoice_data').eq('id', id).single(); this.setLoading(false); if (error) return this.showToast('Error fetching invoice: ' + error.message, 'error'); if (!data?.invoice_data) return this.showToast('No data found for this invoice.', 'error'); this.populateForm(data.invoice_data); this.showView('editor'); this.showToast(`Loaded invoice #${data.invoice_data.no || '?'}.`); window.scrollTo(0,0); },
-        generatePDF() { const el = document.getElementById('receipt-area'); const invNo = this.dom.fields.no.value || 'Draft'; const custName = (this.dom.fields.to.value || 'Customer').replace(/[^a-z0-9]/gi, '_'); this.showToast('Generating PDF…', 'success'); window.scrollTo(0, 0); document.body.classList.add('pdf-render-mode'); const opt = { margin: 0, filename: `JS_Invoice_${invNo}_${custName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, windowWidth: 800, scrollY: 0, scrollX: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, }; html2pdf().set(opt).from(el).save().finally(() => { document.body.classList.remove('pdf-render-mode'); }); },
-    };
-
-    window.onload = () => App.init();
-    </script>
+// Uppercase room input
+roomInput.addEventListener('input', () => {
+  roomInput.value = roomInput.value.toUpperCase();
+});
+</script>
 </body>
 </html>
