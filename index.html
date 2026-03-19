@@ -2,477 +2,417 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>WalkieTalk</title>
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0d0f12;
-    --panel: #13171e;
-    --border: #1e2530;
-    --green: #00e676;
-    --green-dim: #00e67622;
-    --green-mid: #00e67644;
-    --red: #ff3d57;
-    --red-dim: #ff3d5722;
-    --amber: #ffb300;
-    --text: #c8d6e0;
-    --muted: #4a5a6a;
-    --mono: 'Share Tech Mono', monospace;
-    --sans: 'Barlow', sans-serif;
+    --bg: #000;
+    --white: #fff;
+    --dim: rgba(255,255,255,0.35);
+    --dimmer: rgba(255,255,255,0.12);
+    --ring: rgba(255,255,255,0.9);
+    --green: #30d158;
+    --red: #ff453a;
+    --amber: #ffd60a;
   }
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-  body {
+  html, body {
+    width: 100%; height: 100%;
     background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
   }
 
-  /* Scanline overlay */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.07) 2px,
-      rgba(0,0,0,0.07) 4px
-    );
-    pointer-events: none;
-    z-index: 100;
+  .app {
+    width: 100%; height: 100dvh;
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    padding: env(safe-area-inset-top, 48px) 0 env(safe-area-inset-bottom, 24px);
   }
 
-  .device {
-    width: 340px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    padding: 28px 24px 32px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    position: relative;
-    box-shadow: 0 0 60px rgba(0,230,118,0.04), 0 24px 60px rgba(0,0,0,0.6);
-  }
-
-  /* Top grill detail */
-  .grill {
-    display: flex;
-    gap: 5px;
-    justify-content: center;
-    margin-bottom: -4px;
-  }
-  .grill span {
-    width: 28px;
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-  }
-
-  /* Header */
-  .header {
+  /* Top bar */
+  .topbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 12px 24px 0;
   }
-  .brand {
-    font-family: var(--mono);
-    font-size: 18px;
-    color: var(--green);
-    letter-spacing: 2px;
-    text-transform: uppercase;
+  .topbar-left { display: flex; flex-direction: column; gap: 3px; }
+  .user-handle {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: -0.5px;
   }
-  .signal-bars {
-    display: flex;
-    gap: 3px;
-    align-items: flex-end;
-    height: 18px;
-  }
-  .signal-bars span {
-    width: 5px;
-    background: var(--muted);
-    border-radius: 2px;
-    transition: background 0.3s;
-  }
-  .signal-bars span:nth-child(1) { height: 5px; }
-  .signal-bars span:nth-child(2) { height: 9px; }
-  .signal-bars span:nth-child(3) { height: 13px; }
-  .signal-bars span:nth-child(4) { height: 18px; }
-  .signal-bars.connected span { background: var(--green); }
-  .signal-bars.connected span:nth-child(4) { background: var(--muted); }
-
-  /* Display screen */
-  .screen {
-    background: #080b0e;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px 16px;
-    font-family: var(--mono);
-    font-size: 12px;
-    min-height: 80px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    position: relative;
-    overflow: hidden;
-  }
-  .screen::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(0,230,118,0.03) 0%, transparent 60%);
-    pointer-events: none;
-  }
-  .screen-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .screen-label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
-  .screen-value { color: var(--green); font-size: 13px; }
-  .screen-value.amber { color: var(--amber); }
-  .screen-value.red { color: var(--red); }
-  .screen-divider { height: 1px; background: var(--border); }
-
-  /* Status log */
-  .log {
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 4px;
-    font-family: var(--mono);
-    min-height: 14px;
-    transition: color 0.3s;
-  }
-  .log.ok { color: var(--green); }
-  .log.warn { color: var(--amber); }
-  .log.err { color: var(--red); }
-
-  /* Room input row */
-  .input-row {
-    display: flex;
-    gap: 8px;
-  }
-  .room-input {
-    flex: 1;
-    background: #080b0e;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-family: var(--mono);
+  .user-location {
     font-size: 13px;
-    padding: 10px 12px;
-    outline: none;
-    transition: border-color 0.2s;
-    letter-spacing: 1px;
+    color: var(--dim);
+    font-weight: 300;
   }
-  .room-input::placeholder { color: var(--muted); }
-  .room-input:focus { border-color: var(--green); }
-
-  .join-btn {
-    background: var(--green-dim);
-    border: 1px solid var(--green);
-    border-radius: 8px;
-    color: var(--green);
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 10px 14px;
-    cursor: pointer;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    transition: background 0.2s;
-  }
-  .join-btn:hover { background: var(--green-mid); }
-  .join-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  /* PTT Button */
-  .ptt-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .ptt-ring {
-    width: 148px;
-    height: 148px;
+  .power-btn {
+    width: 36px; height: 36px;
     border-radius: 50%;
-    border: 2px solid var(--border);
+    border: 1.5px solid var(--dimmer);
+    background: transparent;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .power-btn:active { background: var(--dimmer); }
+
+  /* Channel bar */
+  .channel-bar {
+    display: flex;
+    justify-content: center;
+    padding: 14px 24px 0;
+  }
+  .channel-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--dimmer);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 100px;
+    padding: 7px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .channel-pill:active { background: rgba(255,255,255,0.18); }
+  .channel-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--dim);
+    flex-shrink: 0;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .channel-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .channel-dot.tx { background: var(--red); box-shadow: 0 0 8px var(--red); animation: dotblink 0.5s ease-in-out infinite alternate; }
+  @keyframes dotblink { to { opacity: 0.3; } }
+
+  .channel-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    color: var(--white);
+    min-width: 80px;
+    text-align: center;
+  }
+  .channel-name.ph { color: var(--dim); }
+
+  /* Center PTT */
+  .center {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: border-color 0.2s;
     position: relative;
   }
-  .ptt-ring::before {
-    content: '';
-    position: absolute;
-    inset: -8px;
-    border-radius: 50%;
-    border: 1px solid transparent;
-    transition: border-color 0.3s, box-shadow 0.3s;
-  }
-  .ptt-ring.active { border-color: var(--red); }
-  .ptt-ring.active::before {
-    border-color: var(--red);
-    box-shadow: 0 0 24px var(--red-dim);
-    animation: pulse-ring 1s ease-in-out infinite;
-  }
-  .ptt-ring.ready { border-color: var(--green); }
 
-  @keyframes pulse-ring {
-    0%, 100% { box-shadow: 0 0 20px var(--red-dim); }
-    50% { box-shadow: 0 0 40px rgba(255,61,87,0.35); }
-  }
-
-  .ptt-btn {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    border: none;
-    background: #0d1117;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    transition: background 0.15s, transform 0.1s;
-    position: relative;
-    overflow: hidden;
-    -webkit-user-select: none;
-    user-select: none;
-    touch-action: none;
-  }
-  .ptt-btn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-  .ptt-btn::before {
-    content: '';
+  /* Ripple rings */
+  .ripples {
     position: absolute;
-    inset: 0;
+    width: 270px; height: 270px;
     border-radius: 50%;
-    background: var(--green-dim);
+    pointer-events: none;
+  }
+  .ripple {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.18);
     opacity: 0;
-    transition: opacity 0.2s;
   }
-  .ptt-btn.ready::before { opacity: 1; }
-  .ptt-btn.active { background: rgba(255,61,87,0.12); transform: scale(0.97); }
-  .ptt-btn.active::before { opacity: 0; }
+  .ripples.active .ripple:nth-child(1) { animation: ripout 2s ease-out infinite 0s; }
+  .ripples.active .ripple:nth-child(2) { animation: ripout 2s ease-out infinite 0.55s; }
+  .ripples.active .ripple:nth-child(3) { animation: ripout 2s ease-out infinite 1.1s; }
+  @keyframes ripout {
+    0%   { transform: scale(1);   opacity: 0.45; }
+    100% { transform: scale(2.1); opacity: 0; }
+  }
 
-  .ptt-icon {
-    width: 32px;
-    height: 32px;
+  /* PTT circle */
+  .ptt-outer {
+    width: 270px; height: 270px;
+    border-radius: 50%;
+    border: 1.5px solid var(--ring);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    -webkit-user-select: none; user-select: none;
+    touch-action: none;
     position: relative;
-    z-index: 1;
+    transition: border-color 0.2s;
   }
-  .ptt-icon circle { transition: fill 0.2s; }
-  .ptt-icon path { transition: stroke 0.2s; }
+  .ptt-outer.disabled { border-color: rgba(255,255,255,0.18); cursor: default; }
+  .ptt-outer.tx       { border-color: var(--red); }
 
-  .ptt-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 2px;
+  .ptt-inner {
+    width: 228px; height: 228px;
+    border-radius: 50%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px;
+    background: transparent;
+    transition: background 0.15s;
+    pointer-events: none;
+  }
+  .ptt-outer.tx .ptt-inner { background: rgba(255,69,58,0.07); }
+  .ptt-outer.disabled .mic-icon { opacity: 0.2; }
+  .mic-icon { transition: opacity 0.2s; }
+
+  .ptt-hint {
+    font-size: 11px;
+    font-weight: 300;
+    letter-spacing: 2.5px;
     text-transform: uppercase;
-    color: var(--muted);
-    position: relative;
-    z-index: 1;
+    color: var(--dim);
     transition: color 0.2s;
   }
-  .ptt-btn.ready .ptt-label { color: var(--green); }
-  .ptt-btn.active .ptt-label { color: var(--red); }
+  .ptt-outer.disabled .ptt-hint { opacity: 0.25; }
+  .ptt-outer.tx .ptt-hint { color: var(--red); }
 
-  /* Volume indicator */
-  .vol-bar {
+  /* Bottom */
+  .bottombar {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 12px;
+    padding: 0 24px 8px;
+  }
+
+  /* Waveform */
+  .waveform {
+    display: flex; align-items: center;
+    justify-content: center; gap: 3px;
+    height: 28px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .waveform.on { opacity: 1; }
+  .wbar {
+    width: 3px; height: 4px;
+    background: var(--red);
+    border-radius: 2px;
+    transition: height 0.04s;
+  }
+
+  .status-line {
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--dim);
+    letter-spacing: 0.3px;
+    text-align: center;
+    min-height: 18px;
+    transition: color 0.3s;
+  }
+  .status-line.ok   { color: var(--green); }
+  .status-line.err  { color: var(--red); }
+  .status-line.warn { color: var(--amber); }
+
+  /* Bottom sheet overlay */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex; align-items: flex-end;
+    z-index: 50;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .overlay.open { opacity: 1; pointer-events: all; }
+
+  .sheet {
     width: 100%;
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
+    background: #1c1c1e;
+    border-radius: 20px 20px 0 0;
+    padding: 16px 24px calc(env(safe-area-inset-bottom, 0px) + 32px);
+    display: flex; flex-direction: column; gap: 14px;
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(0.32,0.72,0,1);
   }
-  .vol-fill {
-    height: 100%;
-    width: 0%;
-    background: var(--green);
-    border-radius: 2px;
-    transition: width 0.05s;
-  }
-  .vol-fill.active { background: var(--red); }
+  .overlay.open .sheet { transform: translateY(0); }
 
-  /* Bottom grill */
-  .grill-bottom {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 4px;
-    margin-top: -4px;
-  }
-  .grill-bottom span {
-    height: 4px;
-    background: var(--border);
+  .sheet-handle {
+    width: 36px; height: 4px;
+    background: rgba(255,255,255,0.18);
     border-radius: 2px;
+    margin: 0 auto 6px;
   }
-
-  /* Blink animation for TX */
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-  .blink { animation: blink 0.6s step-start infinite; }
+  .sheet-title {
+    font-size: 17px; font-weight: 500;
+    text-align: center;
+  }
+  .sheet-input {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    font-size: 20px; letter-spacing: 3px;
+    padding: 16px; outline: none;
+    text-transform: uppercase;
+    width: 100%; text-align: center;
+    transition: border-color 0.2s;
+  }
+  .sheet-input::placeholder { color: rgba(255,255,255,0.18); }
+  .sheet-input:focus { border-color: rgba(255,255,255,0.35); }
+  .sheet-join {
+    background: var(--white); border: none;
+    border-radius: 12px; color: #000;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px; font-weight: 500;
+    padding: 16px; cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .sheet-join:active { opacity: 0.75; }
+  .sheet-cancel {
+    background: transparent; border: none;
+    color: var(--dim); font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer; text-align: center; padding: 4px;
+  }
 </style>
 </head>
 <body>
+<div class="app">
 
-<div class="device">
-  <div class="grill">
-    <span></span><span></span><span></span><span></span><span></span>
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="user-handle" id="userHandle">@loading</div>
+      <div class="user-location" id="userLocation">Connecting...</div>
+    </div>
+    <button class="power-btn" onclick="openSheet()" title="Join channel">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round">
+        <path d="M8 1v5M5.1 2.9A6 6 0 1 0 10.9 2.9"/>
+      </svg>
+    </button>
   </div>
 
-  <div class="header">
-    <div class="brand">WT-01</div>
-    <div class="signal-bars" id="signalBars">
-      <span></span><span></span><span></span><span></span>
+  <div class="channel-bar">
+    <div class="channel-pill" onclick="openSheet()">
+      <span class="channel-dot" id="channelDot"></span>
+      <span class="channel-name ph" id="channelName">TAP TO JOIN</span>
     </div>
   </div>
 
-  <div class="screen">
-    <div class="screen-row">
-      <span class="screen-label">Channel</span>
-      <span class="screen-value" id="screenChannel">---</span>
+  <div class="center">
+    <div class="ripples" id="ripples">
+      <div class="ripple"></div>
+      <div class="ripple"></div>
+      <div class="ripple"></div>
     </div>
-    <div class="screen-divider"></div>
-    <div class="screen-row">
-      <span class="screen-label">Status</span>
-      <span class="screen-value amber" id="screenStatus">STANDBY</span>
-    </div>
-    <div class="screen-row">
-      <span class="screen-label">Peer</span>
-      <span class="screen-value" id="screenPeer" style="font-size:10px;color:var(--muted)">waiting...</span>
-    </div>
-    <div class="log" id="logLine">Ready to connect</div>
-  </div>
-
-  <div class="input-row">
-    <input class="room-input" id="roomInput" placeholder="CHANNEL-01" maxlength="20" />
-    <button class="join-btn" id="joinBtn">JOIN</button>
-  </div>
-
-  <div class="ptt-wrap">
-    <div class="ptt-ring" id="pttRing">
-      <button class="ptt-btn" id="pttBtn" disabled>
-        <svg class="ptt-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle id="micCircle" cx="16" cy="16" r="15" fill="#1a2030"/>
-          <rect x="12" y="8" width="8" height="12" rx="4" fill="none" stroke="#4a5a6a" stroke-width="1.5" id="micBody"/>
-          <path d="M10 18c0 3.3 2.7 6 6 6s6-2.7 6-6" stroke="#4a5a6a" stroke-width="1.5" stroke-linecap="round" fill="none" id="micArc"/>
-          <line x1="16" y1="24" x2="16" y2="27" stroke="#4a5a6a" stroke-width="1.5" stroke-linecap="round" id="micStand"/>
-          <line x1="13" y1="27" x2="19" y2="27" stroke="#4a5a6a" stroke-width="1.5" stroke-linecap="round" id="micBase"/>
+    <div class="ptt-outer disabled" id="pttBtn">
+      <div class="ptt-inner">
+        <svg class="mic-icon" width="52" height="52" viewBox="0 0 52 52" fill="none">
+          <rect x="19" y="6" width="14" height="22" rx="7" stroke="white" stroke-width="1.8" fill="none"/>
+          <path d="M10 28c0 8.8 7.2 16 16 16s16-7.2 16-16" stroke="white" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          <line x1="26" y1="44" x2="26" y2="50" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="19" y1="50" x2="33" y2="50" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
         </svg>
-        <span class="ptt-label" id="pttLabel">PTT</span>
-      </button>
+        <span class="ptt-hint" id="pttHint">HOLD TO TALK</span>
+      </div>
     </div>
-    <div class="vol-bar"><div class="vol-fill" id="volFill"></div></div>
   </div>
 
-  <div class="grill-bottom">
-    <span></span><span></span><span></span><span></span>
-    <span></span><span></span><span></span><span></span>
+  <div class="bottombar">
+    <div class="waveform" id="waveform">
+      <div class="wbar" id="b1"></div><div class="wbar" id="b2"></div>
+      <div class="wbar" id="b3"></div><div class="wbar" id="b4"></div>
+      <div class="wbar" id="b5"></div><div class="wbar" id="b6"></div>
+      <div class="wbar" id="b7"></div><div class="wbar" id="b8"></div>
+      <div class="wbar" id="b9"></div><div class="wbar" id="b10"></div>
+      <div class="wbar" id="b11"></div><div class="wbar" id="b12"></div>
+    </div>
+    <div class="status-line" id="statusLine">Tap channel to get started</div>
+  </div>
+</div>
+
+<!-- Bottom sheet -->
+<div class="overlay" id="overlay" onclick="bgClose(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Join a Channel</div>
+    <input class="sheet-input" id="sheetInput" placeholder="CHANNEL-01" maxlength="20" autocomplete="off" spellcheck="false"/>
+    <button class="sheet-join" onclick="joinChannel()">Join</button>
+    <button class="sheet-cancel" onclick="closeSheet()">Cancel</button>
   </div>
 </div>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-const SERVER_URL = 'https://wearied-francisco-abortedly.ngrok-free.dev';  // ← this number
-
+const SERVER_URL = 'http://localhost:3000';
 const socket = io(SERVER_URL, { transports: ['websocket'] });
 
-let pc = null;
-let localStream = null;
-let peerId = null;
-let audioCtx = null;
-let analyser = null;
-let volInterval = null;
+let pc = null, localStream = null, peerId = null;
+let audioCtx = null, analyser = null, volInterval = null, talking = false;
 
-// UI refs
-const roomInput = document.getElementById('roomInput');
-const joinBtn = document.getElementById('joinBtn');
-const pttBtn = document.getElementById('pttBtn');
-const pttRing = document.getElementById('pttRing');
-const pttLabel = document.getElementById('pttLabel');
-const logLine = document.getElementById('logLine');
-const screenChannel = document.getElementById('screenChannel');
-const screenStatus = document.getElementById('screenStatus');
-const screenPeer = document.getElementById('screenPeer');
-const signalBars = document.getElementById('signalBars');
-const volFill = document.getElementById('volFill');
-const micBody = document.getElementById('micBody');
-const micArc = document.getElementById('micArc');
-const micStand = document.getElementById('micStand');
-const micBase = document.getElementById('micBase');
+// Random handle
+const adj  = ['swift','clear','brave','calm','sharp','quiet','bold','keen'];
+const noun = ['wave','link','beam','echo','pulse','relay','freq','node'];
+document.getElementById('userHandle').textContent =
+  '@' + adj[Math.random()*8|0] + noun[Math.random()*8|0];
 
-function setLog(msg, type = '') {
-  logLine.textContent = msg;
-  logLine.className = 'log ' + type;
-}
+const pttBtn    = document.getElementById('pttBtn');
+const pttHint   = document.getElementById('pttHint');
+const channelDot= document.getElementById('channelDot');
+const channelName=document.getElementById('channelName');
+const statusLine= document.getElementById('statusLine');
+const userLoc   = document.getElementById('userLocation');
+const ripples   = document.getElementById('ripples');
+const waveform  = document.getElementById('waveform');
+const bars      = Array.from({length:12},(_,i)=>document.getElementById('b'+(i+1)));
 
-function setStatus(text, color) {
-  screenStatus.textContent = text;
-  screenStatus.style.color = color || 'var(--amber)';
-}
+const setStatus = (msg, cls='') => { statusLine.textContent=msg; statusLine.className='status-line '+cls; };
 
-function setMicColor(color) {
-  [micBody, micArc, micStand, micBase].forEach(el => el.setAttribute('stroke', color));
+// Sheet
+function openSheet()  { document.getElementById('overlay').classList.add('open'); setTimeout(()=>document.getElementById('sheetInput').focus(),100); }
+function closeSheet() { document.getElementById('overlay').classList.remove('open'); }
+function bgClose(e)   { if(e.target===document.getElementById('overlay')) closeSheet(); }
+document.getElementById('sheetInput').oninput = e => e.target.value = e.target.value.toUpperCase();
+document.getElementById('sheetInput').onkeydown = e => { if(e.key==='Enter') joinChannel(); };
+
+function joinChannel() {
+  const room = document.getElementById('sheetInput').value.trim();
+  if (!room) return;
+  socket.emit('join_room', room);
+  channelName.textContent = room;
+  channelName.classList.remove('ph');
+  channelDot.className = 'channel-dot';
+  setStatus('Scanning for peers...', 'warn');
+  closeSheet();
 }
 
 // Socket events
-socket.on('connect', () => {
-  setLog('Server connected', 'ok');
-  signalBars.classList.add('connected');
-});
-
-socket.on('disconnect', () => {
-  setLog('Server disconnected', 'err');
-  signalBars.classList.remove('connected');
-  setStatus('OFFLINE', 'var(--red)');
-});
+socket.on('connect',    () => { userLoc.textContent = 'Connected'; setStatus('Ready — tap channel to join'); });
+socket.on('disconnect', () => { userLoc.textContent = 'Disconnected'; setStatus('Connection lost','err'); channelDot.className='channel-dot'; pttBtn.classList.add('disabled'); peerId=null; });
 
 socket.on('peer-joined', id => {
   peerId = id;
-  screenPeer.textContent = id.slice(0, 8) + '...';
-  screenPeer.style.color = 'var(--green)';
-  setStatus('LINKED', 'var(--green)');
-  setLog('Peer connected — channel open', 'ok');
-  pttBtn.disabled = false;
-  pttBtn.classList.add('ready');
-  pttRing.classList.add('ready');
-  setMicColor('var(--green)');
+  channelDot.className = 'channel-dot online';
+  userLoc.textContent = 'Peer online';
+  setStatus('Channel open — hold to transmit','ok');
+  pttBtn.classList.remove('disabled');
 });
 
 socket.on('peer-left', () => {
   peerId = null;
-  screenPeer.textContent = 'waiting...';
-  screenPeer.style.color = 'var(--muted)';
-  setStatus('STANDBY', '');
-  setLog('Peer disconnected', 'warn');
-  pttBtn.disabled = true;
-  pttBtn.classList.remove('ready', 'active');
-  pttRing.classList.remove('ready', 'active');
-  setMicColor('#4a5a6a');
-  stopVolumeMeter();
+  channelDot.className = 'channel-dot';
+  userLoc.textContent = 'Waiting for peer...';
+  setStatus('Peer disconnected','warn');
+  pttBtn.classList.add('disabled');
+  endTalk();
 });
 
 socket.on('signal', async ({ from, data }) => {
   peerId = peerId || from;
-  if (!pc) createPeerConnection();
+  if (!pc) initPC();
   if (data.sdp) {
     await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
     if (data.sdp.type === 'offer') {
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+      const ans = await pc.createAnswer();
+      await pc.setLocalDescription(ans);
       socket.emit('signal', { to: from, data: { sdp: pc.localDescription } });
     }
   } else if (data.candidate) {
@@ -480,115 +420,68 @@ socket.on('signal', async ({ from, data }) => {
   }
 });
 
-// Join room — note: underscore for Python server
-joinBtn.onclick = () => {
-  const room = roomInput.value.trim().toUpperCase();
-  if (!room) return;
-  socket.emit('join_room', room);   // ← underscore (Python)
-  screenChannel.textContent = room;
-  setStatus('SCANNING', 'var(--amber)');
-  setLog('Joined channel ' + room, 'ok');
-  joinBtn.disabled = true;
-  roomInput.disabled = true;
-};
-
-// WebRTC
-function createPeerConnection() {
-  pc = new RTCPeerConnection({
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-  });
-  pc.onicecandidate = e => {
-    if (e.candidate) socket.emit('signal', { to: peerId, data: { candidate: e.candidate } });
-  };
-  pc.ontrack = e => {
-    const audio = new Audio();
-    audio.srcObject = e.streams[0];
-    audio.autoplay = true;
-    setLog('Receiving audio...', 'ok');
-  };
+function initPC() {
+  pc = new RTCPeerConnection({ iceServers:[{urls:'stun:stun.l.google.com:19302'}] });
+  pc.onicecandidate = e => { if(e.candidate) socket.emit('signal',{to:peerId,data:{candidate:e.candidate}}); };
+  pc.ontrack = e => { const a=new Audio(); a.srcObject=e.streams[0]; a.autoplay=true; setStatus('Receiving...','ok'); };
 }
 
-// PTT logic
-async function startTalking() {
-  if (!peerId || pttBtn.disabled) return;
-  pttBtn.classList.add('active');
-  pttBtn.classList.remove('ready');
-  pttRing.classList.add('active');
-  pttRing.classList.remove('ready');
-  pttLabel.textContent = 'TX';
-  pttLabel.classList.add('blink');
-  setStatus('TRANSMIT', 'var(--red)');
-  setLog('Transmitting...', 'err');
-
+async function startTalk() {
+  if (pttBtn.classList.contains('disabled') || talking) return;
+  talking = true;
+  pttBtn.classList.add('tx');
+  pttHint.textContent = 'TRANSMITTING';
+  channelDot.className = 'channel-dot tx';
+  ripples.classList.add('active');
+  waveform.classList.add('on');
+  setStatus('Transmitting...','err');
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    if (!pc) createPeerConnection();
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-    startVolumeMeter(localStream);
-
+    localStream = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    if (!pc) initPC();
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+    startVol(localStream);
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
     socket.emit('signal', { to: peerId, data: { sdp: pc.localDescription } });
-  } catch (err) {
-    setLog('Mic error: ' + err.message, 'err');
-    stopTalking();
+  } catch(err) {
+    setStatus('Mic: '+err.message,'err');
+    endTalk();
   }
 }
 
-function stopTalking() {
-  pttBtn.classList.remove('active');
-  pttBtn.classList.add('ready');
-  pttRing.classList.remove('active');
-  pttRing.classList.add('ready');
-  pttLabel.textContent = 'PTT';
-  pttLabel.classList.remove('blink');
-  setStatus('LINKED', 'var(--green)');
-  setLog('Standing by', 'ok');
-  localStream?.getTracks().forEach(t => t.stop());
-  localStream = null;
-  stopVolumeMeter();
+function endTalk() {
+  if (!talking) return;
+  talking = false;
+  pttBtn.classList.remove('tx');
+  pttHint.textContent = 'HOLD TO TALK';
+  if (peerId) channelDot.className = 'channel-dot online';
+  ripples.classList.remove('active');
+  waveform.classList.remove('on');
+  localStream?.getTracks().forEach(t=>t.stop()); localStream=null;
+  stopVol();
+  if (peerId) setStatus('Channel open — hold to transmit','ok');
 }
 
-// Volume meter
-function startVolumeMeter(stream) {
-  audioCtx = new AudioContext();
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 256;
-  const src = audioCtx.createMediaStreamSource(stream);
-  src.connect(analyser);
-  const data = new Uint8Array(analyser.frequencyBinCount);
-  volFill.classList.add('active');
-  volInterval = setInterval(() => {
-    analyser.getByteFrequencyData(data);
-    const avg = data.reduce((a, b) => a + b, 0) / data.length;
-    volFill.style.width = Math.min(100, avg * 2.5) + '%';
-  }, 50);
+function startVol(stream) {
+  audioCtx = new AudioContext(); analyser = audioCtx.createAnalyser(); analyser.fftSize=64;
+  audioCtx.createMediaStreamSource(stream).connect(analyser);
+  const d = new Uint8Array(analyser.frequencyBinCount);
+  volInterval = setInterval(()=>{
+    analyser.getByteFrequencyData(d);
+    bars.forEach((b,i)=>{ const v=d[i*2]||0; b.style.height=Math.max(4,Math.min(24,v*0.22))+'px'; });
+  },40);
 }
+function stopVol() { clearInterval(volInterval); audioCtx?.close(); audioCtx=null; bars.forEach(b=>b.style.height='4px'); }
 
-function stopVolumeMeter() {
-  clearInterval(volInterval);
-  audioCtx?.close();
-  audioCtx = null;
-  volFill.style.width = '0%';
-  volFill.classList.remove('active');
-}
-
-// PTT button events (mouse + touch)
-pttBtn.addEventListener('mousedown', startTalking);
-pttBtn.addEventListener('mouseup', stopTalking);
-pttBtn.addEventListener('mouseleave', stopTalking);
-pttBtn.addEventListener('touchstart', e => { e.preventDefault(); startTalking(); });
-pttBtn.addEventListener('touchend', e => { e.preventDefault(); stopTalking(); });
-
-// Keyboard shortcut: hold Space to talk
-document.addEventListener('keydown', e => { if (e.code === 'Space' && !e.repeat) startTalking(); });
-document.addEventListener('keyup', e => { if (e.code === 'Space') stopTalking(); });
-
-// Uppercase room input
-roomInput.addEventListener('input', () => {
-  roomInput.value = roomInput.value.toUpperCase();
-});
+// Events
+pttBtn.addEventListener('mousedown',  startTalk);
+pttBtn.addEventListener('mouseup',    endTalk);
+pttBtn.addEventListener('mouseleave', endTalk);
+pttBtn.addEventListener('touchstart', e=>{e.preventDefault();startTalk();},{passive:false});
+pttBtn.addEventListener('touchend',   e=>{e.preventDefault();endTalk();},  {passive:false});
+pttBtn.addEventListener('touchcancel',e=>{e.preventDefault();endTalk();},  {passive:false});
+document.addEventListener('keydown',  e=>{if(e.code==='Space'&&!e.repeat)startTalk();});
+document.addEventListener('keyup',    e=>{if(e.code==='Space')endTalk();});
 </script>
 </body>
 </html>
