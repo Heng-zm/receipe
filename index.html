@@ -312,6 +312,67 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 .sheet-btn.primary   { background:var(--white); color:#000; }
 .sheet-btn.secondary { background:rgba(255,255,255,0.07); color:var(--white); }
 
+/* ── Geofence UI ── */
+.geo-toolbar {
+  position:absolute; bottom:calc(env(safe-area-inset-bottom,0px) + 140px);
+  right:14px; z-index:15;
+  display:flex; flex-direction:column; gap:8px;
+}
+.geo-fab {
+  width:42px; height:42px; border-radius:50%;
+  border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px; transition:opacity 0.15s, transform 0.1s;
+  box-shadow:0 2px 12px rgba(0,0,0,0.5);
+}
+.geo-fab:active { opacity:0.75; transform:scale(0.94); }
+.geo-fab.primary { background:var(--blue); color:#fff; }
+.geo-fab.danger  { background:var(--red);  color:#fff; }
+.geo-fab.neutral { background:rgba(30,30,32,0.92); color:rgba(255,255,255,0.85); border:1px solid rgba(255,255,255,0.12); }
+
+/* Zone info banner — slides up from bottom of map when inside a zone */
+.geo-banner {
+  position:absolute; bottom:0; left:0; right:0; z-index:15;
+  background:rgba(0,122,255,0.92);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  padding:10px 18px; display:flex; align-items:center; gap:10px;
+  transform:translateY(100%); transition:transform 0.28s cubic-bezier(0.32,0.72,0,1);
+  border-top:1px solid rgba(255,255,255,0.15);
+}
+.geo-banner.on { transform:translateY(0); }
+.geo-banner-icon { flex-shrink:0; }
+.geo-banner-text { flex:1; }
+.geo-banner-title { font-size:13px; font-weight:500; }
+.geo-banner-sub   { font-size:11px; opacity:0.75; margin-top:1px; }
+.geo-banner-btn {
+  background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.25);
+  border-radius:8px; color:#fff; font-size:12px; font-weight:500;
+  padding:6px 12px; cursor:pointer; flex-shrink:0; white-space:nowrap;
+}
+.geo-banner-btn:active { background:rgba(255,255,255,0.35); }
+
+/* Geofence sheet */
+.geo-sheet-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.07); }
+.geo-sheet-row:last-child { border-bottom:none; }
+.geo-zone-name  { font-size:14px; color:var(--white); }
+.geo-zone-meta  { font-size:11px; color:var(--dim); margin-top:2px; }
+.geo-zone-del   { background:rgba(255,69,58,0.12); border:1px solid rgba(255,69,58,0.2); border-radius:7px; color:var(--red); font-size:12px; padding:5px 10px; cursor:pointer; }
+.geo-zone-del:active { opacity:0.7; }
+.geo-empty-zones { text-align:center; font-size:13px; color:var(--dim); padding:16px 0; }
+
+/* Draw mode indicator at top of map */
+.geo-draw-hint {
+  position:absolute; top:calc(env(safe-area-inset-top,48px) + 54px);
+  left:50%; transform:translateX(-50%);
+  z-index:15; background:rgba(0,122,255,0.88);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-radius:20px; padding:7px 18px;
+  font-size:12px; font-weight:500; color:#fff;
+  white-space:nowrap; pointer-events:none;
+  opacity:0; transition:opacity 0.2s;
+}
+.geo-draw-hint.on { opacity:1; }
+
 /* Toast */
 .toast { position:fixed; bottom:calc(env(safe-area-inset-bottom,0px) + 88px); left:50%; transform:translateX(-50%) translateY(8px); background:rgba(28,28,30,0.96); border:1px solid rgba(255,255,255,0.09); border-radius:10px; padding:9px 16px; font-size:13px; color:var(--white); opacity:0; transition:opacity 0.2s,transform 0.2s; pointer-events:none; white-space:nowrap; z-index:200; }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
@@ -464,6 +525,37 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
     </button>
   </div>
   <div id="mapContainer"></div>
+
+  <!-- Geofence: draw mode hint -->
+  <div class="geo-draw-hint" id="geoDrawHint">Tap map to place zone center</div>
+
+  <!-- Geofence: zone-entered banner -->
+  <div class="geo-banner" id="geoBanner">
+    <svg class="geo-banner-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="8.5" stroke="white" stroke-width="1.5" fill="none" opacity="0.6"/>
+      <circle cx="10" cy="10" r="3" fill="white"/>
+    </svg>
+    <div class="geo-banner-text">
+      <div class="geo-banner-title" id="geoBannerTitle">Zone</div>
+      <div class="geo-banner-sub"  id="geoBannerSub">You entered a geofence zone</div>
+    </div>
+    <button class="geo-banner-btn" id="geoBannerBtn">Join</button>
+  </div>
+
+  <!-- Geofence: FAB toolbar -->
+  <div class="geo-toolbar" id="geoToolbar">
+    <button class="geo-fab neutral" id="geoListBtn" title="Manage zones">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <line x1="3" y1="5" x2="15" y2="5"/><line x1="3" y1="9" x2="15" y2="9"/><line x1="3" y1="13" x2="15" y2="13"/>
+      </svg>
+    </button>
+    <button class="geo-fab primary" id="geoAddBtn" title="Add zone here">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round">
+        <line x1="9" y1="3" x2="9" y2="15"/><line x1="3" y1="9" x2="15" y2="9"/>
+      </svg>
+    </button>
+  </div>
+
   <div class="map-bottom">
     <div class="map-location-text" id="mapLocationText">Locating...</div>
     <div class="map-user-text" id="mapUserText">@loading</div>
@@ -491,6 +583,35 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
     <input class="sheet-input" id="nameInput" placeholder="YOUR NAME" maxlength="20" autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
     <button class="sheet-btn primary" id="nameSaveBtn">Save</button>
     <button class="sheet-btn secondary" id="nameCancelBtn">Cancel</button>
+  </div>
+</div>
+
+<!-- Geofence name sheet — shown when creating a new zone -->
+<div class="overlay" id="geoOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Create Geofence Zone</div>
+    <div class="sheet-sub" id="geoSheetSub">Zone center: tap map to set</div>
+    <input class="sheet-input" id="geoZoneChannel" placeholder="CHANNEL-01" maxlength="30"
+      autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
+    <div style="display:flex;gap:10px;align-items:center;padding:0 2px;">
+      <span style="font-size:13px;color:var(--dim);white-space:nowrap;">Radius</span>
+      <input type="range" id="geoRadiusSlider" min="50" max="2000" value="300" step="50"
+        style="flex:1;accent-color:var(--blue)"/>
+      <span id="geoRadiusLabel" style="font-size:13px;color:var(--white);min-width:52px;text-align:right">300 m</span>
+    </div>
+    <button class="sheet-btn primary" id="geoSaveBtn">Save Zone</button>
+    <button class="sheet-btn secondary" id="geoCancelBtn">Cancel</button>
+  </div>
+</div>
+
+<!-- Geofence zones list sheet -->
+<div class="overlay" id="geoListOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Geofence Zones</div>
+    <div id="geoZonesList"></div>
+    <button class="sheet-btn secondary" id="geoListCloseBtn">Close</button>
   </div>
 </div>
 
@@ -527,6 +648,14 @@ var userMarker   = null;
 var userLat      = null;
 var userLng      = null;
 var locationStr  = '';
+
+// ── Geofence state ──
+var geoZones        = [];       // [{ id, channel, lat, lng, radius, circle, marker }]
+var geoDrawMode     = false;    // true when user is placing a new zone center
+var geoNewZone      = null;     // temp zone being created { lat, lng, radius, channel }
+var geoWatchId      = null;     // navigator.geolocation.watchPosition id
+var geoInsideZones  = {};       // id → true when user is inside that zone
+var geoPreviewCircle= null;     // Leaflet circle shown while drawing
 
 // ── Recording state ──
 var mediaRec     = null;
@@ -621,6 +750,25 @@ function wireUI() {
   wirePTT(pttCircle, false);
   wirePTT(talkHereBtn, true);
 
+  // Geofence UI wiring
+  document.getElementById('geoAddBtn').addEventListener('click', geoStartDraw);
+  document.getElementById('geoListBtn').addEventListener('click', geoOpenList);
+  document.getElementById('geoListCloseBtn').addEventListener('click', geoCloseList);
+  document.getElementById('geoListOverlay').addEventListener('click', function(e){ if(e.target===this) geoCloseList(); });
+  document.getElementById('geoOverlay').addEventListener('click', function(e){ if(e.target===this) geoCancelDraw(); });
+  document.getElementById('geoCancelBtn').addEventListener('click', geoCancelDraw);
+  document.getElementById('geoSaveBtn').addEventListener('click', geoSaveZone);
+  document.getElementById('geoZoneChannel').addEventListener('input', function(){ this.value=this.value.toUpperCase(); geoUpdatePreview(); });
+  document.getElementById('geoRadiusSlider').addEventListener('input', function(){
+    document.getElementById('geoRadiusLabel').textContent = this.value + ' m';
+    if (geoNewZone) { geoNewZone.radius = parseInt(this.value); geoUpdatePreview(); }
+  });
+  document.getElementById('geoBannerBtn').addEventListener('click', function(){
+    var zoneId = document.getElementById('geoBanner').dataset.zoneId;
+    var zone   = geoZones.find(function(z){ return z.id === zoneId; });
+    if (zone) { joinChannel(zone.channel); showMain(); }
+  });
+
   document.addEventListener('keydown', function (e) { if (e.code === 'Space' && !e.repeat) startRecording(); });
   document.addEventListener('keyup',   function (e) { if (e.code === 'Space') stopRecording(false); });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) channelPill.classList.remove('has-unread'); });
@@ -693,7 +841,17 @@ function getLocation() {
     userLng = pos.coords.longitude;
     reverseGeocode(userLat, userLng);
     if (mapInstance) updateMapMarker();
+    geoCheckAll(userLat, userLng);
   }, function () { setLocationText('Location unavailable'); }, { timeout: 10000 });
+  // Continuous watch for geofence enter/exit detection
+  if (geoWatchId === null && navigator.geolocation) {
+    geoWatchId = navigator.geolocation.watchPosition(function(pos) {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      if (mapInstance) updateMapMarker();
+      geoCheckAll(userLat, userLng);
+    }, function(){}, { enableHighAccuracy: true, maximumAge: 10000 });
+  }
 }
 function setLocationText(s) {
   locationStr = s;
@@ -732,6 +890,7 @@ function buildMap() {
   // Invalidate size after flex layout settles so tiles fill the container correctly
   setTimeout(function(){ if(mapInstance) mapInstance.invalidateSize(); }, 200);
   if (myRoom) talkHereBtn.disabled = false;
+  geoInit();
 }
 function updateMapMarker() {
   if (!mapInstance || !userMarker) return;
@@ -779,6 +938,209 @@ function saveName() {
   if (myRoom) socket.emit('update_name', { name: myName });
   showToast('Name updated');
 }
+
+// ════════════════════════════════════
+// GEOFENCE SYSTEM
+// ════════════════════════════════════
+
+// ── Haversine distance (metres) between two lat/lng points ──
+function geoDistance(lat1, lng1, lat2, lng2) {
+  var R  = 6371000;
+  var d1 = (lat2 - lat1) * Math.PI / 180;
+  var d2 = (lng2 - lng1) * Math.PI / 180;
+  var a  = Math.sin(d1/2) * Math.sin(d1/2) +
+           Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+           Math.sin(d2/2) * Math.sin(d2/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ── Load zones from localStorage and draw on map ──
+function geoInit() {
+  try {
+    var saved = JSON.parse(localStorage.getItem('wt_geo_zones') || '[]');
+    saved.forEach(function(z) { geoAddZoneToMap(z); });
+  } catch(e) {}
+}
+
+// ── Persist zones (without Leaflet objects) ──
+function geoPersist() {
+  var data = geoZones.map(function(z) {
+    return { id:z.id, channel:z.channel, lat:z.lat, lng:z.lng, radius:z.radius };
+  });
+  localStorage.setItem('wt_geo_zones', JSON.stringify(data));
+}
+
+// ── Add a zone to the map and geoZones array ──
+function geoAddZoneToMap(z) {
+  if (!mapInstance) return;
+  var color   = '#007aff';
+  var circle  = L.circle([z.lat, z.lng], {
+    radius: z.radius,
+    color: color, fillColor: color,
+    fillOpacity: 0.12, weight: 2, dashArray: '6 4'
+  }).addTo(mapInstance);
+
+  // Label marker at zone center
+  var labelIcon = L.divIcon({
+    className: '',
+    html: '<div style="background:rgba(0,0,0,0.75);color:#fff;font-size:11px;font-weight:500;' +
+          'padding:3px 8px;border-radius:10px;white-space:nowrap;border:1px solid rgba(0,122,255,0.5);' +
+          'box-shadow:0 1px 6px rgba(0,0,0,0.4)">' + z.channel + '</div>',
+    iconAnchor: [0, 10]
+  });
+  var marker = L.marker([z.lat, z.lng], { icon: labelIcon, interactive: false }).addTo(mapInstance);
+
+  var zone = { id:z.id, channel:z.channel, lat:z.lat, lng:z.lng, radius:z.radius, circle:circle, marker:marker };
+  geoZones.push(zone);
+
+  // Tap zone circle to show info
+  circle.on('click', function() { geoShowBannerForZone(zone); });
+}
+
+// ── Remove a zone ──
+function geoDeleteZone(id) {
+  var idx = geoZones.findIndex(function(z){ return z.id === id; });
+  if (idx === -1) return;
+  var z = geoZones[idx];
+  if (z.circle) mapInstance.removeLayer(z.circle);
+  if (z.marker) mapInstance.removeLayer(z.marker);
+  geoZones.splice(idx, 1);
+  delete geoInsideZones[id];
+  geoPersist();
+  // Hide banner if this zone was showing
+  var banner = document.getElementById('geoBanner');
+  if (banner.dataset.zoneId === id) banner.classList.remove('on');
+}
+
+// ── Check all zones against current position ──
+function geoCheckAll(lat, lng) {
+  if (!lat || !lng) return;
+  geoZones.forEach(function(z) {
+    var dist   = geoDistance(lat, lng, z.lat, z.lng);
+    var inside = dist <= z.radius;
+    var wasInside = !!geoInsideZones[z.id];
+
+    if (inside && !wasInside) {
+      // Entered zone
+      geoInsideZones[z.id] = true;
+      geoShowBannerForZone(z);
+      // Auto-join if not already in a room
+      if (!myRoom) {
+        joinChannel(z.channel);
+        showToast('Auto-joined #' + z.channel);
+      }
+    } else if (!inside && wasInside) {
+      // Exited zone
+      delete geoInsideZones[z.id];
+      var banner = document.getElementById('geoBanner');
+      if (banner.dataset.zoneId === z.id) banner.classList.remove('on');
+      // Auto-leave if we joined this zone's channel
+      if (myRoom === z.channel) {
+        showToast('Left zone — still on #' + z.channel);
+      }
+    }
+  });
+}
+
+// ── Show zone banner ──
+function geoShowBannerForZone(zone) {
+  var banner = document.getElementById('geoBanner');
+  var dist   = (userLat && userLng) ? Math.round(geoDistance(userLat, userLng, zone.lat, zone.lng)) : '?';
+  document.getElementById('geoBannerTitle').textContent = '#' + zone.channel;
+  document.getElementById('geoBannerSub').textContent   = dist + ' m from center · Tap to join';
+  document.getElementById('geoBannerBtn').textContent   = myRoom === zone.channel ? 'Active' : 'Join';
+  banner.dataset.zoneId = zone.id;
+  banner.classList.add('on');
+  // Auto-dismiss after 8s
+  clearTimeout(banner._timer);
+  banner._timer = setTimeout(function(){ banner.classList.remove('on'); }, 8000);
+}
+
+// ── Draw mode: user taps + to start, then taps map to place center ──
+function geoStartDraw() {
+  if (!mapInstance) { showToast('Open the map first'); return; }
+  geoDrawMode = true;
+  geoNewZone  = { lat: null, lng: null, radius: 300, channel: '' };
+  document.getElementById('geoDrawHint').classList.add('on');
+  mapInstance.once('click', function(e) {
+    geoDrawMode        = false;
+    geoNewZone.lat     = e.latlng.lat;
+    geoNewZone.lng     = e.latlng.lng;
+    document.getElementById('geoDrawHint').classList.remove('on');
+    // Show preview circle
+    if (geoPreviewCircle) mapInstance.removeLayer(geoPreviewCircle);
+    geoPreviewCircle = L.circle([geoNewZone.lat, geoNewZone.lng], {
+      radius: geoNewZone.radius,
+      color: '#ffd60a', fillColor: '#ffd60a',
+      fillOpacity: 0.1, weight: 2, dashArray: '4 4'
+    }).addTo(mapInstance);
+    // Populate sheet sub with coords
+    document.getElementById('geoSheetSub').textContent =
+      geoNewZone.lat.toFixed(4) + ', ' + geoNewZone.lng.toFixed(4);
+    document.getElementById('geoRadiusSlider').value = '300';
+    document.getElementById('geoRadiusLabel').textContent = '300 m';
+    document.getElementById('geoZoneChannel').value = myRoom || '';
+    document.getElementById('geoOverlay').classList.add('open');
+  });
+}
+
+// ── Update preview circle while editing radius/channel ──
+function geoUpdatePreview() {
+  if (!geoPreviewCircle || !geoNewZone) return;
+  var r = parseInt(document.getElementById('geoRadiusSlider').value) || 300;
+  geoPreviewCircle.setRadius(r);
+}
+
+// ── Cancel draw mode ──
+function geoCancelDraw() {
+  geoDrawMode = false;
+  document.getElementById('geoDrawHint').classList.remove('on');
+  document.getElementById('geoOverlay').classList.remove('open');
+  if (geoPreviewCircle) { mapInstance.removeLayer(geoPreviewCircle); geoPreviewCircle = null; }
+  mapInstance.off('click'); // remove pending once listener
+}
+
+// ── Save new zone ──
+function geoSaveZone() {
+  if (!geoNewZone || geoNewZone.lat === null) { showToast('Tap the map to set zone center'); return; }
+  var ch = document.getElementById('geoZoneChannel').value.trim().toUpperCase().replace(/[^A-Z0-9\-_]/g,'').slice(0,40);
+  if (!ch) { showToast('Enter a channel name'); return; }
+  var r  = parseInt(document.getElementById('geoRadiusSlider').value) || 300;
+  var zone = { id: 'z_' + Date.now(), channel: ch, lat: geoNewZone.lat, lng: geoNewZone.lng, radius: r };
+  // Remove amber preview, add real blue zone
+  if (geoPreviewCircle) { mapInstance.removeLayer(geoPreviewCircle); geoPreviewCircle = null; }
+  geoAddZoneToMap(zone);
+  geoPersist();
+  document.getElementById('geoOverlay').classList.remove('open');
+  geoNewZone = null;
+  showToast('Zone saved — #' + ch);
+  // Immediately check if user is already inside
+  if (userLat && userLng) geoCheckAll(userLat, userLng);
+}
+
+// ── Zone list sheet ──
+function geoOpenList() {
+  var list = document.getElementById('geoZonesList');
+  list.innerHTML = '';
+  if (geoZones.length === 0) {
+    list.innerHTML = '<div class="geo-empty-zones">No zones yet. Tap + on the map to add one.</div>';
+  } else {
+    geoZones.forEach(function(z) {
+      var row  = document.createElement('div'); row.className = 'geo-sheet-row';
+      var info = document.createElement('div');
+      var name = document.createElement('div'); name.className = 'geo-zone-name'; name.textContent = '#' + z.channel;
+      var meta = document.createElement('div'); meta.className = 'geo-zone-meta';
+      meta.textContent = z.radius + ' m radius · ' + z.lat.toFixed(4) + ', ' + z.lng.toFixed(4);
+      info.appendChild(name); info.appendChild(meta);
+      var del = document.createElement('button'); del.className = 'geo-zone-del'; del.textContent = 'Delete';
+      del.addEventListener('click', (function(id){ return function(){ geoDeleteZone(id); geoOpenList(); }; })(z.id));
+      row.appendChild(info); row.appendChild(del);
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('geoListOverlay').classList.add('open');
+}
+function geoCloseList() { document.getElementById('geoListOverlay').classList.remove('open'); }
 
 // ── Helpers ──
 var toastTimer = null;
