@@ -7,195 +7,292 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>WalkieTalk</title>
-<!-- FIX 1: SF Pro is not on Google Fonts — use system stack only -->
 <style>
+/* ── Design tokens ── */
 :root {
-  --bg:#000; --white:#fff;
-  --dim:rgba(255,255,255,0.45);
-  --dimmer:rgba(255,255,255,0.15);
-  --green:#30d158; --red:#ff453a; --amber:#ffd60a; --blue:#007aff;
-  /* FIX 13: hint browser about animated elements upfront */
-  --circ-size:292px;
+  --bg:      #000;
+  --surface: rgba(255,255,255,0.07);
+  --border:  rgba(255,255,255,0.1);
+  --white:   #fff;
+  --dim:     rgba(255,255,255,0.4);
+  --dimmer:  rgba(255,255,255,0.12);
+  --green:   #30d158;
+  --red:     #ff453a;
+  --amber:   #ffd60a;
+  --blue:    #007aff;
+  /* Responsive circle: min 240px, max 292px, scales with viewport */
+  --circ: clamp(240px, 70vmin, 292px);
 }
 
+/* ── Reset ── */
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-
-html,body {
-  width:100%; height:100%;
-  background:var(--bg); color:var(--white);
-  /* FIX 1: real iOS system font stack */
-  font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
-  overflow:hidden; -webkit-font-smoothing:antialiased;
-}
+html,body { width:100%; height:100%; background:var(--bg); color:var(--white); font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif; overflow:hidden; -webkit-font-smoothing:antialiased; }
 
 /* ── Views ── */
-.view { position:absolute; inset:0; display:flex; flex-direction:column; transition:opacity 0.28s; }
+.view { position:absolute; inset:0; display:flex; flex-direction:column; }
 .view.hidden { opacity:0; pointer-events:none; }
-
-/* ════════════ MAIN VIEW ════════════ */
-#mainView {
-  background:#000;
-  padding:env(safe-area-inset-top,48px) 0 env(safe-area-inset-bottom,28px);
+/* Only animate if user hasn't opted out */
+@media (prefers-reduced-motion:no-preference) {
+  .view { transition:opacity 0.25s; }
 }
 
-/* FIX 5: reconnect bar is position:absolute so it doesn't shift layout */
+/* ════════════════════════════════════
+   MAIN VIEW
+════════════════════════════════════ */
+#mainView {
+  background:var(--bg);
+  padding:env(safe-area-inset-top,48px) 0 env(safe-area-inset-bottom,20px);
+}
+
+/* Reconnect banner — absolute so it never shifts layout */
 .reconnect-bar {
   position:absolute; top:0; left:0; right:0; z-index:20;
   display:flex; align-items:center; justify-content:center; gap:8px;
-  padding:8px; font-size:12px; color:var(--red);
-  background:rgba(0,0,0,0.85);
-  border-bottom:1px solid rgba(255,69,58,0.3);
+  padding:8px 16px; font-size:12px; color:var(--red);
+  background:rgba(0,0,0,0.9);
+  border-bottom:1px solid rgba(255,69,58,0.25);
   transform:translateY(-100%);
-  transition:transform 0.25s;
+  transition:transform 0.22s;
 }
 .reconnect-bar.on { transform:translateY(0); }
-.spinner { width:11px; height:11px; border:1.5px solid rgba(255,69,58,0.25); border-top-color:var(--red); border-radius:50%; animation:spin 0.8s linear infinite; }
+.spinner {
+  width:10px; height:10px; border-radius:50%;
+  border:1.5px solid rgba(255,69,58,0.2);
+  border-top-color:var(--red);
+}
+@media (prefers-reduced-motion:no-preference) {
+  .spinner { animation:spin 0.75s linear infinite; }
+}
 @keyframes spin { to { transform:rotate(360deg); } }
 
 /* Top bar */
 .topbar { display:flex; align-items:center; justify-content:space-between; padding:8px 20px 0; flex-shrink:0; }
-.topbar-icons { display:flex; gap:14px; align-items:center; }
-.top-icon-btn { background:none; border:none; cursor:pointer; color:var(--white); opacity:0.9; padding:4px; display:flex; align-items:center; justify-content:center; }
-.top-icon-btn:active { opacity:0.5; }
-.power-btn { width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.2); background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.15s; }
+.topbar-left { display:flex; gap:4px; align-items:center; }
+.top-icon-btn { background:none; border:none; cursor:pointer; padding:6px; display:flex; align-items:center; justify-content:center; border-radius:8px; opacity:0.85; transition:opacity 0.15s; }
+.top-icon-btn:active { opacity:0.45; }
+.power-btn { width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.18); background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.15s; }
 .power-btn:active { background:rgba(255,255,255,0.1); }
 
 /* Username */
-.username-wrap { padding:10px 20px 0; flex-shrink:0; }
-.username { font-size:32px; font-weight:400; letter-spacing:-0.5px; color:var(--white); cursor:pointer; display:inline-block; }
+.username-wrap { padding:8px 20px 0; flex-shrink:0; }
+.username { font-size:32px; font-weight:400; letter-spacing:-0.5px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
 .username:active { opacity:0.6; }
+.username-edit { opacity:0.3; flex-shrink:0; }
 
 /* Location */
-.location-wrap { display:flex; align-items:center; justify-content:center; padding:5px 20px 0; flex-shrink:0; }
-.location-text { font-size:15px; font-weight:300; color:var(--dim); text-align:center; }
+.location-wrap { padding:3px 20px 0; flex-shrink:0; }
+.location-text { font-size:14px; font-weight:300; color:var(--dim); }
 
 /* Channel pill */
-.channel-wrap { display:flex; justify-content:center; padding:7px 20px 0; flex-shrink:0; min-height:30px; }
-.channel-pill { display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.1); border-radius:100px; padding:4px 12px; cursor:pointer; transition:background 0.15s; position:relative; }
-.channel-pill:active { background:rgba(255,255,255,0.18); }
-.unread-dot { position:absolute; top:-2px; right:-2px; width:8px; height:8px; border-radius:50%; background:var(--red); border:2px solid #000; opacity:0; transition:opacity 0.2s; }
+.channel-wrap { display:flex; justify-content:center; padding:8px 20px 0; flex-shrink:0; }
+.channel-pill {
+  display:inline-flex; align-items:center; gap:7px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:100px; padding:5px 14px;
+  cursor:pointer; transition:background 0.15s; position:relative;
+  max-width:calc(100vw - 40px);
+}
+.channel-pill:active { background:rgba(255,255,255,0.14); }
+.unread-dot { position:absolute; top:-3px; right:-3px; width:9px; height:9px; border-radius:50%; background:var(--red); border:2px solid var(--bg); opacity:0; transition:opacity 0.2s; pointer-events:none; }
 .channel-pill.has-unread .unread-dot { opacity:1; }
-.ch-dot { width:6px; height:6px; border-radius:50%; background:var(--dim); transition:background 0.3s,box-shadow 0.3s; flex-shrink:0; }
-.ch-dot.online { background:var(--green); box-shadow:0 0 5px var(--green); }
-.ch-dot.rec    { background:var(--red);   box-shadow:0 0 6px var(--red); animation:dotblink 0.5s ease-in-out infinite alternate; }
-.ch-dot.send   { background:var(--blue);  box-shadow:0 0 5px var(--blue); }
-@keyframes dotblink { to { opacity:0.2; } }
-.ch-name { font-size:12px; font-weight:400; color:rgba(255,255,255,0.7); letter-spacing:0.8px; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.channel-pill.ph .ch-name { color:var(--dim); }
-.peer-ct { font-size:11px; color:rgba(255,255,255,0.35); white-space:nowrap; }
+.ch-dot { width:7px; height:7px; border-radius:50%; background:var(--dim); flex-shrink:0; transition:background 0.3s,box-shadow 0.3s; }
+.ch-dot.online { background:var(--green); box-shadow:0 0 6px var(--green); }
+.ch-dot.rx     { background:var(--blue);  box-shadow:0 0 6px var(--blue); animation:dotpulse 0.8s ease-in-out infinite alternate; }
+.ch-dot.tx     { background:var(--red);   box-shadow:0 0 7px var(--red);  animation:dotpulse 0.4s ease-in-out infinite alternate; }
+.ch-dot.send   { background:var(--amber); box-shadow:0 0 6px var(--amber); }
+@keyframes dotpulse { to { opacity:0.25; } }
+.ch-name { font-size:12px; font-weight:400; color:rgba(255,255,255,0.75); letter-spacing:0.6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:min(180px, 50vw); }
+.channel-pill.ph .ch-name { color:var(--dim); letter-spacing:0.3px; }
+.peer-ct { font-size:11px; color:rgba(255,255,255,0.3); white-space:nowrap; flex-shrink:0; }
 
-/* Circle area */
+/* ── Circle area ── */
 .circle-wrap { flex:1; display:flex; align-items:center; justify-content:center; position:relative; min-height:0; }
-.cancel-hint { position:absolute; top:-36px; font-size:12px; font-weight:300; letter-spacing:0.5px; color:rgba(255,255,255,0.5); opacity:0; transition:opacity 0.2s; pointer-events:none; white-space:nowrap; }
+.cancel-hint { position:absolute; top:calc(50% - var(--circ)/2 - 30px); font-size:12px; font-weight:300; letter-spacing:0.4px; color:rgba(255,255,255,0.45); opacity:0; transition:opacity 0.18s; pointer-events:none; white-space:nowrap; }
 .cancel-hint.on { opacity:1; }
 
-/* FIX 13: will-change on animated elements */
-.limit-svg { position:absolute; width:300px; height:300px; transform:rotate(-90deg); pointer-events:none; will-change:contents; }
-/* FIX 2: stroke-dasharray set ONLY in HTML attribute, removed from CSS conflict */
-#limitArc { transition:stroke-dashoffset 0.25s linear; }
+/* Limit arc SVG — fixed at circ+8px so it sits just outside the border */
+.limit-svg { position:absolute; width:calc(var(--circ) + 8px); height:calc(var(--circ) + 8px); transform:rotate(-90deg); pointer-events:none; overflow:visible; }
+#limitArc { transition:stroke-dashoffset 0.22s linear; }
 
-.ripples { position:absolute; width:var(--circ-size); height:var(--circ-size); border-radius:50%; pointer-events:none; will-change:transform; }
-.ripple  { position:absolute; inset:0; border-radius:50%; border:1px solid rgba(255,255,255,0.15); opacity:0; will-change:transform,opacity; }
-.ripples.rec .ripple:nth-child(1) { animation:ripout 1.8s ease-out infinite 0s; }
-.ripples.rec .ripple:nth-child(2) { animation:ripout 1.8s ease-out infinite 0.6s; }
-.ripples.rec .ripple:nth-child(3) { animation:ripout 1.8s ease-out infinite 1.2s; }
-@keyframes ripout { 0%{transform:scale(1);opacity:0.4;} 100%{transform:scale(2.0);opacity:0;} }
+/* Ripples */
+.ripples { position:absolute; width:var(--circ); height:var(--circ); border-radius:50%; pointer-events:none; }
+.ripple  { position:absolute; inset:0; border-radius:50%; border:1px solid rgba(255,255,255,0.12); opacity:0; }
+@media (prefers-reduced-motion:no-preference) {
+  .ripples.tx .ripple:nth-child(1) { animation:ripout 1.6s ease-out infinite 0s; }
+  .ripples.tx .ripple:nth-child(2) { animation:ripout 1.6s ease-out infinite 0.53s; }
+  .ripples.tx .ripple:nth-child(3) { animation:ripout 1.6s ease-out infinite 1.06s; }
+  .ripples.rx .ripple { border-color:rgba(0,122,255,0.2); }
+  .ripples.rx .ripple:nth-child(1) { animation:ripout 2s ease-out infinite 0s; }
+  .ripples.rx .ripple:nth-child(2) { animation:ripout 2s ease-out infinite 0.66s; }
+  .ripples.rx .ripple:nth-child(3) { animation:ripout 2s ease-out infinite 1.32s; }
+}
+@keyframes ripout { 0%{transform:scale(1);opacity:0.45;} 100%{transform:scale(2.1);opacity:0;} }
 
+/* PTT circle */
 .ptt-circle {
-  width:var(--circ-size); height:var(--circ-size); border-radius:50%;
-  border:1.5px solid var(--white);
+  width:var(--circ); height:var(--circ); border-radius:50%;
+  border:1.5px solid rgba(255,255,255,0.85);
   display:flex; align-items:center; justify-content:center;
   position:relative; cursor:pointer;
   -webkit-user-select:none; user-select:none; touch-action:none;
-  transition:border-color 0.2s,transform 0.12s;
+  transition:border-color 0.18s, transform 0.12s, background 0.18s;
   background:transparent;
-  will-change:transform; /* FIX 13 */
 }
-.ptt-circle.disabled   { border-color:rgba(255,255,255,0.2); cursor:default; }
-.ptt-circle.rec        { border-color:var(--white); transform:scale(1.02); }
-.ptt-circle.sending    { border-color:rgba(255,255,255,0.5); }
-.ptt-circle.cancelling { border-color:rgba(255,255,255,0.3); transform:scale(0.97); }
+.ptt-circle.disabled   { border-color:rgba(255,255,255,0.18); cursor:default; }
+.ptt-circle.tx         { border-color:var(--white); transform:scale(1.02); }
+.ptt-circle.rx         { border-color:var(--blue); background:rgba(0,122,255,0.04); }
+.ptt-circle.sending    { border-color:rgba(255,255,255,0.4); }
+.ptt-circle.cancelling { border-color:rgba(255,255,255,0.25); transform:scale(0.97); }
 
 .ptt-inner { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; pointer-events:none; transition:opacity 0.15s; }
-.ptt-circle.disabled .ptt-inner { opacity:0.25; }
-.mic-svg { transition:opacity 0.2s; }
-.ptt-hint { font-size:12px; font-weight:300; color:var(--dim); letter-spacing:0.5px; opacity:0; transition:opacity 0.2s; }
-.ptt-hint.on { opacity:1; }
-.rec-time { position:absolute; top:22px; font-size:13px; font-weight:300; color:rgba(255,255,255,0.7); letter-spacing:1px; opacity:0; transition:opacity 0.2s; font-variant-numeric:tabular-nums; }
-.ptt-circle.rec .rec-time { opacity:1; }
+.ptt-circle.disabled .ptt-inner { opacity:0.2; }
 
-/* Waveform */
-.wave-wrap { display:flex; align-items:center; justify-content:center; gap:3px; height:20px; opacity:0; transition:opacity 0.3s; flex-shrink:0; margin-bottom:4px; }
+/* Mic icon adapts color per state */
+.mic-path { stroke:var(--white); transition:stroke 0.2s; }
+.ptt-circle.rx .mic-path { stroke:var(--blue); }
+.ptt-circle.tx .mic-path { stroke:var(--white); }
+
+.ptt-hint { font-size:12px; font-weight:300; color:var(--dim); letter-spacing:0.4px; transition:color 0.2s, opacity 0.2s; }
+.ptt-hint.hidden { opacity:0; }
+.ptt-circle.tx .ptt-hint { color:var(--white); }
+.ptt-circle.rx .ptt-hint { color:var(--blue); }
+
+/* Recording / RX timer inside ring */
+.circ-timer {
+  position:absolute; top:calc(var(--circ)*0.09);
+  font-size:13px; font-weight:300; letter-spacing:1.5px;
+  font-variant-numeric:tabular-nums;
+  opacity:0; transition:opacity 0.18s; color:rgba(255,255,255,0.7);
+  pointer-events:none;
+}
+.ptt-circle.tx .circ-timer,
+.ptt-circle.rx .circ-timer { opacity:1; }
+.ptt-circle.rx .circ-timer { color:var(--blue); }
+
+/* ── Waveform ── */
+.wave-wrap {
+  display:flex; align-items:center; justify-content:center; gap:3px;
+  height:22px; flex-shrink:0; margin-bottom:2px;
+  opacity:0; transition:opacity 0.25s;
+}
 .wave-wrap.on { opacity:1; }
-.wbar { width:2.5px; height:3px; background:var(--white); border-radius:2px; }
+.wbar { width:2.5px; height:3px; border-radius:2px; }
+/* TX bars = white, RX bars = blue */
+.wbar.tx { background:var(--white); }
+.wbar.rx { background:var(--blue); }
 
-/* Message log */
-.msg-log-wrap { padding:0 16px; flex-shrink:0; max-height:90px; overflow-y:auto; display:flex; flex-direction:column; gap:5px; -webkit-overflow-scrolling:touch; margin-bottom:4px; }
+/* ── Message log ── */
+.msg-log-wrap {
+  flex:1; min-height:0; max-height:180px;
+  padding:0 16px; overflow-y:auto;
+  display:flex; flex-direction:column; gap:5px;
+  -webkit-overflow-scrolling:touch; margin-bottom:2px;
+}
 .msg-log-wrap::-webkit-scrollbar { display:none; }
-.msg-row { display:flex; align-items:flex-end; gap:6px; animation:fadeup 0.2s ease; flex-shrink:0; }
+
+/* Empty state */
+.msg-empty {
+  flex:1; display:flex; align-items:center; justify-content:center;
+  font-size:12px; color:rgba(255,255,255,0.15); letter-spacing:0.3px;
+  padding:12px 0;
+}
+
+.msg-row { display:flex; align-items:flex-end; gap:6px; flex-shrink:0; }
+@media (prefers-reduced-motion:no-preference) {
+  .msg-row { animation:fadeup 0.2s ease; }
+}
 @keyframes fadeup { from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;} }
 .msg-row.me   { justify-content:flex-end; }
 .msg-row.them { justify-content:flex-start; }
-.msg-bubble { display:flex; align-items:center; gap:7px; padding:8px 12px; border-radius:18px; cursor:pointer; max-width:250px; transition:opacity 0.15s; }
+
+.msg-bubble { display:flex; align-items:center; gap:8px; padding:9px 13px; border-radius:18px; cursor:pointer; max-width:min(260px, 72vw); transition:opacity 0.15s; }
 .msg-bubble:active { opacity:0.7; }
-.msg-row.me   .msg-bubble { background:rgba(255,255,255,0.15); border-radius:16px 16px 3px 16px; }
-.msg-row.them .msg-bubble { background:rgba(255,255,255,0.1);  border-radius:16px 16px 16px 3px; }
-.msg-play { width:24px; height:24px; border-radius:50%; background:rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.msg-info { display:flex; flex-direction:column; gap:3px; }
-.msg-sender { font-size:10px; color:rgba(255,255,255,0.45); letter-spacing:0.3px; }
-.msg-dur { font-size:12px; color:rgba(255,255,255,0.85); }
-.msg-prog { width:70px; height:2px; background:rgba(255,255,255,0.15); border-radius:1px; overflow:hidden; }
-.msg-prog-fill { height:100%; width:0%; background:rgba(255,255,255,0.7); border-radius:1px; transition:width 0.08s linear; }
+.msg-row.me   .msg-bubble { background:rgba(255,255,255,0.14); border-radius:16px 16px 3px 16px; }
+.msg-row.them .msg-bubble { background:rgba(0,122,255,0.2); border:1px solid rgba(0,122,255,0.25); border-radius:16px 16px 16px 3px; }
+
+.msg-play { width:26px; height:26px; border-radius:50%; background:rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.15s; }
+.msg-play:hover { background:rgba(255,255,255,0.25); }
+.msg-row.them .msg-play { background:rgba(0,122,255,0.3); }
+
+.msg-info { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.msg-sender { font-size:10px; color:rgba(0,122,255,0.8); letter-spacing:0.3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.msg-dur { font-size:12px; color:rgba(255,255,255,0.88); letter-spacing:0.2px; }
+.msg-prog { width:72px; height:2px; background:rgba(255,255,255,0.15); border-radius:1px; overflow:hidden; }
+.msg-prog-fill { height:100%; width:0%; background:rgba(255,255,255,0.75); border-radius:1px; }
+.msg-row.them .msg-prog-fill { background:rgba(100,180,255,0.9); }
+
 .msg-meta { display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; }
-.msg-time { font-size:10px; color:rgba(255,255,255,0.25); }
-.msg-rcpt { font-size:10px; color:rgba(255,255,255,0.25); }
+.msg-time { font-size:10px; color:rgba(255,255,255,0.2); }
+.msg-rcpt { font-size:10px; color:rgba(255,255,255,0.2); }
 .msg-rcpt.ok { color:var(--green); }
 
-/* Status */
-.status-line { font-size:13px; font-weight:300; text-align:center; color:var(--dim); min-height:18px; padding:0 20px 2px; flex-shrink:0; letter-spacing:0.2px; transition:color 0.3s; }
+/* ── Status line ── */
+.status-line { font-size:13px; font-weight:300; text-align:center; color:var(--dim); min-height:18px; padding:0 20px 2px; flex-shrink:0; transition:color 0.25s; }
 .status-line.ok   { color:var(--green); }
 .status-line.err  { color:var(--red); }
+.status-line.rx   { color:var(--blue); }
 .status-line.warn { color:var(--amber); }
 
-/* Bottom nav */
-.bottom-nav { display:flex; justify-content:space-around; align-items:center; padding:8px 20px calc(env(safe-area-inset-bottom,0px) + 4px); flex-shrink:0; }
-.nav-btn { display:flex; flex-direction:column; align-items:center; gap:3px; background:none; border:none; cursor:pointer; padding:4px 12px; color:rgba(255,255,255,0.4); transition:color 0.15s; }
-.nav-btn:active,.nav-btn.active { color:var(--white); }
-.nav-label { font-size:10px; letter-spacing:0.3px; }
+/* ── Bottom nav ── */
+.bottom-nav { display:flex; justify-content:space-around; align-items:center; padding:6px 10px calc(env(safe-area-inset-bottom,0px) + 4px); flex-shrink:0; }
+.nav-btn { display:flex; flex-direction:column; align-items:center; gap:4px; background:none; border:none; cursor:pointer; padding:6px 16px; color:rgba(255,255,255,0.35); transition:color 0.15s; border-radius:10px; }
+.nav-btn:active { background:rgba(255,255,255,0.06); }
+.nav-btn.active { color:var(--white); }
+.nav-label { font-size:11px; letter-spacing:0.2px; }
 
-/* ════════════ MAP VIEW ════════════ */
-#mapView { background:#1a1a2e; }
-.map-topbar { position:absolute; top:0; left:0; right:0; padding:calc(env(safe-area-inset-top,48px) + 4px) 16px 12px; display:flex; align-items:center; gap:12px; z-index:10; }
-.map-back { width:32px; height:32px; border-radius:50%; background:rgba(0,0,0,0.5); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border:none; cursor:pointer; color:var(--white); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.map-back:active { background:rgba(0,0,0,0.7); }
+/* ════════════════════════════════════
+   MAP VIEW
+════════════════════════════════════ */
+#mapView { background:#111; }
+.map-topbar { position:absolute; top:0; left:0; right:0; padding:calc(env(safe-area-inset-top,48px) + 6px) 16px 10px; display:flex; align-items:center; z-index:10; }
+.map-back { width:34px; height:34px; border-radius:50%; background:rgba(0,0,0,0.55); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.15s; }
+.map-back:active { background:rgba(0,0,0,0.8); }
 #mapContainer { position:absolute; inset:0; }
-.map-bottom { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); padding:16px 20px calc(env(safe-area-inset-bottom,0px) + 20px); display:flex; flex-direction:column; gap:12px; border-top:1px solid rgba(255,255,255,0.1); z-index:10; }
-.map-location-text { text-align:center; font-size:15px; font-weight:400; color:var(--white); }
-.map-user-text { text-align:center; font-size:13px; font-weight:300; color:rgba(255,255,255,0.6); }
-.talk-here-btn { width:100%; padding:16px; background:var(--blue); border:none; border-radius:14px; color:var(--white); font-size:17px; font-weight:500; cursor:pointer; letter-spacing:0.2px; transition:opacity 0.15s,transform 0.1s; -webkit-user-select:none; user-select:none; touch-action:none; will-change:transform; }
-.talk-here-btn:disabled { opacity:0.4; cursor:default; }
-.talk-here-btn.pressed { opacity:0.85; transform:scale(0.99); }
-.talk-here-btn.transmitting { background:#0055cc; animation:btnpulse 0.8s ease-in-out infinite alternate; }
-@keyframes btnpulse { from{box-shadow:0 0 0 0 rgba(0,122,255,0.4);} to{box-shadow:0 0 0 12px rgba(0,122,255,0);} }
+.map-bottom {
+  position:absolute; bottom:0; left:0; right:0;
+  background:rgba(0,0,0,0.78);
+  backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px);
+  padding:18px 20px calc(env(safe-area-inset-bottom,0px) + 22px);
+  display:flex; flex-direction:column; gap:12px;
+  border-top:1px solid rgba(255,255,255,0.09); z-index:10;
+}
+.map-location-text { text-align:center; font-size:15px; font-weight:400; }
+.map-user-text { text-align:center; font-size:13px; font-weight:300; color:rgba(255,255,255,0.55); }
+.talk-here-btn {
+  width:100%; padding:16px;
+  background:var(--blue); border:none; border-radius:14px;
+  color:var(--white); font-family:inherit; font-size:17px; font-weight:500;
+  cursor:pointer; transition:opacity 0.15s,transform 0.1s,background 0.2s;
+  -webkit-user-select:none; user-select:none; touch-action:none;
+}
+.talk-here-btn:disabled { opacity:0.35; cursor:default; }
+.talk-here-btn.pressed { opacity:0.82; transform:scale(0.99); }
+.talk-here-btn.transmitting { background:#0058d4; }
+@media (prefers-reduced-motion:no-preference) {
+  .talk-here-btn.transmitting { animation:btnpulse 0.75s ease-in-out infinite alternate; }
+  @keyframes btnpulse { from{box-shadow:0 0 0 0 rgba(0,122,255,0.35);} to{box-shadow:0 0 0 14px rgba(0,122,255,0);} }
+}
 
-/* Sheets */
-.overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); display:flex; align-items:flex-end; z-index:100; opacity:0; pointer-events:none; transition:opacity 0.22s; }
+/* ════════════════════════════════════
+   SHEETS & OVERLAYS
+════════════════════════════════════ */
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); display:flex; align-items:flex-end; z-index:100; opacity:0; pointer-events:none; transition:opacity 0.2s; }
 .overlay.open { opacity:1; pointer-events:all; }
-.sheet { width:100%; background:#1c1c1e; border-radius:20px 20px 0 0; padding:16px 20px 36px; display:flex; flex-direction:column; gap:12px; transform:translateY(100%); transition:transform 0.28s cubic-bezier(0.32,0.72,0,1); }
+.sheet { width:100%; background:#1c1c1e; border-radius:20px 20px 0 0; padding:16px 20px 36px; display:flex; flex-direction:column; gap:12px; transform:translateY(100%); transition:transform 0.26s cubic-bezier(0.32,0.72,0,1); }
 .overlay.open .sheet { transform:translateY(0); }
-.sheet-handle { width:36px; height:4px; background:rgba(255,255,255,0.18); border-radius:2px; margin:0 auto 4px; }
+.sheet-handle { width:36px; height:4px; background:rgba(255,255,255,0.16); border-radius:2px; margin:0 auto 4px; }
 .sheet-title { font-size:17px; font-weight:500; text-align:center; }
 .sheet-sub { font-size:13px; color:var(--dim); text-align:center; margin-top:-4px; }
-.sheet-input { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.1); border-radius:12px; color:var(--white); font-family:inherit; font-size:20px; letter-spacing:2px; padding:14px 16px; outline:none; text-transform:uppercase; width:100%; text-align:center; transition:border-color 0.2s; }
-.sheet-input::placeholder { color:rgba(255,255,255,0.18); }
-.sheet-input:focus { border-color:rgba(255,255,255,0.35); }
+.sheet-input { background:rgba(255,255,255,0.07); border:1px solid var(--border); border-radius:12px; color:var(--white); font-family:inherit; font-size:20px; letter-spacing:2px; padding:14px 16px; outline:none; width:100%; text-align:center; transition:border-color 0.2s; }
+.sheet-input::placeholder { color:rgba(255,255,255,0.16); }
+.sheet-input:focus { border-color:rgba(255,255,255,0.32); }
 .sheet-btn { border:none; border-radius:12px; font-family:inherit; font-size:16px; font-weight:500; padding:15px; cursor:pointer; transition:opacity 0.15s; }
-.sheet-btn:active { opacity:0.75; }
+.sheet-btn:active { opacity:0.72; }
 .sheet-btn.primary   { background:var(--white); color:#000; }
-.sheet-btn.secondary { background:rgba(255,255,255,0.08); color:var(--white); }
+.sheet-btn.secondary { background:rgba(255,255,255,0.07); color:var(--white); }
 
 /* Toast */
-.toast { position:fixed; bottom:calc(env(safe-area-inset-bottom,0px) + 90px); left:50%; transform:translateX(-50%) translateY(8px); background:rgba(30,30,32,0.95); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:9px 16px; font-size:13px; color:var(--white); opacity:0; transition:opacity 0.22s,transform 0.22s; pointer-events:none; white-space:nowrap; z-index:200; }
+.toast { position:fixed; bottom:calc(env(safe-area-inset-bottom,0px) + 88px); left:50%; transform:translateX(-50%) translateY(8px); background:rgba(28,28,30,0.96); border:1px solid rgba(255,255,255,0.09); border-radius:10px; padding:9px 16px; font-size:13px; color:var(--white); opacity:0; transition:opacity 0.2s,transform 0.2s; pointer-events:none; white-space:nowrap; z-index:200; }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 </style>
 </head>
@@ -210,29 +307,29 @@ html,body {
   </div>
 
   <div class="topbar">
-    <div class="topbar-icons">
+    <div class="topbar-left">
       <button class="top-icon-btn" id="btnGrid" title="Channels">
         <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-          <rect x="1" y="1" width="8" height="8" rx="1.5" fill="white" opacity="0.9"/>
-          <rect x="13" y="1" width="8" height="8" rx="1.5" fill="white" opacity="0.9"/>
-          <rect x="1" y="13" width="8" height="8" rx="1.5" fill="white" opacity="0.9"/>
-          <rect x="13" y="13" width="8" height="8" rx="1.5" fill="white" opacity="0.9"/>
+          <rect x="1" y="1" width="8" height="8" rx="1.5" fill="white" opacity="0.85"/>
+          <rect x="13" y="1" width="8" height="8" rx="1.5" fill="white" opacity="0.85"/>
+          <rect x="1" y="13" width="8" height="8" rx="1.5" fill="white" opacity="0.85"/>
+          <rect x="13" y="13" width="8" height="8" rx="1.5" fill="white" opacity="0.85"/>
         </svg>
       </button>
-      <button class="top-icon-btn" id="btnShare" title="Share channel link">
+      <button class="top-icon-btn" id="btnShare" title="Share channel">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <circle cx="15" cy="3" r="2" stroke="white" stroke-width="1.4" fill="none" opacity="0.9"/>
-          <circle cx="15" cy="17" r="2" stroke="white" stroke-width="1.4" fill="none" opacity="0.9"/>
-          <circle cx="3" cy="10" r="2" stroke="white" stroke-width="1.4" fill="none" opacity="0.9"/>
+          <circle cx="15" cy="3" r="2" stroke="white" stroke-width="1.4" fill="none" opacity="0.85"/>
+          <circle cx="15" cy="17" r="2" stroke="white" stroke-width="1.4" fill="none" opacity="0.85"/>
+          <circle cx="3" cy="10" r="2" stroke="white" stroke-width="1.4" fill="none" opacity="0.85"/>
           <line x1="5" y1="10" x2="13" y2="4.5" stroke="white" stroke-width="1.3" opacity="0.7"/>
           <line x1="5" y1="10" x2="13" y2="15.5" stroke="white" stroke-width="1.3" opacity="0.7"/>
         </svg>
       </button>
       <button class="top-icon-btn" id="btnMap" title="Map">
         <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-          <path d="M1 5l6-3 8 4 6-3v14l-6 3-8-4-6 3V5z" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none" opacity="0.9"/>
-          <line x1="7" y1="2" x2="7" y2="17" stroke="white" stroke-width="1.2" opacity="0.6"/>
-          <line x1="15" y1="5" x2="15" y2="20" stroke="white" stroke-width="1.2" opacity="0.6"/>
+          <path d="M1 5l6-3 8 4 6-3v14l-6 3-8-4-6 3V5z" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none" opacity="0.85"/>
+          <line x1="7" y1="2" x2="7" y2="17" stroke="white" stroke-width="1.2" opacity="0.5"/>
+          <line x1="15" y1="5" x2="15" y2="20" stroke="white" stroke-width="1.2" opacity="0.5"/>
         </svg>
       </button>
     </div>
@@ -244,7 +341,12 @@ html,body {
   </div>
 
   <div class="username-wrap">
-    <div class="username" id="usernameEl">@loading</div>
+    <div class="username" id="usernameEl">
+      <span id="usernameText">@loading</span>
+      <svg class="username-edit" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10 2l2 2L5 11H3V9L10 2z"/>
+      </svg>
+    </div>
   </div>
 
   <div class="location-wrap">
@@ -253,7 +355,7 @@ html,body {
 
   <div class="channel-wrap">
     <div class="channel-pill ph" id="channelPill">
-      <span class="unread-dot" id="unreadDot"></span>
+      <span class="unread-dot"></span>
       <span class="ch-dot" id="chDot"></span>
       <span class="ch-name" id="chNameEl">Tap to join channel</span>
       <span class="peer-ct" id="peerCt"></span>
@@ -262,64 +364,75 @@ html,body {
 
   <div class="circle-wrap">
     <div class="cancel-hint" id="cancelHint">Slide up to cancel</div>
-    <!-- FIX 2: stroke-dasharray only in attribute, no CSS conflict -->
-    <svg class="limit-svg" viewBox="0 0 300 300" aria-hidden="true">
+
+    <!-- Limit arc — radius sized to match --circ via JS -->
+    <svg class="limit-svg" id="limitSvg" viewBox="0 0 300 300" aria-hidden="true">
       <circle cx="150" cy="150" r="137.5" fill="none"
-        stroke="rgba(255,69,58,0.35)" stroke-width="2.5"
+        stroke="rgba(255,69,58,0.3)" stroke-width="2.5"
         stroke-dasharray="864" stroke-dashoffset="864"
         id="limitArc" stroke-linecap="round"/>
     </svg>
+
     <div class="ripples" id="ripples">
-      <div class="ripple"></div><div class="ripple"></div><div class="ripple"></div>
+      <div class="ripple"></div>
+      <div class="ripple"></div>
+      <div class="ripple"></div>
     </div>
+
     <div class="ptt-circle disabled" id="pttCircle" role="button" aria-label="Push to talk">
       <div class="ptt-inner">
-        <svg class="mic-svg" width="40" height="46" viewBox="0 0 40 46" fill="none" aria-hidden="true">
-          <rect x="12" y="1" width="16" height="24" rx="8" stroke="white" stroke-width="2" fill="none"/>
-          <path d="M4 22c0 8.8 7.2 16 16 16s16-7.2 16-16" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
-          <line x1="20" y1="38" x2="20" y2="44" stroke="white" stroke-width="2" stroke-linecap="round"/>
-          <line x1="13" y1="44" x2="27" y2="44" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <svg width="42" height="48" viewBox="0 0 42 48" fill="none" aria-hidden="true">
+          <rect x="13" y="1" width="16" height="24" rx="8" stroke="white" stroke-width="2" fill="none" class="mic-path"/>
+          <path d="M5 23c0 8.8 7.2 16 16 16s16-7.2 16-16" stroke="white" stroke-width="2" stroke-linecap="round" fill="none" class="mic-path"/>
+          <line x1="21" y1="39" x2="21" y2="45" stroke="white" stroke-width="2" stroke-linecap="round" class="mic-path"/>
+          <line x1="14" y1="45" x2="28" y2="45" stroke="white" stroke-width="2" stroke-linecap="round" class="mic-path"/>
         </svg>
         <span class="ptt-hint" id="pttHint">Hold to record</span>
       </div>
-      <span class="rec-time" id="recTime">0:00</span>
+      <span class="circ-timer" id="circTimer">0:00</span>
     </div>
   </div>
 
-  <!-- FIX 9: 8 bars matching fftSize=32 → 16 bins, indices 0..14 step 2 = 8 values -->
+  <!-- Waveform — bars colored via JS class (tx/rx) -->
   <div class="wave-wrap" id="waveWrap">
-    <div class="wbar" id="wb1"></div><div class="wbar" id="wb2"></div>
-    <div class="wbar" id="wb3"></div><div class="wbar" id="wb4"></div>
-    <div class="wbar" id="wb5"></div><div class="wbar" id="wb6"></div>
-    <div class="wbar" id="wb7"></div><div class="wbar" id="wb8"></div>
+    <div class="wbar tx" id="wb1"></div><div class="wbar tx" id="wb2"></div>
+    <div class="wbar tx" id="wb3"></div><div class="wbar tx" id="wb4"></div>
+    <div class="wbar tx" id="wb5"></div><div class="wbar tx" id="wb6"></div>
+    <div class="wbar tx" id="wb7"></div><div class="wbar tx" id="wb8"></div>
   </div>
 
-  <div class="msg-log-wrap" id="msgLog"></div>
+  <!-- Message log -->
+  <div class="msg-log-wrap" id="msgLog">
+    <div class="msg-empty" id="msgEmpty">No transmissions yet</div>
+  </div>
+
   <div class="status-line" id="statusLine">Tap grid to join a channel</div>
 
   <div class="bottom-nav">
     <button class="nav-btn active" id="navTalk">
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <circle cx="11" cy="11" r="9.5" stroke="currentColor" stroke-width="1.5" fill="none"/>
-        <rect x="8" y="7" width="6" height="8" rx="3" stroke="currentColor" stroke-width="1.3" fill="none"/>
-        <path d="M5 16c0-3 2.7-5 6-5s6 2 6 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M12 1a5 5 0 0 1 5 5v5a5 5 0 0 1-10 0V6a5 5 0 0 1 5-5z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+        <path d="M3 11c0 5 4 9 9 9s9-4 9-9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+        <line x1="12" y1="20" x2="12" y2="23" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
       <span class="nav-label">Talk</span>
     </button>
     <button class="nav-btn" id="navMap">
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <path d="M1 5l6-3 8 4 6-3v14l-6 3-8-4-6 3V5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M1 6l7-3 8 4 7-3v16l-7 3-8-4-7 3V6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="none"/>
+        <line x1="8" y1="3" x2="8" y2="19" stroke="currentColor" stroke-width="1.2" opacity="0.6"/>
+        <line x1="16" y1="7" x2="16" y2="23" stroke="currentColor" stroke-width="1.2" opacity="0.6"/>
       </svg>
       <span class="nav-label">Map</span>
     </button>
     <button class="nav-btn" id="navChannel">
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <circle cx="11" cy="11" r="3.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
-        <path d="M11 1v3M11 18v3M1 11h3M18 11h3M3.3 3.3l2.1 2.1M16.6 16.6l2.1 2.1M16.6 3.3l-2.1 2.1M3.3 16.6l2.1 2.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M2 5h20M2 12h20M2 19h20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
       <span class="nav-label">Channel</span>
     </button>
   </div>
+
 </div>
 
 <!-- ════════════ MAP VIEW ════════════ -->
@@ -327,15 +440,12 @@ html,body {
   <div id="mapContainer"></div>
   <div class="map-topbar">
     <button class="map-back" id="mapBackBtn">
-      <svg width="10" height="16" viewBox="0 0 10 16" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 1L1 8L9 15"/>
-      </svg>
+      <svg width="10" height="16" viewBox="0 0 10 16" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1L1 8L9 15"/></svg>
     </button>
   </div>
   <div class="map-bottom">
     <div class="map-location-text" id="mapLocationText">Locating...</div>
     <div class="map-user-text" id="mapUserText">@loading</div>
-    <!-- FIX 4: map PTT uses its own disabled state, not pttCircle's class -->
     <button class="talk-here-btn" id="talkHereBtn" disabled>Talk Here</button>
   </div>
 </div>
@@ -346,7 +456,7 @@ html,body {
     <div class="sheet-handle"></div>
     <div class="sheet-title">Join a Channel</div>
     <div class="sheet-sub">Share the same name with friends</div>
-    <input class="sheet-input" id="channelInput" placeholder="CHANNEL-01" maxlength="30" autocomplete="off" spellcheck="false"/>
+    <input class="sheet-input" id="channelInput" placeholder="CHANNEL-01" maxlength="30" autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
     <button class="sheet-btn primary" id="channelJoinBtn">Join</button>
     <button class="sheet-btn secondary" id="channelCancelBtn">Cancel</button>
   </div>
@@ -386,8 +496,10 @@ var socket = io(SERVER_URL, {
 // ── App state ──
 var myName       = localStorage.getItem('wt_name') || '';
 var myRoom       = '';
-var peers        = {};           // sid -> name
-var activeAudios = [];           // FIX 11: tracked stopFn refs
+var peers        = {};
+var activeAudios = [];
+var playQueue    = [];
+var queuePlaying = false;
 var mapReady     = false;
 var mapInstance  = null;
 var userMarker   = null;
@@ -401,38 +513,39 @@ var recChunks    = [];
 var recStream    = null;
 var recStartTime = 0;
 var recDuration  = 0;
-var recTimerID   = null;        // setInterval id
+var recTimerID   = null;
 var isRecording  = false;
 var isCancelling = false;
 var touchStartY  = 0;
 
-// ── Audio viz state (FIX 15: rAF-based) ──
-var audioCtx     = null;
-var analyser     = null;
-var vizRAF       = null;         // requestAnimationFrame handle
-var vizData      = null;         // reusable Uint8Array
+// ── Audio viz (rAF-based) ──
+var audioCtx  = null;
+var analyser  = null;
+var vizRAF    = null;
+var vizData   = null;
+var vizIsRx   = false; // true = colour bars blue (RX), false = white (TX)
 
 // ── DOM refs ──
-var pttCircle   = document.getElementById('pttCircle');
-var pttHint     = document.getElementById('pttHint');
-var chDot       = document.getElementById('chDot');
-var chNameEl    = document.getElementById('chNameEl');
-var channelPill = document.getElementById('channelPill');
-var peerCt      = document.getElementById('peerCt');
-var statusLine  = document.getElementById('statusLine');
-var usernameEl  = document.getElementById('usernameEl');
-var locationText= document.getElementById('locationText');
-var ripples     = document.getElementById('ripples');
-var waveWrap    = document.getElementById('waveWrap');
-var recTime     = document.getElementById('recTime');
-var msgLog      = document.getElementById('msgLog');
-var cancelHint  = document.getElementById('cancelHint');
-var limitArc    = document.getElementById('limitArc');
-var talkHereBtn = document.getElementById('talkHereBtn');
-var mapUserText = document.getElementById('mapUserText');
-var mapLocText  = document.getElementById('mapLocationText');
-
-// FIX 9: 8 bars, matching fftSize=32 (16 bins), stepping by 2
+var pttCircle    = document.getElementById('pttCircle');
+var pttHint      = document.getElementById('pttHint');
+var chDot        = document.getElementById('chDot');
+var chNameEl     = document.getElementById('chNameEl');
+var channelPill  = document.getElementById('channelPill');
+var peerCt       = document.getElementById('peerCt');
+var statusLine   = document.getElementById('statusLine');
+var usernameText = document.getElementById('usernameText');
+var usernameEl   = document.getElementById('usernameEl');
+var locationText = document.getElementById('locationText');
+var ripples      = document.getElementById('ripples');
+var waveWrap     = document.getElementById('waveWrap');
+var circTimer    = document.getElementById('circTimer');
+var msgLog       = document.getElementById('msgLog');
+var msgEmpty     = document.getElementById('msgEmpty');
+var cancelHint   = document.getElementById('cancelHint');
+var limitArc     = document.getElementById('limitArc');
+var talkHereBtn  = document.getElementById('talkHereBtn');
+var mapUserText  = document.getElementById('mapUserText');
+var mapLocText   = document.getElementById('mapLocationText');
 var wBars = [];
 for (var _i = 1; _i <= 8; _i++) wBars.push(document.getElementById('wb' + _i));
 
@@ -444,27 +557,23 @@ for (var _i = 1; _i <= 8; _i++) wBars.push(document.getElementById('wb' + _i));
     myName = adj[Math.floor(Math.random() * 8)] + noun[Math.floor(Math.random() * 8)];
     localStorage.setItem('wt_name', myName);
   }
-  usernameEl.textContent  = '@' + myName;
-  mapUserText.textContent = '@' + myName;
+  usernameText.textContent = '@' + myName;
+  mapUserText.textContent  = '@' + myName;
 
   var urlRoom = new URLSearchParams(window.location.search).get('room');
-  if (urlRoom) {
-    socket.on('connect', function () { joinChannel(urlRoom); });
-  }
+  if (urlRoom) socket.on('connect', function () { joinChannel(urlRoom); });
 
   getLocation();
   wireUI();
 })();
 
-// ── Wire all UI interactions (no inline onclick) ──
+// ── UI wiring ──
 function wireUI() {
   document.getElementById('btnGrid').addEventListener('click', openChannelSheet);
+  document.getElementById('btnShare').addEventListener('click', copyChannelLink);
   document.getElementById('btnMap').addEventListener('click', showMapView);
   document.getElementById('btnPower').addEventListener('click', openChannelSheet);
-  document.getElementById('channelPill').addEventListener('click', openChannelSheet);
-  document.getElementById('channelPill').addEventListener('click', function () {
-    channelPill.classList.remove('has-unread');
-  });
+  channelPill.addEventListener('click', function () { channelPill.classList.remove('has-unread'); openChannelSheet(); });
   usernameEl.addEventListener('click', openNameSheet);
 
   document.getElementById('navTalk').addEventListener('click', showMain);
@@ -480,34 +589,23 @@ function wireUI() {
 
   document.getElementById('nameOverlay').addEventListener('click', function (e) { if (e.target === this) this.classList.remove('open'); });
   document.getElementById('nameCancelBtn').addEventListener('click', function () { document.getElementById('nameOverlay').classList.remove('open'); });
+  document.getElementById('nameInput').addEventListener('input', function () { this.value = this.value.toUpperCase(); });
   document.getElementById('nameInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') saveName(); });
   document.getElementById('nameSaveBtn').addEventListener('click', saveName);
 
-  // PTT: main circle
   wirePTT(pttCircle, false);
-
-  // FIX 4: Talk Here PTT uses its own disabled attr, not pttCircle's class
   wirePTT(talkHereBtn, true);
 
-  // Share button
-  var shareBtn = document.getElementById('btnShare');
-  if (shareBtn) shareBtn.addEventListener('click', copyChannelLink);
-
-  // Space bar
   document.addEventListener('keydown', function (e) { if (e.code === 'Space' && !e.repeat) startRecording(); });
   document.addEventListener('keyup',   function (e) { if (e.code === 'Space') stopRecording(false); });
-
-  // Clear unread on visibility change
-  document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) channelPill.classList.remove('has-unread');
-  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) channelPill.classList.remove('has-unread'); });
 }
 
-// ── Generic PTT wiring ──
+// ── PTT wiring ──
 function wirePTT(el, isMapBtn) {
-  el.addEventListener('mousedown', function (e) { e.preventDefault(); startRecording(); });
-  el.addEventListener('mouseup',   function () { stopRecording(false); });
-  el.addEventListener('mouseleave',function () { if (isRecording) stopRecording(false); });
+  el.addEventListener('mousedown',  function (e) { e.preventDefault(); startRecording(); });
+  el.addEventListener('mouseup',    function () { stopRecording(false); });
+  el.addEventListener('mouseleave', function () { if (isRecording) stopRecording(false); });
 
   el.addEventListener('touchstart', function (e) {
     e.preventDefault();
@@ -517,7 +615,6 @@ function wirePTT(el, isMapBtn) {
   }, { passive: false });
 
   if (!isMapBtn) {
-    // FIX 3: swipe-to-cancel only on main circle (Talk Here has no swipe)
     el.addEventListener('touchmove', function (e) {
       e.preventDefault();
       if (!isRecording) return;
@@ -525,29 +622,19 @@ function wirePTT(el, isMapBtn) {
       if (dy > 60 && !isCancelling) {
         isCancelling = true;
         pttCircle.classList.add('cancelling');
-        pttCircle.classList.remove('rec');
-        ripples.classList.remove('rec');
-        cancelHint.classList.remove('on');
+        pttCircle.classList.remove('tx');
+        ripples.classList.remove('tx');
       } else if (dy <= 60 && isCancelling) {
         isCancelling = false;
         pttCircle.classList.remove('cancelling');
-        pttCircle.classList.add('rec');
-        ripples.classList.add('rec');
+        pttCircle.classList.add('tx');
+        ripples.classList.add('tx');
       }
     }, { passive: false });
   }
 
-  el.addEventListener('touchend', function (e) {
-    e.preventDefault();
-    if (isMapBtn) talkHereBtn.classList.remove('pressed');
-    stopRecording(false);
-  }, { passive: false });
-
-  el.addEventListener('touchcancel', function (e) {
-    e.preventDefault();
-    if (isMapBtn) talkHereBtn.classList.remove('pressed');
-    stopRecording(true);
-  }, { passive: false });
+  el.addEventListener('touchend',    function (e) { e.preventDefault(); if (isMapBtn) talkHereBtn.classList.remove('pressed'); stopRecording(false); }, { passive: false });
+  el.addEventListener('touchcancel', function (e) { e.preventDefault(); if (isMapBtn) talkHereBtn.classList.remove('pressed'); stopRecording(true); },  { passive: false });
 }
 
 // ── Views ──
@@ -556,14 +643,12 @@ function showMain() {
   document.getElementById('mapView').classList.add('hidden');
   setNavActive('navTalk');
 }
-
 function showMapView() {
   document.getElementById('mainView').classList.add('hidden');
   document.getElementById('mapView').classList.remove('hidden');
   setNavActive('navMap');
   initMap();
 }
-
 function setNavActive(id) {
   ['navTalk','navMap','navChannel'].forEach(function (n) {
     document.getElementById(n).classList.toggle('active', n === id);
@@ -572,79 +657,48 @@ function setNavActive(id) {
 
 // ── Geolocation ──
 function getLocation() {
-  if (!navigator.geolocation) {
-    locationStr = 'Location unavailable';
-    locationText.textContent = locationStr;
-    mapLocText.textContent   = locationStr;
-    return;
-  }
-  navigator.geolocation.getCurrentPosition(
-    function (pos) {
-      userLat = pos.coords.latitude;
-      userLng = pos.coords.longitude;
-      reverseGeocode(userLat, userLng);
-      if (mapInstance) updateMapMarker();
-    },
-    function () {
-      locationStr = 'Location unavailable';
-      locationText.textContent = locationStr;
-      mapLocText.textContent   = locationStr;
-    },
-    { timeout: 10000 }
-  );
+  if (!navigator.geolocation) { setLocationText('Location unavailable'); return; }
+  navigator.geolocation.getCurrentPosition(function (pos) {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+    reverseGeocode(userLat, userLng);
+    if (mapInstance) updateMapMarker();
+  }, function () { setLocationText('Location unavailable'); }, { timeout: 10000 });
 }
-
+function setLocationText(s) {
+  locationStr = s;
+  locationText.textContent = s;
+  mapLocText.textContent   = s;
+}
 function reverseGeocode(lat, lng) {
   fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng)
     .then(function (r) { return r.json(); })
-    .then(function (data) {
-      var a = data.address || {};
-      var city    = a.city || a.town || a.village || a.county || '';
-      var state   = a.state || a.region || '';
-      var country = a.country_code ? a.country_code.toUpperCase() : '';
-      locationStr = [city, state, country].filter(Boolean).join(', ') || 'Unknown location';
-      locationText.textContent = locationStr;
-      mapLocText.textContent   = locationStr;
+    .then(function (d) {
+      var a = d.address || {};
+      var parts = [a.city||a.town||a.village||a.county||'', a.state||'', a.country_code ? a.country_code.toUpperCase() : ''].filter(Boolean);
+      setLocationText(parts.join(', ') || 'Unknown location');
     })
-    .catch(function () {
-      locationStr = lat.toFixed(3) + ', ' + lng.toFixed(3);
-      locationText.textContent = locationStr;
-      mapLocText.textContent   = locationStr;
-    });
+    .catch(function () { setLocationText(lat.toFixed(3) + ', ' + lng.toFixed(3)); });
 }
 
 // ── Map ──
 function initMap() {
   if (mapReady) return;
   mapReady = true;
-
-  // FIX 14: load Leaflet with error handling
-  var css = document.createElement('link');
-  css.rel = 'stylesheet';
-  css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-  document.head.appendChild(css);
-
-  var script = document.createElement('script');
-  script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-  script.onload  = buildMap;
-  script.onerror = function () { showToast('Map failed to load'); mapReady = false; };
-  document.head.appendChild(script);
+  var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(css);
+  var s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  s.onload  = buildMap;
+  s.onerror = function () { showToast('Map failed to load'); mapReady = false; };
+  document.head.appendChild(s);
 }
-
 function buildMap() {
   var lat = userLat || 37.7749, lng = userLng || -122.4194;
-  mapInstance = L.map('mapContainer', { zoomControl: false, attributionControl: false }).setView([lat, lng], 14);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(mapInstance);
-
-  var icon = L.divIcon({
-    className: '',
-    html: '<div style="width:16px;height:16px;border-radius:50%;background:#007aff;border:3px solid white;box-shadow:0 0 8px rgba(0,122,255,0.6)"></div>',
-    iconSize: [16, 16], iconAnchor: [8, 8]
-  });
-  userMarker = L.marker([lat, lng], { icon: icon }).addTo(mapInstance);
-  talkHereBtn.disabled = (myRoom === ''); // enable only when in a room
+  mapInstance = L.map('mapContainer', { zoomControl:false, attributionControl:false }).setView([lat,lng], 14);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom:19 }).addTo(mapInstance);
+  var icon = L.divIcon({ className:'', html:'<div style="width:16px;height:16px;border-radius:50%;background:#007aff;border:3px solid white;box-shadow:0 0 8px rgba(0,122,255,0.6)"></div>', iconSize:[16,16], iconAnchor:[8,8] });
+  userMarker = L.marker([lat,lng], {icon:icon}).addTo(mapInstance);
+  if (myRoom) talkHereBtn.disabled = false;
 }
-
 function updateMapMarker() {
   if (!mapInstance || !userMarker) return;
   userMarker.setLatLng([userLat, userLng]);
@@ -657,16 +711,13 @@ function openChannelSheet() {
   setTimeout(function () { document.getElementById('channelInput').focus(); }, 150);
 }
 function closeChannelSheet() { document.getElementById('channelOverlay').classList.remove('open'); }
-
 function doJoin() {
   var r = document.getElementById('channelInput').value.trim();
   if (!r) return;
   joinChannel(r);
   closeChannelSheet();
 }
-
 function joinChannel(room) {
-  // Mirror server sanitization: uppercase, max 40 chars
   room = room.toUpperCase().replace(/[^A-Z0-9\-_]/g, '').slice(0, 40);
   if (!room) return;
   myRoom = room;
@@ -675,24 +726,21 @@ function joinChannel(room) {
   chDot.className = 'ch-dot';
   setStatus('Joining ' + room + '...', 'warn');
   socket.emit('join_room', { room: room, name: myName });
-  // FIX 4: now that we have a room, enable Talk Here if map is ready
-  if (talkHereBtn && !talkHereBtn.disabled) talkHereBtn.disabled = false;
+  if (mapInstance) talkHereBtn.disabled = false;
 }
-
 function openNameSheet() {
-  document.getElementById('nameInput').value = myName;
+  document.getElementById('nameInput').value = myName.toUpperCase();
   document.getElementById('nameOverlay').classList.add('open');
   setTimeout(function () { document.getElementById('nameInput').focus(); }, 150);
 }
-
 function saveName() {
   var n = document.getElementById('nameInput').value.trim().toLowerCase()
     .replace(/\s+/g, '_').replace(/[^a-z0-9_\-]/g, '').slice(0, 32);
   if (!n) return;
   myName = n;
   localStorage.setItem('wt_name', myName);
-  usernameEl.textContent  = '@' + myName;
-  mapUserText.textContent = '@' + myName;
+  usernameText.textContent = '@' + myName;
+  mapUserText.textContent  = '@' + myName;
   document.getElementById('nameOverlay').classList.remove('open');
   if (myRoom) socket.emit('update_name', { name: myName });
   showToast('Name updated');
@@ -702,186 +750,149 @@ function saveName() {
 var toastTimer = null;
 function showToast(msg) {
   var t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
+  t.textContent = msg; t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2400);
 }
-
 function setStatus(msg, cls) {
   statusLine.textContent = msg;
   statusLine.className = 'status-line' + (cls ? ' ' + cls : '');
 }
-
 function nowTime() {
   var d = new Date(), h = d.getHours(), m = d.getMinutes();
   return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
 }
-
 function numPeers() { return Object.keys(peers).length; }
-
 function updatePeers() {
   var n = numPeers();
-  // FIX 6: update peer count display correctly, not location text
   peerCt.textContent = n > 0 ? n + ' online' : '';
+}
+function copyChannelLink() {
+  if (!myRoom) { showToast('Join a channel first'); return; }
+  var url = location.origin + location.pathname + '?room=' + encodeURIComponent(myRoom);
+  if (navigator.share) {
+    navigator.share({ title:'WalkieTalk', text:'Join channel '+myRoom, url:url }).catch(function () { fallbackCopy(url); });
+  } else { fallbackCopy(url); }
+}
+function fallbackCopy(url) {
+  if (navigator.clipboard) { navigator.clipboard.writeText(url).then(function () { showToast('Link copied!'); }); return; }
+  var el = document.createElement('textarea'); el.value = url; el.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(el); el.select();
+  try { document.execCommand('copy'); showToast('Link copied!'); } catch(e) { showToast('Copy failed'); }
+  document.body.removeChild(el);
 }
 
 // ── Socket events ──
 socket.on('connect', function () {
   document.getElementById('reconnectBar').classList.remove('on');
   if (!myRoom) setStatus('Tap grid to join a channel', '');
-  else setStatus('Reconnected', 'ok');
+  else { setStatus('Reconnected', 'ok'); joinChannel(myRoom); }
 });
-
 socket.on('disconnect', function () {
   document.getElementById('reconnectBar').classList.add('on');
   setStatus('Connection lost...', 'err');
   pttCircle.classList.add('disabled');
+  pttHint.classList.remove('hidden');
   talkHereBtn.disabled = true;
-  // FIX 10: clear pttHint so it re-shows on reconnect correctly
-  pttHint.classList.remove('on');
   stopRecording(true);
 });
-
-socket.on('connect_error', function () {
-  document.getElementById('reconnectBar').classList.add('on');
-});
+socket.on('connect_error', function () { document.getElementById('reconnectBar').classList.add('on'); });
 
 socket.on('room_state', function (data) {
   peers = {};
-  (data.members || []).forEach(function (m) {
-    if (m.sid !== socket.id) peers[m.sid] = m.name || m.sid.slice(0, 6);
-  });
+  (data.members || []).forEach(function (m) { if (m.sid !== socket.id) peers[m.sid] = m.name || m.sid.slice(0,6); });
   updatePeers();
   chDot.className = 'ch-dot' + (numPeers() > 0 ? ' online' : '');
-  var peerNames = Object.values(peers).slice(0, 2).map(function(n){ return '@'+n; }).join(', ');
-  var extraPeers = numPeers() > 2 ? ' +' + (numPeers()-2) : '';
-  setStatus(numPeers() > 0 ? peerNames + extraPeers + ' online' : 'Waiting for others to join...', numPeers() > 0 ? 'ok' : 'warn');
+  var names = Object.values(peers).slice(0,2).map(function(n){return '@'+n;}).join(', ');
+  var extra = numPeers() > 2 ? ' +' + (numPeers()-2) : '';
+  setStatus(numPeers() > 0 ? names+extra+' online' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
   pttCircle.classList.remove('disabled');
-  // FIX 10: always restore hint after state update
-  pttHint.classList.add('on');
+  pttHint.classList.remove('hidden');
   talkHereBtn.disabled = false;
   playBeep(700, 0.09);
 });
-
 socket.on('peer_joined', function (data) {
-  peers[data.sid] = data.name || data.sid.slice(0, 6);
+  peers[data.sid] = data.name || data.sid.slice(0,6);
   updatePeers();
   chDot.className = 'ch-dot online';
   setStatus('Hold to record, release to send', 'ok');
   pttCircle.classList.remove('disabled');
-  pttHint.classList.add('on');
+  pttHint.classList.remove('hidden');
   talkHereBtn.disabled = false;
-  showToast('@' + (data.name || 'someone') + ' joined');
+  showToast('@'+(data.name||'someone')+' joined');
   playBeep(660, 0.08);
 });
-
 socket.on('peer_left', function (data) {
   var name = peers[data.sid] || 'someone';
   delete peers[data.sid];
   updatePeers();
-  if (numPeers() === 0) {
-    chDot.className = 'ch-dot';
-    setStatus('Waiting for others to join...', 'warn');
-  }
-  showToast('@' + name + ' left');
+  if (numPeers() === 0) { chDot.className = 'ch-dot'; setStatus('Waiting for others...', 'warn'); }
+  showToast('@'+name+' left');
   playBeep(400, 0.14);
 });
-
-socket.on('peer_name_updated', function (data) {
-  if (peers[data.sid]) { peers[data.sid] = data.name; updatePeers(); }
-});
+socket.on('peer_name_updated', function (data) { if (peers[data.sid]) { peers[data.sid] = data.name; updatePeers(); } });
 
 socket.on('voice_message', function (data) {
   var blob   = b64toBlob(data.audio, data.mime);
   var sender = data.sender_name || peers[data.sender_sid] || 'unknown';
-  addMessage(blob, data.duration, false, sender, data.msg_id);
   socket.emit('msg_delivered', { msg_id: data.msg_id, to: data.sender_sid });
   chDot.className = 'ch-dot online';
   channelPill.classList.add('has-unread');
-  playBeep(900, 0.06);
-  if (!document.hidden) {
-    setTimeout(function () {
-      var rows = msgLog.querySelectorAll('.msg-row.them');
-      var last = rows[rows.length - 1];
-      if (last) { var b = last.querySelector('.msg-bubble'); if (b) b.click(); }
-    }, 280);
-  }
+  playQueue.push({ blob:blob, duration:data.duration, senderName:sender, msgId:data.msg_id });
+  drainQueue();
 });
-
 socket.on('msg_delivered', function (data) {
-  var el = document.getElementById('rcpt_' + data.msg_id);
+  var el = document.getElementById('rcpt_'+data.msg_id);
   if (el) { el.textContent = 'Delivered'; el.classList.add('ok'); }
 });
-
-// Handle server-side errors (ROOM_FULL, MSG_TOO_LARGE)
 socket.on('error', function (data) {
   var code = data.code || '';
-  var msg  = data.msg  || 'Server error';
   if (code === 'ROOM_FULL') {
-    showToast('Channel full (max 20 users)');
+    showToast('Channel full (max 20)');
     setStatus('Channel full — try another', 'warn');
-    myRoom = '';
-    chNameEl.textContent = 'Tap to join channel';
-    channelPill.classList.add('ph');
-    chDot.className = 'ch-dot';
-    peerCt.textContent = '';
-    pttCircle.classList.add('disabled');
-    pttHint.classList.remove('on');
+    myRoom = ''; chNameEl.textContent = 'Tap to join channel';
+    channelPill.classList.add('ph'); chDot.className = 'ch-dot'; peerCt.textContent = '';
+    pttCircle.classList.add('disabled'); pttHint.classList.add('hidden');
     talkHereBtn.disabled = true;
   } else if (code === 'MSG_TOO_LARGE') {
-    showToast('Recording too long — keep under 60s');
+    showToast('Recording too large — keep under 60s');
     pttCircle.classList.remove('sending');
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
     setStatus('Hold to record, release to send', 'ok');
-  } else {
-    showToast(msg);
-  }
+  } else { showToast(data.msg || 'Server error'); }
 });
 
 // ── Recording ──
 async function startRecording() {
-  // FIX 4: check room and isRecording; don't use pttCircle class for map button
   if (!myRoom || isRecording) return;
+  try { recStream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false }); }
+  catch (err) { showToast('Mic: ' + err.message); return; }
 
-  try {
-    recStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-  } catch (err) {
-    showToast('Mic: ' + err.message);
-    return;
-  }
+  recChunks=[]; isRecording=true; isCancelling=false; recStartTime=Date.now();
 
-  recChunks    = [];
-  isRecording  = true;
-  isCancelling = false;
-  recStartTime = Date.now();
-
-  // Pick best mime
-  var mime = ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg'].find(function (m) {
-    return MediaRecorder.isTypeSupported(m);
-  }) || 'audio/webm';
-
-  // FIX 8: assign onstop BEFORE calling start
-  mediaRec = new MediaRecorder(recStream, { mimeType: mime });
-  mediaRec.ondataavailable = function (e) { if (e.data && e.data.size > 0) recChunks.push(e.data); };
+  var mime = ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg'].find(function(m){return MediaRecorder.isTypeSupported(m);}) || 'audio/webm';
+  mediaRec = new MediaRecorder(recStream, {mimeType:mime});
+  mediaRec.ondataavailable = function(e) { if (e.data && e.data.size > 0) recChunks.push(e.data); };
   mediaRec.onstop = onRecorderStop;
   mediaRec.start(100);
 
-  // UI
-  pttCircle.classList.add('rec');
-  ripples.classList.add('rec');
+  // UI — TX state
+  pttCircle.classList.add('tx');
+  ripples.classList.add('tx');
   waveWrap.classList.add('on');
+  setWaveBarsColor('tx');
   cancelHint.classList.add('on');
   talkHereBtn.classList.add('transmitting');
-  chDot.className = 'ch-dot rec';
+  talkHereBtn.textContent = 'Transmitting...';
+  chDot.className = 'ch-dot tx';
   setStatus('Recording... release to send', 'err');
   playBeep(500, 0.05);
-  startVolMeter(recStream);
+  startVolMeter(recStream, false);
 
   recTimerID = setInterval(function () {
     var elapsed = (Date.now() - recStartTime) / 1000;
     var m = Math.floor(elapsed / 60), s = Math.floor(elapsed % 60);
-    recTime.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+    circTimer.textContent = m + ':' + (s < 10 ? '0' : '') + s;
     limitArc.setAttribute('stroke-dashoffset', String(CIRC * (1 - Math.min(elapsed / MAX_REC_SEC, 1))));
     if (elapsed >= MAX_REC_SEC) stopRecording(false);
   }, 200);
@@ -890,66 +901,57 @@ async function startRecording() {
 function stopRecording(cancel) {
   if (!isRecording) return;
   var elapsed = Date.now() - recStartTime;
-  isRecording  = false;
+  isRecording = false;
 
   clearInterval(recTimerID);
-  recTime.textContent = '0:00';
+  circTimer.textContent = '0:00';
   limitArc.setAttribute('stroke-dashoffset', String(CIRC));
 
-  pttCircle.classList.remove('rec', 'sending', 'cancelling');
-  ripples.classList.remove('rec');
+  pttCircle.classList.remove('tx', 'sending', 'cancelling');
+  ripples.classList.remove('tx');
   waveWrap.classList.remove('on');
   cancelHint.classList.remove('on');
   talkHereBtn.classList.remove('transmitting', 'pressed');
+  talkHereBtn.textContent = 'Talk Here';
   stopVolMeter();
 
-  if (recStream) { recStream.getTracks().forEach(function (t) { t.stop(); }); recStream = null; }
-
+  if (recStream) { recStream.getTracks().forEach(function(t){t.stop();}); recStream=null; }
   recDuration = elapsed / 1000;
+  isCancelling = isCancelling || cancel || (elapsed < MIN_REC_MS);
 
-  // Decide cancel
-  var shouldCancel = cancel || isCancelling || (elapsed < MIN_REC_MS);
-  isCancelling = false;
-
-  if (shouldCancel) {
+  if (isCancelling) {
     if (elapsed < MIN_REC_MS && !cancel) showToast('Hold longer to record');
-    else setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
-    chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
+    else { chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot'; setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn'); }
+    isCancelling = false;
     if (mediaRec && mediaRec.state !== 'inactive') mediaRec.stop();
     return;
   }
 
-  // Show sending UI before stop fires onstop
+  isCancelling = false;
   pttCircle.classList.add('sending');
   chDot.className = 'ch-dot send';
   setStatus('Sending...', '');
   if (mediaRec && mediaRec.state !== 'inactive') mediaRec.stop();
 }
 
-// FIX 8: onstop assigned before start(), called once reliably
 function onRecorderStop() {
-  if (isCancelling || recChunks.length === 0) {
-    setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
-    chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
+  if (recChunks.length === 0) {
     pttCircle.classList.remove('sending');
+    chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
+    setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
     return;
   }
   var mime = mediaRec.mimeType;
-  var blob = new Blob(recChunks, { type: mime });
-  recChunks = [];
+  var blob = new Blob(recChunks, {type:mime}); recChunks=[];
   sendVoice(blob, recDuration, mime);
 }
 
 function sendVoice(blob, duration, mime) {
-  var msgId = Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  var msgId = Date.now() + '_' + Math.random().toString(36).slice(2,6);
   var reader = new FileReader();
   reader.onload = function () {
     var b64 = reader.result.split(',')[1];
-    socket.emit('voice_message', {
-      audio: b64, mime: mime,
-      duration: Math.round(duration * 10) / 10,
-      msg_id: msgId
-    });
+    socket.emit('voice_message', { audio:b64, mime:mime, duration:Math.round(duration*10)/10, msg_id:msgId });
     addMessage(blob, duration, true, myName, msgId);
     pttCircle.classList.remove('sending');
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
@@ -965,8 +967,60 @@ function sendVoice(blob, duration, mime) {
   reader.readAsDataURL(blob);
 }
 
-// ── Messages ──
+// ── Play queue ──
+function drainQueue() {
+  if (queuePlaying || playQueue.length === 0) return;
+  queuePlaying = true;
+  var item = playQueue.shift();
+  playIcomChirp(function () {
+    var handle = addMessage(item.blob, item.duration, false, item.senderName, item.msgId);
+    if (handle && handle.trigger) {
+      handle.trigger(function () { queuePlaying = false; drainQueue(); });
+    } else { queuePlaying = false; drainQueue(); }
+  });
+}
+
+function playIcomChirp(onDone) {
+  try {
+    var ctx = new AudioContext(), t = ctx.currentTime;
+    function tone(freq, start, end) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0, start);
+      g.gain.linearRampToValueAtTime(0.18, start + 0.008);
+      g.gain.setValueAtTime(0.18, end - 0.015);
+      g.gain.linearRampToValueAtTime(0, end);
+      o.start(start); o.stop(end);
+      return o;
+    }
+    tone(880,  t,        t+0.07);
+    var o2 = tone(1320, t+0.10, t+0.17);
+    o2.onended = function () { ctx.close(); setTimeout(onDone, 40); };
+  } catch(e) { onDone(); }
+}
+
+function playEndBeep() {
+  try {
+    var ctx = new AudioContext(), t = ctx.currentTime;
+    function tone(freq, start, end) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination); o.frequency.value = freq;
+      g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.13, start+0.007);
+      g.gain.setValueAtTime(0.13, end-0.015); g.gain.linearRampToValueAtTime(0, end);
+      o.start(start); o.stop(end); return o;
+    }
+    tone(1100, t,       t+0.07);
+    var o2 = tone(660, t+0.10, t+0.17);
+    o2.onended = function () { ctx.close(); };
+  } catch(e) {}
+}
+
+// ── addMessage — returns { trigger, stop } for queue ──
 function addMessage(blob, duration, isMe, senderName, msgId) {
+  // Hide empty state
+  if (msgEmpty) { msgEmpty.style.display = 'none'; }
+
   var url  = URL.createObjectURL(blob);
   var dur  = formatDur(duration);
   var time = nowTime();
@@ -978,7 +1032,7 @@ function addMessage(blob, duration, isMe, senderName, msgId) {
 
   var info = document.createElement('div'); info.className = 'msg-info';
   if (!isMe) {
-    var sEl = document.createElement('div'); sEl.className = 'msg-sender'; sEl.textContent = '@' + senderName;
+    var sEl = document.createElement('div'); sEl.className = 'msg-sender'; sEl.textContent = '@'+senderName;
     info.appendChild(sEl);
   }
   var durEl = document.createElement('div'); durEl.className = 'msg-dur'; durEl.textContent = dur;
@@ -991,15 +1045,16 @@ function addMessage(blob, duration, isMe, senderName, msgId) {
   var tEl  = document.createElement('div'); tEl.className = 'msg-time'; tEl.textContent = time;
   meta.appendChild(tEl);
   if (isMe) {
-    var rcpt = document.createElement('div'); rcpt.className = 'msg-rcpt'; rcpt.id = 'rcpt_' + msgId; rcpt.textContent = 'Sent';
+    var rcpt = document.createElement('div'); rcpt.className = 'msg-rcpt'; rcpt.id = 'rcpt_'+msgId; rcpt.textContent = 'Sent';
     meta.appendChild(rcpt);
   }
 
   var audio   = new Audio(url);
+  audio.preload = 'auto';
   var playing = false;
   var progRAF = null;
+  var endCb   = null;
 
-  // FIX 11: named stopFn so we can remove it from activeAudios on ended/error
   function stopFn() {
     if (!playing) return;
     audio.pause(); audio.currentTime = 0;
@@ -1007,31 +1062,56 @@ function addMessage(blob, duration, isMe, senderName, msgId) {
     fill.style.width = '0%';
     playing = false;
     play.innerHTML = iconPlay();
-    activeAudios = activeAudios.filter(function (f) { return f !== stopFn; });
+    activeAudios = activeAudios.filter(function(f){return f!==stopFn;});
+    // RX state off
+    if (!isMe) {
+      pttCircle.classList.remove('rx');
+      ripples.classList.remove('rx');
+      waveWrap.classList.remove('on');
+      chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
+    }
   }
 
-  // FIX 15: rAF-based progress (auto-pauses when tab hidden)
-  function updateProgress() {
+  function updateProg() {
     if (!playing || !audio.duration) { progRAF = null; return; }
     fill.style.width = ((audio.currentTime / audio.duration) * 100) + '%';
-    progRAF = requestAnimationFrame(updateProgress);
+    progRAF = requestAnimationFrame(updateProg);
   }
 
-  bubble.addEventListener('click', function () {
-    if (playing) { stopFn(); return; }
-    // Stop all others
-    activeAudios.slice().forEach(function (f) { f(); });
-    playing = true;
+  function startPlay(onFinished) {
+    activeAudios.slice().forEach(function(f){f();});
+    playing = true; endCb = onFinished || null;
     activeAudios.push(stopFn);
     play.innerHTML = iconPause();
-    audio.play().catch(stopFn);
-    progRAF = requestAnimationFrame(updateProgress);
-    audio.onended = function () {
+    // RX state on circle + waveform
+    if (!isMe) {
+      pttCircle.classList.add('rx');
+      ripples.classList.add('rx');
+      waveWrap.classList.add('on');
+      setWaveBarsColor('rx');
+      chDot.className = 'ch-dot rx';
+      setStatus('From @'+senderName+'...', 'rx');
+      startVolMeterAudio(audio);
+    }
+    audio.play().catch(function() { stopFn(); if (endCb){endCb();endCb=null;} });
+    progRAF = requestAnimationFrame(updateProg);
+    audio.onended = function() {
       stopFn();
-      URL.revokeObjectURL(url); // FIX: already in stopFn cleanup, revoke here
+      URL.revokeObjectURL(url);
+      if (!isMe) {
+        stopVolMeter();
+        setWaveBarsColor('tx');
+        setStatus('Hold to record, release to send', 'ok');
+        playEndBeep();
+      }
+      if (endCb) { endCb(); endCb = null; }
     };
-    // FIX 11: also clean up on error
-    audio.onerror = function () { stopFn(); URL.revokeObjectURL(url); };
+    audio.onerror = function() { stopFn(); URL.revokeObjectURL(url); if(endCb){endCb();endCb=null;} };
+  }
+
+  bubble.addEventListener('click', function() {
+    if (playing) { stopFn(); return; }
+    startPlay(null);
   });
 
   if (isMe) { row.appendChild(bubble); row.appendChild(meta); }
@@ -1039,90 +1119,72 @@ function addMessage(blob, duration, isMe, senderName, msgId) {
 
   msgLog.appendChild(row);
   msgLog.scrollTop = msgLog.scrollHeight;
+
+  return { trigger: startPlay, stop: stopFn };
+}
+
+function setWaveBarsColor(cls) {
+  wBars.forEach(function(b) { b.className = 'wbar ' + cls; });
 }
 
 function iconPlay()  { return '<svg width="9" height="11" viewBox="0 0 9 11" fill="white"><polygon points="0,0 9,5.5 0,11"/></svg>'; }
 function iconPause() { return '<svg width="9" height="9" viewBox="0 0 9 9" fill="white"><rect x="0" y="0" width="3.5" height="9" rx="1"/><rect x="5.5" y="0" width="3.5" height="9" rx="1"/></svg>'; }
 function formatDur(sec) { var s=Math.round(sec),m=Math.floor(s/60),r=s%60; return m+':'+(r<10?'0':'')+r; }
-
-// FIX 12: fast b64 → Blob via fetch (avoids byte-by-byte loop entirely)
-function b64toBlob(b64, mime) {
-  try {
-    var bin = atob(b64);
-    // Use typed array constructor from string char codes — still fast for audio sizes
-    var bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new Blob([bytes], { type: mime });
-  } catch (e) {
-    return new Blob([], { type: mime });
-  }
+function b64toBlob(b64,mime) {
+  try { var bin=atob(b64),arr=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i); return new Blob([arr],{type:mime}); }
+  catch(e) { return new Blob([],{type:mime}); }
 }
 
-// ── Volume meter (FIX 15: rAF instead of setInterval) ──
-function startVolMeter(stream) {
-  audioCtx = new AudioContext();
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 32;  // 16 bins
+// ── Volume meters ──
+function startVolMeter(stream, isRx) {
+  stopVolMeter();
+  vizIsRx = isRx;
+  audioCtx = new AudioContext(); analyser = audioCtx.createAnalyser(); analyser.fftSize = 32;
   audioCtx.createMediaStreamSource(stream).connect(analyser);
-  // FIX 9: allocate once, reuse
-  vizData = new Uint8Array(analyser.frequencyBinCount); // 16 elements
-
+  vizData = new Uint8Array(analyser.frequencyBinCount);
   function tick() {
     if (!analyser) return;
     analyser.getByteFrequencyData(vizData);
-    // 8 bars, each takes vizData[i*2] → indices 0,2,4,6,8,10,12,14 (all valid in 16-el array)
-    for (var i = 0; i < 8; i++) {
-      var v = vizData[i * 2] || 0;
-      wBars[i].style.height = Math.max(2, Math.min(18, v * 0.18)) + 'px';
-    }
+    for (var i=0;i<8;i++) { var v=vizData[i*2]||0; wBars[i].style.height=Math.max(2,Math.min(18,v*0.18))+'px'; }
     vizRAF = requestAnimationFrame(tick);
   }
   vizRAF = requestAnimationFrame(tick);
 }
 
+function startVolMeterAudio(audioEl) {
+  // Visualise a playing Audio element (for RX waveform)
+  stopVolMeter();
+  try {
+    audioCtx = new AudioContext(); analyser = audioCtx.createAnalyser(); analyser.fftSize = 32;
+    var src = audioCtx.createMediaElementSource(audioEl);
+    src.connect(analyser); src.connect(audioCtx.destination);
+    vizData = new Uint8Array(analyser.frequencyBinCount);
+    function tick() {
+      if (!analyser) return;
+      analyser.getByteFrequencyData(vizData);
+      for (var i=0;i<8;i++) { var v=vizData[i*2]||0; wBars[i].style.height=Math.max(2,Math.min(18,v*0.18))+'px'; }
+      vizRAF = requestAnimationFrame(tick);
+    }
+    vizRAF = requestAnimationFrame(tick);
+  } catch(e) { /* MediaElementSource already used — silently skip */ }
+}
+
 function stopVolMeter() {
-  if (vizRAF) { cancelAnimationFrame(vizRAF); vizRAF = null; }
-  if (audioCtx) { audioCtx.close(); audioCtx = null; }
-  analyser = null; vizData = null;
-  wBars.forEach(function (b) { b.style.height = '3px'; });
+  if (vizRAF) { cancelAnimationFrame(vizRAF); vizRAF=null; }
+  if (audioCtx) { audioCtx.close(); audioCtx=null; }
+  analyser=null; vizData=null;
+  wBars.forEach(function(b){b.style.height='3px';});
 }
 
-// ── Share channel link ──
-function copyChannelLink() {
-  if (!myRoom) { showToast('Join a channel first'); return; }
-  var url = window.location.origin + window.location.pathname + '?room=' + encodeURIComponent(myRoom);
-  if (navigator.share) {
-    navigator.share({ title: 'WalkieTalk', text: 'Join channel ' + myRoom, url: url })
-      .catch(function () { fallbackCopy(url); });
-  } else {
-    fallbackCopy(url);
-  }
-}
-function fallbackCopy(url) {
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(url).then(function () { showToast('Link copied!'); });
-  } else {
-    var el = document.createElement('textarea');
-    el.value = url; el.style.position = 'fixed'; el.style.opacity = '0';
-    document.body.appendChild(el); el.select();
-    try { document.execCommand('copy'); showToast('Link copied!'); } catch(e) { showToast('Copy: ' + url); }
-    document.body.removeChild(el);
-  }
-}
-
-// ── Beep ──
 function playBeep(freq, dur) {
   try {
-    var ctx = new AudioContext();
-    var osc = ctx.createOscillator();
-    var g   = ctx.createGain();
-    osc.connect(g); g.connect(ctx.destination);
-    osc.frequency.value = freq;
-    g.gain.setValueAtTime(0.1, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
-    osc.start(); osc.stop(ctx.currentTime + dur);
-    osc.onended = function () { ctx.close(); };
-  } catch (e) {}
+    var ctx=new AudioContext(),o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g); g.connect(ctx.destination); o.frequency.value=freq;
+    g.gain.setValueAtTime(0.1,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);
+    o.start(); o.stop(ctx.currentTime+dur);
+    o.onended=function(){ctx.close();};
+  } catch(e){}
 }
 </script>
 </body>
