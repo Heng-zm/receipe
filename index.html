@@ -181,59 +181,7 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 .wbar.tx { background:var(--white); }
 .wbar.rx { background:var(--blue); }
 
-/* ── Message log ── */
-.msg-log-wrap {
-  flex:1; min-height:0; max-height:160px;
-  padding:0 16px; overflow-y:auto;
-  display:flex; flex-direction:column; gap:4px;
-  -webkit-overflow-scrolling:touch; margin-bottom:2px;
-}
-.msg-log-wrap::-webkit-scrollbar { display:none; }
-
-/* Empty state */
-.msg-empty {
-  flex:1; display:flex; align-items:center; justify-content:center;
-  font-size:12px; color:rgba(255,255,255,0.12); letter-spacing:0.3px;
-  padding:10px 0;
-}
-
-.msg-row { display:flex; flex-shrink:0; }
-@media (prefers-reduced-motion:no-preference) {
-  .msg-row { animation:fadeup 0.18s ease; }
-}
-@keyframes fadeup { from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:none;} }
-.msg-row.me   { justify-content:flex-end; }
-.msg-row.them { justify-content:flex-start; }
-
-/* Bubble: all content inside, no external meta column */
-.msg-bubble {
-  display:flex; flex-direction:column; gap:4px;
-  padding:8px 11px; border-radius:14px;
-  cursor:pointer; max-width:min(240px, 68vw);
-  transition:opacity 0.12s;
-}
-.msg-bubble:active { opacity:0.65; }
-.msg-row.me   .msg-bubble { background:rgba(255,255,255,0.12); border-radius:14px 14px 3px 14px; }
-.msg-row.them .msg-bubble { background:rgba(0,122,255,0.18);   border-radius:14px 14px 14px 3px; }
-
-/* Top row: play button + waveform/dur */
-.msg-top { display:flex; align-items:center; gap:8px; }
-.msg-play { width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.msg-row.them .msg-play { background:rgba(255,255,255,0.2); }
-
-.msg-wave-wrap { display:flex; flex-direction:column; gap:3px; min-width:0; }
-.msg-sender { font-size:10px; font-weight:400; color:rgba(255,255,255,0.45); letter-spacing:0.2px; }
-.msg-row.them .msg-sender { color:rgba(120,190,255,0.7); }
-.msg-dur { font-size:13px; font-weight:400; color:rgba(255,255,255,0.9); }
-.msg-prog { width:80px; height:2px; background:rgba(255,255,255,0.12); border-radius:1px; overflow:hidden; margin-top:1px; }
-.msg-prog-fill { height:100%; width:0%; background:rgba(255,255,255,0.6); border-radius:1px; }
-.msg-row.them .msg-prog-fill { background:rgba(150,200,255,0.85); }
-
-/* Footer row: time + receipt — inside bubble, right-aligned */
-.msg-footer { display:flex; align-items:center; justify-content:flex-end; gap:5px; }
-.msg-time { font-size:10px; color:rgba(255,255,255,0.22); }
-.msg-rcpt { font-size:10px; color:rgba(255,255,255,0.22); }
-.msg-rcpt.ok { color:var(--green); }
+/* message log removed */
 
 /* ── Status line ── */
 .status-line { font-size:13px; font-weight:300; text-align:center; color:var(--dim); min-height:18px; padding:0 20px 2px; flex-shrink:0; transition:color 0.25s; }
@@ -492,10 +440,6 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
     <div class="wbar tx" id="wb7"></div><div class="wbar tx" id="wb8"></div>
   </div>
 
-  <!-- Message log -->
-  <div class="msg-log-wrap" id="msgLog">
-    <div class="msg-empty" id="msgEmpty">No transmissions yet</div>
-  </div>
 
   <div class="status-line" id="statusLine">Tap grid to join a channel</div>
 
@@ -648,7 +592,6 @@ var socket = io(SERVER_URL, {
 var myName       = localStorage.getItem('wt_name') || '';
 var myRoom       = '';
 var peers        = {};
-var activeAudios = [];
 var playQueue    = [];
 var queuePlaying = false;
 var mapReady     = false;
@@ -703,8 +646,6 @@ var locationText = document.getElementById('locationText');
 var ripples      = document.getElementById('ripples');
 var waveWrap     = document.getElementById('waveWrap');
 var circTimer    = document.getElementById('circTimer');
-var msgLog       = document.getElementById('msgLog');
-var msgEmpty     = document.getElementById('msgEmpty');
 var cancelHint   = document.getElementById('cancelHint');
 var limitArc     = document.getElementById('limitArc');
 var talkHereBtn  = document.getElementById('talkHereBtn');
@@ -1260,18 +1201,14 @@ socket.on('peer_name_updated', function (data) { if (peers[data.sid]) { peers[da
 socket.on('voice_message', function (data) {
   var blob   = b64toBlob(data.audio, data.mime);
   var sender = data.sender_name || peers[data.sender_sid] || 'unknown';
-  socket.emit('msg_delivered', { msg_id: data.msg_id, to: data.sender_sid });
   chDot.className = 'ch-dot online';
   channelPill.classList.add('has-unread');
-  // Cap queue — drop oldest if tab was hidden and messages piled up
   if (playQueue.length >= 10) playQueue.shift();
-  playQueue.push({ blob:blob, duration:data.duration, senderName:sender, msgId:data.msg_id });
+  // Receipt now sent after playback finishes (in drainQueue onEndedFn)
+  playQueue.push({ blob:blob, duration:data.duration, senderName:sender, msgId:data.msg_id, senderSid:data.sender_sid });
   drainQueue();
 });
-socket.on('msg_delivered', function (data) {
-  var el = document.getElementById('rcpt_'+data.msg_id);
-  if (el) { el.textContent = '✓✓'; el.classList.add('ok'); }
-});
+
 socket.on('error', function (data) {
   var code = data.code || '';
   if (code === 'ROOM_FULL') {
@@ -1397,11 +1334,10 @@ function sendVoice(blob, duration, mime) {
   var msgId = Date.now() + '_' + Math.random().toString(36).slice(2,6);
   function onB64(b64) {
     socket.emit('voice_message', { audio:b64, mime:mime, duration:Math.round(duration*10)/10, msg_id:msgId });
-    addMessage(blob, duration, true, myName, msgId, true);
     pttCircle.classList.remove('sending');
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
-    setStatus('Sent!', 'ok');
-    setTimeout(function () { if (!isRecording) setStatus('Hold to record, release to send', 'ok'); }, 1500);
+    setStatus('Sent', 'ok');
+    setTimeout(function () { if (!isRecording) setStatus('Hold to record, release to send', 'ok'); }, 1200);
   }
   function onErr() {
     showToast('Send failed');
@@ -1435,15 +1371,57 @@ function drainQueue() {
   var item = playQueue.shift();
   var safeNext = function() { queuePlaying = false; drainQueue(); };
   try {
-    playIcomChirp(function () {
-      try {
-        var handle = addMessage(item.blob, item.duration, false, item.senderName, item.msgId);
-        if (handle && handle.trigger) {
-          handle.trigger(safeNext);
-        } else { safeNext(); }
-      } catch(e) { console.error('addMessage error:', e); safeNext(); }
+    playIcomChirp(function() {
+      // Show sender in status while playing
+      pttCircle.classList.add('rx');
+      ripples.classList.add('rx');
+      waveWrap.classList.add('on');
+      setWaveBarsColor('rx');
+      chDot.className = 'ch-dot rx';
+      setStatus('From @' + item.senderName + '...', 'rx');
+      startVolMeterAudio();
+
+      // Track playback time for circ-timer
+      if (sharedCtx) {
+        var startT = sharedCtx.currentTime;
+        var dur    = item.duration || 0;
+        var timerRAF;
+        (function tickTimer() {
+          if (!queuePlaying) return;
+          var el = (dur > 0) ? Math.min(dur, sharedCtx.currentTime - startT) : 0;
+          var m  = Math.floor(el / 60), s = Math.floor(el % 60);
+          circTimer.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+          timerRAF = requestAnimationFrame(tickTimer);
+        })();
+        var origNext = safeNext;
+        safeNext = function() {
+          cancelAnimationFrame(timerRAF);
+          circTimer.textContent = '0:00';
+          origNext();
+        };
+      }
+
+      var onEndedFn = function() {
+        pttCircle.classList.remove('rx');
+        ripples.classList.remove('rx');
+        waveWrap.classList.remove('on');
+        stopVolMeter();
+        setWaveBarsColor('tx');
+        chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
+        setStatus('Hold to record, release to send', 'ok');
+        playEndBeep();
+        // Emit delivery receipt
+        socket.emit('msg_delivered', { msg_id: item.msgId, to: item.senderSid });
+        safeNext();
+      };
+      onEndedFn._setSrc = function(s) {
+        if (sharedCtx) {
+          // update start time once source actually begins
+        }
+      };
+      decodeAndPlay(item.blob, onEndedFn, safeNext);
     });
-  } catch(e) { console.error('playIcomChirp error:', e); safeNext(); }
+  } catch(e) { console.error('drainQueue error:', e); safeNext(); }
 }
 
 function playIcomChirp(onDone) {
@@ -1487,143 +1465,11 @@ function playEndBeep() {
   });
 }
 
-// ── addMessage — returns { trigger, stop } for queue ──
-function addMessage(blob, duration, isMe, senderName, msgId, revokeNow) {
-  // Hide empty state
-  if (msgEmpty) { msgEmpty.style.display = 'none'; }
-
-  var url  = URL.createObjectURL(blob);
-  var dur  = formatDur(duration);
-  var time = nowTime();
-
-  var row    = document.createElement('div'); row.className = 'msg-row ' + (isMe ? 'me' : 'them');
-  var bubble = document.createElement('div'); bubble.className = 'msg-bubble';
-
-  // ── Top row: play btn + sender/dur/progress ──
-  var msgTop = document.createElement('div'); msgTop.className = 'msg-top';
-  var play   = document.createElement('div'); play.className = 'msg-play';
-  play.innerHTML = iconPlay();
-
-  var waveWrap2 = document.createElement('div'); waveWrap2.className = 'msg-wave-wrap';
-  if (!isMe) {
-    var sEl = document.createElement('div'); sEl.className = 'msg-sender'; sEl.textContent = '@'+senderName;
-    waveWrap2.appendChild(sEl);
-  }
-  var durEl = document.createElement('div'); durEl.className = 'msg-dur'; durEl.textContent = dur;
-  var prog  = document.createElement('div'); prog.className = 'msg-prog';
-  var fill  = document.createElement('div'); fill.className = 'msg-prog-fill';
-  prog.appendChild(fill);
-  waveWrap2.appendChild(durEl); waveWrap2.appendChild(prog);
-  msgTop.appendChild(play); msgTop.appendChild(waveWrap2);
-  bubble.appendChild(msgTop);
-
-  // ── Footer row: time + receipt inside bubble ──
-  var footer = document.createElement('div'); footer.className = 'msg-footer';
-  var tEl    = document.createElement('div'); tEl.className = 'msg-time'; tEl.textContent = time;
-  footer.appendChild(tEl);
-  var rcpt;
-  if (isMe) {
-    rcpt = document.createElement('div'); rcpt.className = 'msg-rcpt'; rcpt.id = 'rcpt_'+msgId; rcpt.textContent = '✓';
-    footer.appendChild(rcpt);
-  }
-  bubble.appendChild(footer);
-
-  var playing = false;
-  var progRAF = null;
-  var endCb   = null;
-
-  var activeSource = null; // AudioBufferSourceNode for this message
-  function stopFn() {
-    if (!playing) return;
-    if (activeSource) { try { activeSource.stop(); } catch(e){} activeSource = null; }
-    if (progRAF) { cancelAnimationFrame(progRAF); progRAF = null; }
-    fill.style.width = '0%';
-    playing = false;
-    play.innerHTML = iconPlay();
-    activeAudios = activeAudios.filter(function(f){return f!==stopFn;});
-    // RX state off
-    if (!isMe) {
-      pttCircle.classList.remove('rx');
-      ripples.classList.remove('rx');
-      waveWrap.classList.remove('on');
-      chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
-    }
-  }
-
-  var playStartCtxTime = 0; // AudioContext time when playback started
-  function updateProg() {
-    if (!playing) { progRAF = null; return; }
-    if (sharedCtx && duration > 0) {
-      var elapsed = sharedCtx.currentTime - playStartCtxTime;
-      fill.style.width = Math.min(100, (elapsed / duration) * 100) + '%';
-    }
-    progRAF = requestAnimationFrame(updateProg);
-  }
-
-  function startPlay(onFinished) {
-    activeAudios.slice().forEach(function(f){f();});
-    playing = true; endCb = onFinished || null;
-    activeAudios.push(stopFn);
-    play.innerHTML = iconPause();
-    // RX state on circle + waveform
-    if (!isMe) {
-      pttCircle.classList.add('rx');
-      ripples.classList.add('rx');
-      waveWrap.classList.add('on');
-      setWaveBarsColor('rx');
-      chDot.className = 'ch-dot rx';
-      setStatus('From @'+senderName+'...', 'rx');
-    }
-    // BUG 2: iOS blocks audio.play() from socket events — use decodeAndPlay instead
-    var onEndedFn = function() {
-      // playback finished naturally
-      stopFn();
-      URL.revokeObjectURL(url);
-      if (!isMe) {
-        stopVolMeter();
-        setWaveBarsColor('tx');
-        setStatus('Hold to record, release to send', 'ok');
-        playEndBeep();
-      }
-      if (endCb) { endCb(); endCb = null; }
-    };
-    onEndedFn._setSrc = function(s) {
-      activeSource = s;
-      // Start progress tracking once we know playback actually started
-      if (sharedCtx) playStartCtxTime = sharedCtx.currentTime;
-      progRAF = requestAnimationFrame(updateProg);
-    };
-    decodeAndPlay(blob, onEndedFn, function() {
-      // playback error
-      stopFn(); URL.revokeObjectURL(url);
-      if (endCb) { endCb(); endCb = null; }
-    });
-    if (!isMe) { startVolMeterAudio(); }
-  }
-
-  bubble.addEventListener('click', function() {
-    if (playing) { stopFn(); return; }
-    startPlay(null);
-  });
-
-  row.appendChild(bubble);
-
-  msgLog.appendChild(row);
-  msgLog.scrollTop = msgLog.scrollHeight;
-
-  // Sent messages never auto-play — revoke blob URL immediately to free memory
-  if (revokeNow) URL.revokeObjectURL(url);
-
-  return { trigger: startPlay, stop: stopFn };
-}
 
 function setWaveBarsColor(cls) {
   wBars.forEach(function(b) { b.className = 'wbar ' + cls; });
 }
 
-function iconPlay()  { return '<svg width="9" height="11" viewBox="0 0 9 11" fill="white"><polygon points="0,0 9,5.5 0,11"/></svg>'; }
-function iconPause() { return '<svg width="9" height="9" viewBox="0 0 9 9" fill="white"><rect x="0" y="0" width="3.5" height="9" rx="1"/><rect x="5.5" y="0" width="3.5" height="9" rx="1"/></svg>'; }
-function formatDur(sec) { var s=Math.round(sec),m=Math.floor(s/60),r=s%60; return m+':'+(r<10?'0':'')+r; }
 function b64toBlob(b64, mime) {
   // BUG 8: chunked conversion — much faster on low-end Android for large audio
   try {
