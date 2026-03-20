@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>WalkieTalk</title>
@@ -13,13 +14,16 @@
     --white: #fff;
     --dim: rgba(255,255,255,0.35);
     --dimmer: rgba(255,255,255,0.12);
-    --ring: rgba(255,255,255,0.9);
     --green: #30d158;
     --red: #ff453a;
     --amber: #ffd60a;
+    --blue: #0a84ff;
   }
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  *, *::before, *::after {
+    box-sizing: border-box; margin: 0; padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
 
   html, body {
     width: 100%; height: 100%;
@@ -39,238 +43,220 @@
 
   /* Top bar */
   .topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between;
     padding: 12px 24px 0;
   }
   .topbar-left { display: flex; flex-direction: column; gap: 3px; }
   .user-handle {
     font-family: 'DM Mono', monospace;
-    font-size: 22px;
-    font-weight: 400;
-    letter-spacing: -0.5px;
+    font-size: 22px; font-weight: 400; letter-spacing: -0.5px;
   }
-  .user-location {
-    font-size: 13px;
-    color: var(--dim);
-    font-weight: 300;
-  }
-  .power-btn {
-    width: 36px; height: 36px;
-    border-radius: 50%;
-    border: 1.5px solid var(--dimmer);
-    background: transparent;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
+  .user-location { font-size: 13px; color: var(--dim); font-weight: 300; }
+  .settings-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1.5px solid var(--dimmer); background: transparent;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
     transition: background 0.15s;
   }
-  .power-btn:active { background: var(--dimmer); }
+  .settings-btn:active { background: var(--dimmer); }
 
   /* Channel bar */
   .channel-bar {
-    display: flex;
-    justify-content: center;
-    padding: 14px 24px 0;
+    display: flex; justify-content: center; padding: 14px 24px 0;
   }
   .channel-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--dimmer);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 100px;
-    padding: 7px 16px;
-    cursor: pointer;
-    transition: background 0.15s;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--dimmer); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 100px; padding: 7px 16px;
+    cursor: pointer; transition: background 0.15s;
   }
   .channel-pill:active { background: rgba(255,255,255,0.18); }
   .channel-dot {
     width: 7px; height: 7px; border-radius: 50%;
-    background: var(--dim);
-    flex-shrink: 0;
+    background: var(--dim); flex-shrink: 0;
     transition: background 0.3s, box-shadow 0.3s;
   }
   .channel-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
-  .channel-dot.tx { background: var(--red); box-shadow: 0 0 8px var(--red); animation: dotblink 0.5s ease-in-out infinite alternate; }
+  .channel-dot.rec    { background: var(--red);   box-shadow: 0 0 8px var(--red); animation: dotblink 0.5s ease-in-out infinite alternate; }
+  .channel-dot.send   { background: var(--blue);  box-shadow: 0 0 8px var(--blue); }
   @keyframes dotblink { to { opacity: 0.3; } }
 
   .channel-name {
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    letter-spacing: 1.5px;
-    color: var(--white);
-    min-width: 80px;
-    text-align: center;
+    font-family: 'DM Mono', monospace; font-size: 13px;
+    letter-spacing: 1.5px; color: var(--white);
+    min-width: 80px; text-align: center;
   }
   .channel-name.ph { color: var(--dim); }
 
-  /* Center PTT */
+  /* Center */
   .center {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
+    display: flex; align-items: center; justify-content: center; position: relative;
   }
 
   /* Ripple rings */
   .ripples {
-    position: absolute;
-    width: 270px; height: 270px;
-    border-radius: 50%;
-    pointer-events: none;
+    position: absolute; width: 270px; height: 270px;
+    border-radius: 50%; pointer-events: none;
   }
   .ripple {
-    position: absolute; inset: 0;
-    border-radius: 50%;
-    border: 1px solid rgba(255,255,255,0.18);
-    opacity: 0;
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 1px solid rgba(255,69,58,0.4); opacity: 0;
   }
-  .ripples.active .ripple:nth-child(1) { animation: ripout 2s ease-out infinite 0s; }
-  .ripples.active .ripple:nth-child(2) { animation: ripout 2s ease-out infinite 0.55s; }
-  .ripples.active .ripple:nth-child(3) { animation: ripout 2s ease-out infinite 1.1s; }
+  .ripples.rec .ripple:nth-child(1) { animation: ripout 1.5s ease-out infinite 0s; }
+  .ripples.rec .ripple:nth-child(2) { animation: ripout 1.5s ease-out infinite 0.5s; }
+  .ripples.rec .ripple:nth-child(3) { animation: ripout 1.5s ease-out infinite 1s; }
   @keyframes ripout {
-    0%   { transform: scale(1);   opacity: 0.45; }
+    0%   { transform: scale(1);   opacity: 0.5; }
     100% { transform: scale(2.1); opacity: 0; }
   }
 
   /* PTT circle */
   .ptt-outer {
-    width: 270px; height: 270px;
-    border-radius: 50%;
-    border: 1.5px solid var(--ring);
+    width: 270px; height: 270px; border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.9);
     display: flex; align-items: center; justify-content: center;
+    position: relative; transition: border-color 0.2s;
     cursor: pointer;
-    -webkit-user-select: none; user-select: none;
-    touch-action: none;
-    position: relative;
-    transition: border-color 0.2s;
+    -webkit-user-select: none; user-select: none; touch-action: none;
   }
   .ptt-outer.disabled { border-color: rgba(255,255,255,0.18); cursor: default; }
-  .ptt-outer.tx       { border-color: var(--red); }
+  .ptt-outer.rec      { border-color: var(--red); }
+  .ptt-outer.sending  { border-color: var(--blue); }
 
   .ptt-inner {
-    width: 228px; height: 228px;
-    border-radius: 50%;
+    width: 228px; height: 228px; border-radius: 50%;
     display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 12px;
-    background: transparent;
-    transition: background 0.15s;
-    pointer-events: none;
+    align-items: center; justify-content: center; gap: 12px;
+    background: transparent; transition: background 0.2s; pointer-events: none;
   }
-  .ptt-outer.tx .ptt-inner { background: rgba(255,69,58,0.07); }
-  .ptt-outer.disabled .mic-icon { opacity: 0.2; }
-  .mic-icon { transition: opacity 0.2s; }
+  .ptt-outer.rec     .ptt-inner { background: rgba(255,69,58,0.08); }
+  .ptt-outer.sending .ptt-inner { background: rgba(10,132,255,0.08); }
 
-  .ptt-hint {
-    font-size: 11px;
-    font-weight: 300;
-    letter-spacing: 2.5px;
-    text-transform: uppercase;
-    color: var(--dim);
-    transition: color 0.2s;
+  .ptt-icon { transition: opacity 0.2s; }
+  .ptt-outer.disabled .ptt-icon { opacity: 0.2; }
+
+  .ptt-label {
+    font-size: 11px; font-weight: 300; letter-spacing: 2.5px;
+    text-transform: uppercase; color: var(--dim); transition: color 0.2s;
   }
-  .ptt-outer.disabled .ptt-hint { opacity: 0.25; }
-  .ptt-outer.tx .ptt-hint { color: var(--red); }
+  .ptt-outer.disabled .ptt-label { opacity: 0.25; }
+  .ptt-outer.rec      .ptt-label { color: var(--red); }
+  .ptt-outer.sending  .ptt-label { color: var(--blue); }
+
+  /* Record duration badge */
+  .rec-timer {
+    position: absolute; top: 18px;
+    font-family: 'DM Mono', monospace; font-size: 13px;
+    color: var(--red); letter-spacing: 2px;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .ptt-outer.rec .rec-timer { opacity: 1; }
 
   /* Bottom */
   .bottombar {
     display: flex; flex-direction: column;
-    align-items: center; gap: 12px;
-    padding: 0 24px 8px;
+    align-items: center; gap: 10px; padding: 0 24px 8px;
   }
 
   /* Waveform */
   .waveform {
     display: flex; align-items: center;
     justify-content: center; gap: 3px;
-    height: 28px;
-    opacity: 0;
-    transition: opacity 0.3s;
+    height: 28px; opacity: 0; transition: opacity 0.3s;
   }
   .waveform.on { opacity: 1; }
-  .wbar {
-    width: 3px; height: 4px;
-    background: var(--red);
-    border-radius: 2px;
-    transition: height 0.04s;
+  .wbar { width: 3px; height: 4px; background: var(--red); border-radius: 2px; transition: height 0.04s; }
+  .wbar.send { background: var(--blue); }
+
+  /* Message log */
+  .msg-log {
+    width: 100%; max-height: 80px; overflow-y: auto;
+    display: flex; flex-direction: column-reverse; gap: 6px;
+    padding: 0 4px;
+  }
+  .msg-row {
+    display: flex; align-items: center; gap: 10px;
+    animation: fadeup 0.3s ease;
+  }
+  @keyframes fadeup { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .msg-row.me  { justify-content: flex-end; }
+  .msg-row.them { justify-content: flex-start; }
+
+  .msg-bubble {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 20px;
+    cursor: pointer; max-width: 220px;
+    transition: opacity 0.15s;
+  }
+  .msg-bubble:active { opacity: 0.75; }
+  .msg-row.me   .msg-bubble { background: var(--blue); border-radius: 20px 20px 4px 20px; }
+  .msg-row.them .msg-bubble { background: rgba(255,255,255,0.12); border-radius: 20px 20px 20px 4px; }
+
+  .msg-duration {
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    color: rgba(255,255,255,0.9); letter-spacing: 1px;
+  }
+  .msg-play-icon { flex-shrink: 0; }
+
+  /* Progress bar inside bubble */
+  .msg-progress {
+    width: 80px; height: 3px; background: rgba(255,255,255,0.25);
+    border-radius: 2px; overflow: hidden;
+  }
+  .msg-progress-fill {
+    height: 100%; width: 0%; background: rgba(255,255,255,0.8);
+    border-radius: 2px; transition: width 0.1s linear;
   }
 
   .status-line {
-    font-size: 13px;
-    font-weight: 300;
-    color: var(--dim);
-    letter-spacing: 0.3px;
-    text-align: center;
-    min-height: 18px;
-    transition: color 0.3s;
+    font-size: 13px; font-weight: 300; color: var(--dim);
+    letter-spacing: 0.3px; text-align: center;
+    min-height: 18px; transition: color 0.3s;
   }
   .status-line.ok   { color: var(--green); }
   .status-line.err  { color: var(--red); }
   .status-line.warn { color: var(--amber); }
 
-  /* Bottom sheet overlay */
+  /* Bottom sheet */
   .overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    display: flex; align-items: flex-end;
-    z-index: 50;
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.2s;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    display: flex; align-items: flex-end; z-index: 50;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
   }
   .overlay.open { opacity: 1; pointer-events: all; }
-
   .sheet {
-    width: 100%;
-    background: #1c1c1e;
+    width: 100%; background: #1c1c1e;
     border-radius: 20px 20px 0 0;
-    padding: 16px 24px calc(env(safe-area-inset-bottom, 0px) + 32px);
+    padding: 16px 24px 40px;
     display: flex; flex-direction: column; gap: 14px;
     transform: translateY(100%);
     transition: transform 0.28s cubic-bezier(0.32,0.72,0,1);
   }
   .overlay.open .sheet { transform: translateY(0); }
-
   .sheet-handle {
-    width: 36px; height: 4px;
-    background: rgba(255,255,255,0.18);
-    border-radius: 2px;
-    margin: 0 auto 6px;
+    width: 36px; height: 4px; background: rgba(255,255,255,0.18);
+    border-radius: 2px; margin: 0 auto 6px;
   }
-  .sheet-title {
-    font-size: 17px; font-weight: 500;
-    text-align: center;
-  }
+  .sheet-title { font-size: 17px; font-weight: 500; text-align: center; }
   .sheet-input {
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px;
-    color: var(--white);
-    font-family: 'DM Mono', monospace;
-    font-size: 20px; letter-spacing: 3px;
-    padding: 16px; outline: none;
-    text-transform: uppercase;
-    width: 100%; text-align: center;
-    transition: border-color 0.2s;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; color: var(--white);
+    font-family: 'DM Mono', monospace; font-size: 20px; letter-spacing: 3px;
+    padding: 16px; outline: none; text-transform: uppercase;
+    width: 100%; text-align: center; transition: border-color 0.2s;
   }
   .sheet-input::placeholder { color: rgba(255,255,255,0.18); }
   .sheet-input:focus { border-color: rgba(255,255,255,0.35); }
   .sheet-join {
-    background: var(--white); border: none;
-    border-radius: 12px; color: #000;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 16px; font-weight: 500;
-    padding: 16px; cursor: pointer;
-    transition: opacity 0.15s;
+    background: var(--white); border: none; border-radius: 12px; color: #000;
+    font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 500;
+    padding: 16px; cursor: pointer; transition: opacity 0.15s;
   }
   .sheet-join:active { opacity: 0.75; }
   .sheet-cancel {
-    background: transparent; border: none;
-    color: var(--dim); font-size: 15px;
-    font-family: 'DM Sans', sans-serif;
+    background: transparent; border: none; color: var(--dim);
+    font-size: 15px; font-family: 'DM Sans', sans-serif;
     cursor: pointer; text-align: center; padding: 4px;
   }
 </style>
@@ -283,7 +269,7 @@
       <div class="user-handle" id="userHandle">@loading</div>
       <div class="user-location" id="userLocation">Connecting...</div>
     </div>
-    <button class="power-btn" onclick="openSheet()" title="Join channel">
+    <button class="settings-btn" id="settingsBtn" title="Join channel">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round">
         <path d="M8 1v5M5.1 2.9A6 6 0 1 0 10.9 2.9"/>
       </svg>
@@ -291,7 +277,7 @@
   </div>
 
   <div class="channel-bar">
-    <div class="channel-pill" onclick="openSheet()">
+    <div class="channel-pill" id="channelPill">
       <span class="channel-dot" id="channelDot"></span>
       <span class="channel-name ph" id="channelName">TAP TO JOIN</span>
     </div>
@@ -305,76 +291,100 @@
     </div>
     <div class="ptt-outer disabled" id="pttBtn">
       <div class="ptt-inner">
-        <svg class="mic-icon" width="52" height="52" viewBox="0 0 52 52" fill="none">
+        <svg class="ptt-icon" width="52" height="52" viewBox="0 0 52 52" fill="none">
           <rect x="19" y="6" width="14" height="22" rx="7" stroke="white" stroke-width="1.8" fill="none"/>
           <path d="M10 28c0 8.8 7.2 16 16 16s16-7.2 16-16" stroke="white" stroke-width="1.8" stroke-linecap="round" fill="none"/>
           <line x1="26" y1="44" x2="26" y2="50" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
           <line x1="19" y1="50" x2="33" y2="50" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
         </svg>
-        <span class="ptt-hint" id="pttHint">HOLD TO TALK</span>
+        <span class="ptt-label" id="pttLabel">HOLD TO RECORD</span>
       </div>
+      <span class="rec-timer" id="recTimer">0:00</span>
     </div>
   </div>
 
   <div class="bottombar">
     <div class="waveform" id="waveform">
-      <div class="wbar" id="b1"></div><div class="wbar" id="b2"></div>
-      <div class="wbar" id="b3"></div><div class="wbar" id="b4"></div>
-      <div class="wbar" id="b5"></div><div class="wbar" id="b6"></div>
-      <div class="wbar" id="b7"></div><div class="wbar" id="b8"></div>
-      <div class="wbar" id="b9"></div><div class="wbar" id="b10"></div>
-      <div class="wbar" id="b11"></div><div class="wbar" id="b12"></div>
+      <div class="wbar" id="w1"></div><div class="wbar" id="w2"></div>
+      <div class="wbar" id="w3"></div><div class="wbar" id="w4"></div>
+      <div class="wbar" id="w5"></div><div class="wbar" id="w6"></div>
+      <div class="wbar" id="w7"></div><div class="wbar" id="w8"></div>
+      <div class="wbar" id="w9"></div><div class="wbar" id="w10"></div>
+      <div class="wbar" id="w11"></div><div class="wbar" id="w12"></div>
     </div>
+    <div class="msg-log" id="msgLog"></div>
     <div class="status-line" id="statusLine">Tap channel to get started</div>
   </div>
+
 </div>
 
-<!-- Bottom sheet -->
-<div class="overlay" id="overlay" onclick="bgClose(event)">
+<!-- Channel sheet -->
+<div class="overlay" id="overlay">
   <div class="sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-title">Join a Channel</div>
     <input class="sheet-input" id="sheetInput" placeholder="CHANNEL-01" maxlength="20" autocomplete="off" spellcheck="false"/>
-    <button class="sheet-join" onclick="joinChannel()">Join</button>
-    <button class="sheet-cancel" onclick="closeSheet()">Cancel</button>
+    <button class="sheet-join" id="sheetJoinBtn">Join</button>
+    <button class="sheet-cancel" id="sheetCancelBtn">Cancel</button>
   </div>
 </div>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-const SERVER_URL = 'https://server-y327.onrender.com';
-const socket = io(SERVER_URL, { transports: ['websocket'] });
+var SERVER_URL = 'https://server-y327.onrender.com';
+var socket = io(SERVER_URL, { transports: ['websocket'] });
 
-let pc = null, localStream = null, peerId = null;
-let audioCtx = null, analyser = null, volInterval = null, talking = false;
+var peerId       = null;
+var mediaRec     = null;
+var recChunks    = [];
+var recStream    = null;
+var recStartTime = 0;
+var recInterval  = null;
+var isRecording  = false;
+var audioCtx     = null;
+var analyser     = null;
+var volInterval  = null;
 
 // Random handle
-const adj  = ['swift','clear','brave','calm','sharp','quiet','bold','keen'];
-const noun = ['wave','link','beam','echo','pulse','relay','freq','node'];
+var adj  = ['swift','clear','brave','calm','sharp','quiet','bold','keen'];
+var noun = ['wave','link','beam','echo','pulse','relay','freq','node'];
 document.getElementById('userHandle').textContent =
-  '@' + adj[Math.random()*8|0] + noun[Math.random()*8|0];
+  '@' + adj[Math.floor(Math.random() * 8)] + noun[Math.floor(Math.random() * 8)];
 
-const pttBtn    = document.getElementById('pttBtn');
-const pttHint   = document.getElementById('pttHint');
-const channelDot= document.getElementById('channelDot');
-const channelName=document.getElementById('channelName');
-const statusLine= document.getElementById('statusLine');
-const userLoc   = document.getElementById('userLocation');
-const ripples   = document.getElementById('ripples');
-const waveform  = document.getElementById('waveform');
-const bars      = Array.from({length:12},(_,i)=>document.getElementById('b'+(i+1)));
+// DOM
+var pttBtn     = document.getElementById('pttBtn');
+var pttLabel   = document.getElementById('pttLabel');
+var channelDot = document.getElementById('channelDot');
+var channelName= document.getElementById('channelName');
+var statusLine = document.getElementById('statusLine');
+var userLoc    = document.getElementById('userLocation');
+var ripples    = document.getElementById('ripples');
+var waveform   = document.getElementById('waveform');
+var recTimer   = document.getElementById('recTimer');
+var msgLog     = document.getElementById('msgLog');
+var overlay    = document.getElementById('overlay');
+var sheetInput = document.getElementById('sheetInput');
+var bars       = [];
+for (var i = 1; i <= 12; i++) bars.push(document.getElementById('w' + i));
 
-const setStatus = (msg, cls='') => { statusLine.textContent=msg; statusLine.className='status-line '+cls; };
+function setStatus(msg, cls) {
+  statusLine.textContent = msg;
+  statusLine.className = 'status-line' + (cls ? ' ' + cls : '');
+}
 
-// Sheet
-function openSheet()  { document.getElementById('overlay').classList.add('open'); setTimeout(()=>document.getElementById('sheetInput').focus(),100); }
-function closeSheet() { document.getElementById('overlay').classList.remove('open'); }
-function bgClose(e)   { if(e.target===document.getElementById('overlay')) closeSheet(); }
-document.getElementById('sheetInput').oninput = e => e.target.value = e.target.value.toUpperCase();
-document.getElementById('sheetInput').onkeydown = e => { if(e.key==='Enter') joinChannel(); };
+// ── Sheet ──
+function openSheet() { overlay.classList.add('open'); setTimeout(function() { sheetInput.focus(); }, 150); }
+function closeSheet() { overlay.classList.remove('open'); }
+overlay.addEventListener('click', function(e) { if (e.target === overlay) closeSheet(); });
+document.getElementById('sheetCancelBtn').addEventListener('click', closeSheet);
+document.getElementById('channelPill').addEventListener('click', openSheet);
+document.getElementById('settingsBtn').addEventListener('click', openSheet);
+sheetInput.addEventListener('input', function() { sheetInput.value = sheetInput.value.toUpperCase(); });
+sheetInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') joinChannel(); });
+document.getElementById('sheetJoinBtn').addEventListener('click', joinChannel);
 
 function joinChannel() {
-  const room = document.getElementById('sheetInput').value.trim();
+  var room = sheetInput.value.trim();
   if (!room) return;
   socket.emit('join_room', room);
   channelName.textContent = room;
@@ -384,104 +394,241 @@ function joinChannel() {
   closeSheet();
 }
 
-// Socket events
-socket.on('connect',    () => { userLoc.textContent = 'Connected'; setStatus('Ready — tap channel to join'); });
-socket.on('disconnect', () => { userLoc.textContent = 'Disconnected'; setStatus('Connection lost','err'); channelDot.className='channel-dot'; pttBtn.classList.add('disabled'); peerId=null; });
-
-socket.on('peer-joined', id => {
+// ── Socket ──
+socket.on('connect', function() {
+  userLoc.textContent = 'Connected';
+  setStatus('Ready - tap channel to join', '');
+});
+socket.on('disconnect', function() {
+  userLoc.textContent = 'Disconnected';
+  setStatus('Connection lost', 'err');
+  channelDot.className = 'channel-dot';
+  pttBtn.classList.add('disabled');
+  peerId = null;
+  stopRecording(true);
+});
+socket.on('peer-joined', function(id) {
   peerId = id;
   channelDot.className = 'channel-dot online';
   userLoc.textContent = 'Peer online';
-  setStatus('Channel open — hold to transmit','ok');
+  setStatus('Hold to record, release to send', 'ok');
   pttBtn.classList.remove('disabled');
 });
-
-socket.on('peer-left', () => {
+socket.on('peer-left', function() {
   peerId = null;
   channelDot.className = 'channel-dot';
   userLoc.textContent = 'Waiting for peer...';
-  setStatus('Peer disconnected','warn');
+  setStatus('Peer disconnected', 'warn');
   pttBtn.classList.add('disabled');
-  endTalk();
+  stopRecording(true);
 });
 
-socket.on('signal', async ({ from, data }) => {
-  peerId = peerId || from;
-  if (!pc) initPC();
-  if (data.sdp) {
-    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-    if (data.sdp.type === 'offer') {
-      const ans = await pc.createAnswer();
-      await pc.setLocalDescription(ans);
-      socket.emit('signal', { to: from, data: { sdp: pc.localDescription } });
-    }
-  } else if (data.candidate) {
-    await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-  }
+// Receive audio message as base64
+socket.on('voice-message', function(data) {
+  var blob = b64toBlob(data.audio, data.mime);
+  addMessage(blob, data.duration, false);
+  setStatus('New voice message', 'ok');
+  channelDot.className = 'channel-dot online';
 });
 
-function initPC() {
-  pc = new RTCPeerConnection({ iceServers:[{urls:'stun:stun.l.google.com:19302'}] });
-  pc.onicecandidate = e => { if(e.candidate) socket.emit('signal',{to:peerId,data:{candidate:e.candidate}}); };
-  pc.ontrack = e => { const a=new Audio(); a.srcObject=e.streams[0]; a.autoplay=true; setStatus('Receiving...','ok'); };
-}
-
-async function startTalk() {
-  if (pttBtn.classList.contains('disabled') || talking) return;
-  talking = true;
-  pttBtn.classList.add('tx');
-  pttHint.textContent = 'TRANSMITTING';
-  channelDot.className = 'channel-dot tx';
-  ripples.classList.add('active');
-  waveform.classList.add('on');
-  setStatus('Transmitting...','err');
+// ── Record ──
+async function startRecording() {
+  if (pttBtn.classList.contains('disabled') || isRecording) return;
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
-    if (!pc) initPC();
-    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-    startVol(localStream);
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit('signal', { to: peerId, data: { sdp: pc.localDescription } });
+    recStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
   } catch(err) {
-    setStatus('Mic: '+err.message,'err');
-    endTalk();
+    setStatus('Mic error: ' + err.message, 'err');
+    return;
   }
+
+  recChunks   = [];
+  isRecording = true;
+  recStartTime = Date.now();
+
+  // Pick best supported mime
+  var mime = 'audio/webm';
+  if (!MediaRecorder.isTypeSupported('audio/webm')) {
+    mime = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 'audio/ogg';
+  }
+
+  mediaRec = new MediaRecorder(recStream, { mimeType: mime });
+  mediaRec.ondataavailable = function(e) { if (e.data.size > 0) recChunks.push(e.data); };
+  mediaRec.start(100);
+
+  // UI
+  pttBtn.classList.add('rec');
+  pttLabel.textContent = 'RECORDING';
+  ripples.classList.add('rec');
+  waveform.classList.add('on');
+  channelDot.className = 'channel-dot rec';
+  setStatus('Recording... release to send', 'err');
+
+  // Live timer
+  recInterval = setInterval(function() {
+    var elapsed = (Date.now() - recStartTime) / 1000;
+    var m = Math.floor(elapsed / 60);
+    var s = Math.floor(elapsed % 60);
+    recTimer.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+  }, 200);
+
+  // Volume meter
+  startVolMeter(recStream);
 }
 
-function endTalk() {
-  if (!talking) return;
-  talking = false;
-  pttBtn.classList.remove('tx');
-  pttHint.textContent = 'HOLD TO TALK';
-  if (peerId) channelDot.className = 'channel-dot online';
-  ripples.classList.remove('active');
+function stopRecording(cancel) {
+  if (!isRecording) return;
+  isRecording = false;
+
+  clearInterval(recInterval);
+  recTimer.textContent = '0:00';
+
+  pttBtn.classList.remove('rec');
+  pttBtn.classList.remove('sending');
+  pttLabel.textContent = 'HOLD TO RECORD';
+  ripples.classList.remove('rec');
   waveform.classList.remove('on');
-  localStream?.getTracks().forEach(t=>t.stop()); localStream=null;
-  stopVol();
-  if (peerId) setStatus('Channel open — hold to transmit','ok');
+  stopVolMeter();
+
+  if (recStream) {
+    recStream.getTracks().forEach(function(t) { t.stop(); });
+    recStream = null;
+  }
+
+  if (cancel || !mediaRec) {
+    channelDot.className = peerId ? 'channel-dot online' : 'channel-dot';
+    if (peerId) setStatus('Hold to record, release to send', 'ok');
+    return;
+  }
+
+  var duration = (Date.now() - recStartTime) / 1000;
+
+  mediaRec.onstop = function() {
+    var mime = mediaRec.mimeType;
+    var blob = new Blob(recChunks, { type: mime });
+    sendVoiceMessage(blob, duration, mime);
+    recChunks = [];
+  };
+  mediaRec.stop();
 }
 
-function startVol(stream) {
-  audioCtx = new AudioContext(); analyser = audioCtx.createAnalyser(); analyser.fftSize=64;
+function sendVoiceMessage(blob, duration, mime) {
+  // Show sending state
+  pttBtn.classList.add('sending');
+  pttLabel.textContent = 'SENDING';
+  channelDot.className = 'channel-dot send';
+  setStatus('Sending...', '');
+
+  var reader = new FileReader();
+  reader.onload = function() {
+    var b64 = reader.result.split(',')[1];
+    socket.emit('voice-message', {
+      to: peerId,
+      audio: b64,
+      mime: mime,
+      duration: Math.round(duration * 10) / 10
+    });
+    // Add to own log
+    addMessage(blob, duration, true);
+    // Reset UI
+    pttBtn.classList.remove('sending');
+    pttLabel.textContent = 'HOLD TO RECORD';
+    channelDot.className = 'channel-dot online';
+    setStatus('Sent! Hold to record again', 'ok');
+  };
+  reader.readAsDataURL(blob);
+}
+
+// ── Message log ──
+function addMessage(blob, duration, isMe) {
+  var url = URL.createObjectURL(blob);
+  var dur = formatDur(duration);
+
+  var row = document.createElement('div');
+  row.className = 'msg-row ' + (isMe ? 'me' : 'them');
+
+  var bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML =
+    '<svg class="msg-play-icon" width="16" height="16" viewBox="0 0 16 16" fill="white">' +
+      '<polygon points="4,2 14,8 4,14"/>' +
+    '</svg>' +
+    '<div>' +
+      '<div class="msg-duration">' + dur + '</div>' +
+      '<div class="msg-progress"><div class="msg-progress-fill" id="prog_' + Date.now() + '"></div></div>' +
+    '</div>';
+
+  var audio = new Audio(url);
+  var progFill = bubble.querySelector('.msg-progress-fill');
+  var playing = false;
+
+  bubble.addEventListener('click', function() {
+    if (playing) { audio.pause(); audio.currentTime = 0; playing = false; return; }
+    playing = true;
+    audio.play();
+    var progInterval = setInterval(function() {
+      if (!audio.duration) return;
+      var pct = (audio.currentTime / audio.duration) * 100;
+      progFill.style.width = pct + '%';
+    }, 100);
+    audio.onended = function() {
+      clearInterval(progInterval);
+      progFill.style.width = '0%';
+      playing = false;
+    };
+  });
+
+  row.appendChild(bubble);
+  msgLog.insertBefore(row, msgLog.firstChild);
+}
+
+function formatDur(sec) {
+  var s = Math.round(sec);
+  var m = Math.floor(s / 60);
+  var r = s % 60;
+  return m + ':' + (r < 10 ? '0' : '') + r;
+}
+
+// ── Base64 -> Blob ──
+function b64toBlob(b64, mime) {
+  var bin = atob(b64);
+  var arr = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+// ── Volume meter ──
+function startVolMeter(stream) {
+  audioCtx = new AudioContext();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 64;
   audioCtx.createMediaStreamSource(stream).connect(analyser);
-  const d = new Uint8Array(analyser.frequencyBinCount);
-  volInterval = setInterval(()=>{
+  var d = new Uint8Array(analyser.frequencyBinCount);
+  volInterval = setInterval(function() {
     analyser.getByteFrequencyData(d);
-    bars.forEach((b,i)=>{ const v=d[i*2]||0; b.style.height=Math.max(4,Math.min(24,v*0.22))+'px'; });
-  },40);
+    bars.forEach(function(b, i) {
+      var v = d[i * 2] || 0;
+      b.style.height = Math.max(4, Math.min(24, v * 0.22)) + 'px';
+    });
+  }, 40);
 }
-function stopVol() { clearInterval(volInterval); audioCtx?.close(); audioCtx=null; bars.forEach(b=>b.style.height='4px'); }
+function stopVolMeter() {
+  clearInterval(volInterval);
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  analyser = null;
+  bars.forEach(function(b) { b.style.height = '4px'; });
+}
 
-// Events
-pttBtn.addEventListener('mousedown',  startTalk);
-pttBtn.addEventListener('mouseup',    endTalk);
-pttBtn.addEventListener('mouseleave', endTalk);
-pttBtn.addEventListener('touchstart', e=>{e.preventDefault();startTalk();},{passive:false});
-pttBtn.addEventListener('touchend',   e=>{e.preventDefault();endTalk();},  {passive:false});
-pttBtn.addEventListener('touchcancel',e=>{e.preventDefault();endTalk();},  {passive:false});
-document.addEventListener('keydown',  e=>{if(e.code==='Space'&&!e.repeat)startTalk();});
-document.addEventListener('keyup',    e=>{if(e.code==='Space')endTalk();});
+// ── PTT events ──
+pttBtn.addEventListener('mousedown',   startRecording);
+pttBtn.addEventListener('mouseup',     function() { stopRecording(false); });
+pttBtn.addEventListener('mouseleave',  function() { stopRecording(false); });
+pttBtn.addEventListener('touchstart',  function(e) { e.preventDefault(); startRecording(); },      { passive: false });
+pttBtn.addEventListener('touchend',    function(e) { e.preventDefault(); stopRecording(false); },  { passive: false });
+pttBtn.addEventListener('touchcancel', function(e) { e.preventDefault(); stopRecording(true); },   { passive: false });
+
+// Space bar
+document.addEventListener('keydown', function(e) { if (e.code === 'Space' && !e.repeat) startRecording(); });
+document.addEventListener('keyup',   function(e) { if (e.code === 'Space') stopRecording(false); });
 </script>
 </body>
 </html>
