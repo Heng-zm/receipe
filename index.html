@@ -634,6 +634,15 @@ var socket = io(SERVER_URL, {
 
 // ── App state ──
 var myName       = localStorage.getItem('wt_name') || '';
+// Stable per-device ID — generated once, stored in localStorage
+var _deviceId    = (function() {
+  var id = localStorage.getItem('wt_device_id');
+  if (!id) {
+    id = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    localStorage.setItem('wt_device_id', id);
+  }
+  return id;
+})();
 var myRoom       = '';
 var peers        = {};
 var playQueue    = [];
@@ -970,15 +979,7 @@ var _geoLastCheckLat = null;
 var _geoLastCheckLng = null;
 var _geoLastCodedLat = null;
 var _geoLastCodedLng = null;
-// Stable per-device ID for Supabase RLS — generated once, stored in localStorage
-var _deviceId = (function() {
-  var id = localStorage.getItem('wt_device_id');
-  if (!id) {
-    id = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
-    localStorage.setItem('wt_device_id', id);
-  }
-  return id;
-})();
+
 
 // ── Haversine distance (m) ──
 function geoDistance(lat1, lng1, lat2, lng2) {
@@ -1011,20 +1012,22 @@ function sbFetchZones(onSuccess, onError) {
 
 // Upsert a zone via backend proxy
 function sbUpsertZone(z, onError) {
+  var payload = {
+    id:        z.id,
+    device_id: _deviceId,
+    name:      z.name,
+    channel:   z.channel,
+    lat:       z.lat,
+    lng:       z.lng,
+    radius:    z.radius,
+    color:     z.color,
+    auto_join: z.autoJoin
+  };
+  console.log('[sbUpsertZone] sending:', JSON.stringify(payload));
   fetch(SERVER_URL + '/zones', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      id:        z.id,
-      device_id: _deviceId,
-      name:      z.name,
-      channel:   z.channel,
-      lat:       z.lat,
-      lng:       z.lng,
-      radius:    z.radius,
-      color:     z.color,
-      auto_join: z.autoJoin
-    })
+    body: JSON.stringify(payload)
   })
   .then(function(r) {
     if (!r.ok) return r.text().then(function(t){ throw new Error(r.status + ': ' + t); });
