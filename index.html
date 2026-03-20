@@ -219,6 +219,15 @@ html,body {
           <rect x="13" y="13" width="8" height="8" rx="1.5" fill="white" opacity="0.9"/>
         </svg>
       </button>
+      <button class="top-icon-btn" id="btnShare" title="Share channel link">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <circle cx="15" cy="3" r="2" stroke="white" stroke-width="1.4" fill="none" opacity="0.9"/>
+          <circle cx="15" cy="17" r="2" stroke="white" stroke-width="1.4" fill="none" opacity="0.9"/>
+          <circle cx="3" cy="10" r="2" stroke="white" stroke-width="1.4" fill="none" opacity="0.9"/>
+          <line x1="5" y1="10" x2="13" y2="4.5" stroke="white" stroke-width="1.3" opacity="0.7"/>
+          <line x1="5" y1="10" x2="13" y2="15.5" stroke="white" stroke-width="1.3" opacity="0.7"/>
+        </svg>
+      </button>
       <button class="top-icon-btn" id="btnMap" title="Map">
         <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
           <path d="M1 5l6-3 8 4 6-3v14l-6 3-8-4-6 3V5z" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none" opacity="0.9"/>
@@ -370,7 +379,7 @@ var CIRC        = 864; // 2π × 137.5
 var socket = io(SERVER_URL, {
   transports: ['websocket'],
   reconnection: true,
-  reconnectionDelay: 1500,
+  reconnectionDelay: 2000,
   reconnectionAttempts: Infinity
 });
 
@@ -440,7 +449,7 @@ for (var _i = 1; _i <= 8; _i++) wBars.push(document.getElementById('wb' + _i));
 
   var urlRoom = new URLSearchParams(window.location.search).get('room');
   if (urlRoom) {
-    socket.on('connect', function () { joinChannel(urlRoom.toUpperCase()); });
+    socket.on('connect', function () { joinChannel(urlRoom); });
   }
 
   getLocation();
@@ -479,6 +488,10 @@ function wireUI() {
 
   // FIX 4: Talk Here PTT uses its own disabled attr, not pttCircle's class
   wirePTT(talkHereBtn, true);
+
+  // Share button
+  var shareBtn = document.getElementById('btnShare');
+  if (shareBtn) shareBtn.addEventListener('click', copyChannelLink);
 
   // Space bar
   document.addEventListener('keydown', function (e) { if (e.code === 'Space' && !e.repeat) startRecording(); });
@@ -653,6 +666,9 @@ function doJoin() {
 }
 
 function joinChannel(room) {
+  // Mirror server sanitization: uppercase, max 40 chars
+  room = room.toUpperCase().replace(/[^A-Z0-9\-_]/g, '').slice(0, 40);
+  if (!room) return;
   myRoom = room;
   chNameEl.textContent = room;
   channelPill.classList.remove('ph');
@@ -670,7 +686,8 @@ function openNameSheet() {
 }
 
 function saveName() {
-  var n = document.getElementById('nameInput').value.trim().toLowerCase().replace(/\s+/g, '_');
+  var n = document.getElementById('nameInput').value.trim().toLowerCase()
+    .replace(/\s+/g, '_').replace(/[^a-z0-9_\-]/g, '').slice(0, 32);
   if (!n) return;
   myName = n;
   localStorage.setItem('wt_name', myName);
@@ -737,7 +754,9 @@ socket.on('room_state', function (data) {
   });
   updatePeers();
   chDot.className = 'ch-dot' + (numPeers() > 0 ? ' online' : '');
-  setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others to join...', numPeers() > 0 ? 'ok' : 'warn');
+  var peerNames = Object.values(peers).slice(0, 2).map(function(n){ return '@'+n; }).join(', ');
+  var extraPeers = numPeers() > 2 ? ' +' + (numPeers()-2) : '';
+  setStatus(numPeers() > 0 ? peerNames + extraPeers + ' online' : 'Waiting for others to join...', numPeers() > 0 ? 'ok' : 'warn');
   pttCircle.classList.remove('disabled');
   // FIX 10: always restore hint after state update
   pttHint.classList.add('on');
@@ -795,11 +814,35 @@ socket.on('msg_delivered', function (data) {
   if (el) { el.textContent = 'Delivered'; el.classList.add('ok'); }
 });
 
+// Handle server-side errors (ROOM_FULL, MSG_TOO_LARGE)
+socket.on('error', function (data) {
+  var code = data.code || '';
+  var msg  = data.msg  || 'Server error';
+  if (code === 'ROOM_FULL') {
+    showToast('Channel full (max 20 users)');
+    setStatus('Channel full — try another', 'warn');
+    myRoom = '';
+    chNameEl.textContent = 'Tap to join channel';
+    channelPill.classList.add('ph');
+    chDot.className = 'ch-dot';
+    peerCt.textContent = '';
+    pttCircle.classList.add('disabled');
+    pttHint.classList.remove('on');
+    talkHereBtn.disabled = true;
+  } else if (code === 'MSG_TOO_LARGE') {
+    showToast('Recording too long — keep under 60s');
+    pttCircle.classList.remove('sending');
+    chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
+    setStatus('Hold to record, release to send', 'ok');
+  } else {
+    showToast(msg);
+  }
+});
+
 // ── Recording ──
 async function startRecording() {
   // FIX 4: check room and isRecording; don't use pttCircle class for map button
   if (!myRoom || isRecording) return;
-  if (pttCircle.classList.contains('disabled') && !talkHereBtn.disabled === false) return;
 
   try {
     recStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -903,9 +946,9 @@ function sendVoice(blob, duration, mime) {
   reader.onload = function () {
     var b64 = reader.result.split(',')[1];
     socket.emit('voice_message', {
-      room: myRoom, audio: b64, mime: mime,
+      audio: b64, mime: mime,
       duration: Math.round(duration * 10) / 10,
-      msg_id: msgId, sender_name: myName
+      msg_id: msgId
     });
     addMessage(blob, duration, true, myName, msgId);
     pttCircle.classList.remove('sending');
@@ -1042,6 +1085,29 @@ function stopVolMeter() {
   if (audioCtx) { audioCtx.close(); audioCtx = null; }
   analyser = null; vizData = null;
   wBars.forEach(function (b) { b.style.height = '3px'; });
+}
+
+// ── Share channel link ──
+function copyChannelLink() {
+  if (!myRoom) { showToast('Join a channel first'); return; }
+  var url = window.location.origin + window.location.pathname + '?room=' + encodeURIComponent(myRoom);
+  if (navigator.share) {
+    navigator.share({ title: 'WalkieTalk', text: 'Join channel ' + myRoom, url: url })
+      .catch(function () { fallbackCopy(url); });
+  } else {
+    fallbackCopy(url);
+  }
+}
+function fallbackCopy(url) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(function () { showToast('Link copied!'); });
+  } else {
+    var el = document.createElement('textarea');
+    el.value = url; el.style.position = 'fixed'; el.style.opacity = '0';
+    document.body.appendChild(el); el.select();
+    try { document.execCommand('copy'); showToast('Link copied!'); } catch(e) { showToast('Copy: ' + url); }
+    document.body.removeChild(el);
+  }
 }
 
 // ── Beep ──
