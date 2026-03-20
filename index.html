@@ -656,6 +656,11 @@ var geoNewZone      = null;     // temp zone being created { lat, lng, radius, c
 var geoWatchId      = null;     // navigator.geolocation.watchPosition id
 var geoInsideZones  = {};       // id → true when user is inside that zone
 var geoPreviewCircle= null;     // Leaflet circle shown while drawing
+var _geoLastCheckLat = null;    // last lat/lng where geoCheckAll ran
+var _geoLastCheckLng = null;
+var _geoLastCodedLat = null;   // last reverse-geocoded position
+var _geoLastCodedLng = null;
+var GEO_MIN_MOVE_M   = 10;      // skip check if moved less than 10m
 
 // ── Recording state ──
 var mediaRec     = null;
@@ -669,15 +674,11 @@ var isCancelling = false;
 var touchStartY  = 0;
 
 // ── Audio viz (rAF-based) ──
-var audioCtx  = null;
 var analyser  = null;
 var vizRAF    = null;
 var vizData   = null;
-var vizIsRx      = false; // true = colour bars blue (RX), false = white (TX)
-// Shared AudioContext — created once on first user gesture, never recreated
-// iOS requires AudioContext to be created/resumed inside a user gesture
-var sharedCtx    = null;
-var audioUnlocked= false;
+// Shared AudioContext — created once on first user gesture, reused for session
+var sharedCtx = null;
 
 // ── DOM refs ──
 var pttCircle    = document.getElementById('pttCircle');
@@ -715,7 +716,13 @@ for (var _i = 1; _i <= 8; _i++) wBars.push(document.getElementById('wb' + _i));
   mapUserText.textContent  = '@' + myName;
 
   var urlRoom = new URLSearchParams(window.location.search).get('room');
-  if (urlRoom) socket.on('connect', function () { joinChannel(urlRoom); });
+  if (urlRoom) {
+    var _urlRoomHandler = function() {
+      socket.off('connect', _urlRoomHandler); // fire once only
+      joinChannel(urlRoom);
+    };
+    socket.on('connect', _urlRoomHandler);
+  }
 
   getLocation();
   wireUI();
@@ -839,16 +846,19 @@ function getLocation() {
   navigator.geolocation.getCurrentPosition(function (pos) {
     userLat = pos.coords.latitude;
     userLng = pos.coords.longitude;
-    reverseGeocode(userLat, userLng);
+    if (_geoLastCodedLat === null || geoDistance(userLat, userLng, _geoLastCodedLat, _geoLastCodedLng) > 500) {
+      _geoLastCodedLat = userLat; _geoLastCodedLng = userLng;
+      reverseGeocode(userLat, userLng);
+    }
     if (mapInstance) updateMapMarker();
     geoCheckAll(userLat, userLng);
   }, function () { setLocationText('Location unavailable'); }, { timeout: 10000 });
   // Continuous watch for geofence enter/exit detection
-  if (geoWatchId === null && navigator.geolocation) {
+  if (geoWatchId == null && navigator.geolocation) {  // == catches both null and undefined
     geoWatchId = navigator.geolocation.watchPosition(function(pos) {
       userLat = pos.coords.latitude;
       userLng = pos.coords.longitude;
-      if (mapInstance) updateMapMarker();
+      if (mapInstance) userMarker && userMarker.setLatLng([userLat, userLng]); // move marker, don't pan
       geoCheckAll(userLat, userLng);
     }, function(){}, { enableHighAccuracy: true, maximumAge: 10000 });
   }
@@ -944,18 +954,22 @@ function saveName() {
 // ════════════════════════════════════
 
 // ── Haversine distance (metres) between two lat/lng points ──
+var _DEG2RAD = Math.PI / 180;
 function geoDistance(lat1, lng1, lat2, lng2) {
   var R  = 6371000;
-  var d1 = (lat2 - lat1) * Math.PI / 180;
-  var d2 = (lng2 - lng1) * Math.PI / 180;
+  var d1 = (lat2 - lat1) * _DEG2RAD;
+  var d2 = (lng2 - lng1) * _DEG2RAD;
   var a  = Math.sin(d1/2) * Math.sin(d1/2) +
-           Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+           Math.cos(lat1 * _DEG2RAD) * Math.cos(lat2 * _DEG2RAD) *
            Math.sin(d2/2) * Math.sin(d2/2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 // ── Load zones from localStorage and draw on map ──
+var _geoInitDone = false;
 function geoInit() {
+  if (_geoInitDone) return;
+  _geoInitDone = true;
   try {
     var saved = JSON.parse(localStorage.getItem('wt_geo_zones') || '[]');
     saved.forEach(function(z) { geoAddZoneToMap(z); });
@@ -985,7 +999,7 @@ function geoAddZoneToMap(z) {
     className: '',
     html: '<div style="background:rgba(0,0,0,0.75);color:#fff;font-size:11px;font-weight:500;' +
           'padding:3px 8px;border-radius:10px;white-space:nowrap;border:1px solid rgba(0,122,255,0.5);' +
-          'box-shadow:0 1px 6px rgba(0,0,0,0.4)">' + z.channel + '</div>',
+          'box-shadow:0 1px 6px rgba(0,0,0,0.4)">' + z.channel.replace(/[<>&"]/g, function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];}) + '</div>',
     iconAnchor: [0, 10]
   });
   var marker = L.marker([z.lat, z.lng], { icon: labelIcon, interactive: false }).addTo(mapInstance);
@@ -993,8 +1007,9 @@ function geoAddZoneToMap(z) {
   var zone = { id:z.id, channel:z.channel, lat:z.lat, lng:z.lng, radius:z.radius, circle:circle, marker:marker };
   geoZones.push(zone);
 
-  // Tap zone circle to show info
-  circle.on('click', function() { geoShowBannerForZone(zone); });
+  // Tap zone circle to show info (use named ref so geoCancelDraw doesn't wipe it)
+  zone._clickHandler = function() { geoShowBannerForZone(zone); };
+  circle.on('click', zone._clickHandler);
 }
 
 // ── Remove a zone ──
@@ -1015,6 +1030,11 @@ function geoDeleteZone(id) {
 // ── Check all zones against current position ──
 function geoCheckAll(lat, lng) {
   if (!lat || !lng) return;
+  // Skip if user hasn't moved meaningfully — saves haversine calls on every GPS tick
+  if (_geoLastCheckLat !== null) {
+    if (geoDistance(lat, lng, _geoLastCheckLat, _geoLastCheckLng) < GEO_MIN_MOVE_M) return;
+  }
+  _geoLastCheckLat = lat; _geoLastCheckLng = lng;
   geoZones.forEach(function(z) {
     var dist   = geoDistance(lat, lng, z.lat, z.lng);
     var inside = dist <= z.radius;
@@ -1097,7 +1117,7 @@ function geoCancelDraw() {
   document.getElementById('geoDrawHint').classList.remove('on');
   document.getElementById('geoOverlay').classList.remove('open');
   if (geoPreviewCircle) { mapInstance.removeLayer(geoPreviewCircle); geoPreviewCircle = null; }
-  mapInstance.off('click'); // remove pending once listener
+  if (mapInstance) mapInstance.off('click'); // remove only the draw-mode once-listener
 }
 
 // ── Save new zone ──
@@ -1234,6 +1254,8 @@ socket.on('voice_message', function (data) {
   socket.emit('msg_delivered', { msg_id: data.msg_id, to: data.sender_sid });
   chDot.className = 'ch-dot online';
   channelPill.classList.add('has-unread');
+  // Cap queue — drop oldest if tab was hidden and messages piled up
+  if (playQueue.length >= 10) playQueue.shift();
   playQueue.push({ blob:blob, duration:data.duration, senderName:sender, msgId:data.msg_id });
   drainQueue();
 });
@@ -1255,6 +1277,8 @@ socket.on('error', function (data) {
     pttCircle.classList.remove('sending');
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
     setStatus('Hold to record, release to send', 'ok');
+  } else if (code === 'RATE_LIMITED') {
+    showToast('Slow down — too many messages');
   } else { showToast(data.msg || 'Server error'); }
 });
 
@@ -1359,23 +1383,37 @@ function onRecorderStop() {
 
 function sendVoice(blob, duration, mime) {
   var msgId = Date.now() + '_' + Math.random().toString(36).slice(2,6);
-  var reader = new FileReader();
-  reader.onload = function () {
-    var b64 = reader.result.split(',')[1];
+  function onB64(b64) {
     socket.emit('voice_message', { audio:b64, mime:mime, duration:Math.round(duration*10)/10, msg_id:msgId });
-    addMessage(blob, duration, true, myName, msgId);
+    addMessage(blob, duration, true, myName, msgId, true);
     pttCircle.classList.remove('sending');
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
     setStatus('Sent!', 'ok');
     setTimeout(function () { if (!isRecording) setStatus('Hold to record, release to send', 'ok'); }, 1500);
-  };
-  reader.onerror = function () {
+  }
+  function onErr() {
     showToast('Send failed');
     pttCircle.classList.remove('sending');
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
     setStatus('Hold to record, release to send', 'ok');
-  };
-  reader.readAsDataURL(blob);
+  }
+  // Use arrayBuffer + chunked btoa — avoids the data: URL prefix split and is faster
+  if (blob.arrayBuffer) {
+    blob.arrayBuffer().then(function(buf) {
+      var bytes = new Uint8Array(buf);
+      var b64 = ''; var chunk = 8192;
+      for (var i = 0; i < bytes.length; i += chunk) {
+        b64 += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+      }
+      onB64(btoa(b64));
+    }).catch(onErr);
+  } else {
+    // Fallback for older browsers
+    var reader = new FileReader();
+    reader.onload = function() { onB64(reader.result.split(',')[1]); };
+    reader.onerror = onErr;
+    reader.readAsDataURL(blob);
+  }
 }
 
 // ── Play queue ──
@@ -1438,7 +1476,7 @@ function playEndBeep() {
 }
 
 // ── addMessage — returns { trigger, stop } for queue ──
-function addMessage(blob, duration, isMe, senderName, msgId) {
+function addMessage(blob, duration, isMe, senderName, msgId, revokeNow) {
   // Hide empty state
   if (msgEmpty) { msgEmpty.style.display = 'none'; }
 
@@ -1470,8 +1508,6 @@ function addMessage(blob, duration, isMe, senderName, msgId) {
     meta.appendChild(rcpt);
   }
 
-  var audio   = new Audio(url);
-  audio.preload = 'auto';
   var playing = false;
   var progRAF = null;
   var endCb   = null;
@@ -1556,6 +1592,9 @@ function addMessage(blob, duration, isMe, senderName, msgId) {
   msgLog.appendChild(row);
   msgLog.scrollTop = msgLog.scrollHeight;
 
+  // Sent messages never auto-play — revoke blob URL immediately to free memory
+  if (revokeNow) URL.revokeObjectURL(url);
+
   return { trigger: startPlay, stop: stopFn };
 }
 
@@ -1586,7 +1625,6 @@ function b64toBlob(b64, mime) {
 // ── Volume meters ──
 function startVolMeter(stream, isRx) {
   stopVolMeter();
-  vizIsRx = isRx;
   // Use sharedCtx so iOS doesn't block a new AudioContext creation
   getSharedCtx(function(ctx) {
     if (!ctx) return;
