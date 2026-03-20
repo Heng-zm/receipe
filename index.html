@@ -624,6 +624,9 @@ function wireUI() {
   document.addEventListener('keydown', function (e) { if (e.code === 'Space' && !e.repeat) startRecording(); });
   document.addEventListener('keyup',   function (e) { if (e.code === 'Space') stopRecording(false); });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) channelPill.classList.remove('has-unread'); });
+  // Fix 5: unlock AudioContext on ANY touch — so receive-only users get audio too
+  document.addEventListener('touchstart', function() { unlockAudio(); }, { once: true, passive: true });
+  document.addEventListener('click',      function() { unlockAudio(); }, { once: true });
 }
 
 // ── PTT wiring ──
@@ -1018,12 +1021,17 @@ function drainQueue() {
   if (queuePlaying || playQueue.length === 0) return;
   queuePlaying = true;
   var item = playQueue.shift();
-  playIcomChirp(function () {
-    var handle = addMessage(item.blob, item.duration, false, item.senderName, item.msgId);
-    if (handle && handle.trigger) {
-      handle.trigger(function () { queuePlaying = false; drainQueue(); });
-    } else { queuePlaying = false; drainQueue(); }
-  });
+  var safeNext = function() { queuePlaying = false; drainQueue(); };
+  try {
+    playIcomChirp(function () {
+      try {
+        var handle = addMessage(item.blob, item.duration, false, item.senderName, item.msgId);
+        if (handle && handle.trigger) {
+          handle.trigger(safeNext);
+        } else { safeNext(); }
+      } catch(e) { console.error('addMessage error:', e); safeNext(); }
+    });
+  } catch(e) { console.error('playIcomChirp error:', e); safeNext(); }
 }
 
 function playIcomChirp(onDone) {
@@ -1110,7 +1118,6 @@ function addMessage(blob, duration, isMe, senderName, msgId) {
   function stopFn() {
     if (!playing) return;
     if (activeSource) { try { activeSource.stop(); } catch(e){} activeSource = null; }
-    audio.pause(); audio.currentTime = 0;
     if (progRAF) { cancelAnimationFrame(progRAF); progRAF = null; }
     fill.style.width = '0%';
     playing = false;
@@ -1125,9 +1132,13 @@ function addMessage(blob, duration, isMe, senderName, msgId) {
     }
   }
 
+  var playStartCtxTime = 0; // AudioContext time when playback started
   function updateProg() {
-    if (!playing || !audio.duration) { progRAF = null; return; }
-    fill.style.width = ((audio.currentTime / audio.duration) * 100) + '%';
+    if (!playing) { progRAF = null; return; }
+    if (sharedCtx && duration > 0) {
+      var elapsed = sharedCtx.currentTime - playStartCtxTime;
+      fill.style.width = Math.min(100, (elapsed / duration) * 100) + '%';
+    }
     progRAF = requestAnimationFrame(updateProg);
   }
 
@@ -1144,7 +1155,6 @@ function addMessage(blob, duration, isMe, senderName, msgId) {
       setWaveBarsColor('rx');
       chDot.className = 'ch-dot rx';
       setStatus('From @'+senderName+'...', 'rx');
-      startVolMeterAudio(audio);
     }
     // BUG 2: iOS blocks audio.play() from socket events — use decodeAndPlay instead
     var onEndedFn = function() {
@@ -1159,14 +1169,18 @@ function addMessage(blob, duration, isMe, senderName, msgId) {
       }
       if (endCb) { endCb(); endCb = null; }
     };
-    onEndedFn._setSrc = function(src) { activeSource = src; };
+    onEndedFn._setSrc = function(s) {
+      activeSource = s;
+      // Start progress tracking once we know playback actually started
+      if (sharedCtx) playStartCtxTime = sharedCtx.currentTime;
+      progRAF = requestAnimationFrame(updateProg);
+    };
     decodeAndPlay(blob, onEndedFn, function() {
       // playback error
       stopFn(); URL.revokeObjectURL(url);
       if (endCb) { endCb(); endCb = null; }
     });
     if (!isMe) { startVolMeterAudio(); }
-    progRAF = requestAnimationFrame(updateProg);
   }
 
   bubble.addEventListener('click', function() {
@@ -1244,7 +1258,12 @@ function startVolMeterAudio() {
 function stopVolMeter() {
   if (vizRAF) { cancelAnimationFrame(vizRAF); vizRAF=null; }
   // Do NOT close sharedCtx — it stays alive for the session
-  if (analyser) { try { analyser.disconnect(); } catch(e){} analyser=null; }
+  if (analyser) {
+    try { analyser.disconnect(); } catch(e){}
+    // Don't null analyser if decodeAndPlay is about to reuse it —
+    // only null after disconnecting
+    analyser = null;
+  }
   vizData=null;
   wBars.forEach(function(b){b.style.height='3px';});
 }
@@ -1283,29 +1302,39 @@ function unlockAudio() {
 function decodeAndPlay(blob, onEnded, onError) {
   getSharedCtx(function(ctx) {
     if (!ctx) { if (onError) onError(); return; }
-    var reader = new FileReader();
-    reader.onload = function() {
-      ctx.decodeAudioData(
-        reader.result,
-        function(buffer) {
-          // Connect through analyser for RX waveform visualisation (BUG 3 fix)
-          if (!analyser) {
-            analyser = ctx.createAnalyser(); analyser.fftSize = 32;
-            analyser.connect(ctx.destination);
-          }
-          var source = ctx.createBufferSource();
-          source.buffer = buffer;
-          source.connect(analyser);
-          // Store reference so stopFn can cancel it
-          if (typeof onEnded._setSrc === 'function') onEnded._setSrc(source);
-          source.onended = onEnded;
-          source.start(0);
-        },
-        function() { if (onError) onError(); }
-      );
-    };
-    reader.onerror = function() { if (onError) onError(); };
-    reader.readAsArrayBuffer(blob);
+
+    function doDecode() {
+      var reader = new FileReader();
+      reader.onload = function() {
+        ctx.decodeAudioData(
+          reader.result,
+          function(buffer) {
+            // Route through analyser so waveform responds to RX audio
+            if (!analyser) {
+              analyser = ctx.createAnalyser();
+              analyser.fftSize = 32;
+              analyser.connect(ctx.destination);
+            }
+            var source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(analyser);
+            if (typeof onEnded._setSrc === 'function') onEnded._setSrc(source);
+            source.onended = onEnded;
+            source.start(0);
+          },
+          function() { if (onError) onError(); }
+        );
+      };
+      reader.onerror = function() { if (onError) onError(); };
+      reader.readAsArrayBuffer(blob);
+    }
+
+    // Resume context first — Android suspends it after screen lock/backgrounding
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(doDecode).catch(function() { if (onError) onError(); });
+    } else {
+      doDecode();
+    }
   });
 }
 
