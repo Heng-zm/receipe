@@ -29,7 +29,7 @@
 html,body { width:100%; height:100%; background:var(--bg); color:var(--white); font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif; overflow:hidden; -webkit-font-smoothing:antialiased; }
 
 /* ── Views ── */
-.view { position:absolute; inset:0; display:flex; flex-direction:column; }
+.view { position:absolute; inset:0; display:flex; flex-direction:column; height:100%; }
 .view.hidden { opacity:0; pointer-events:none; }
 /* Only animate if user hasn't opted out */
 @media (prefers-reduced-motion:no-preference) {
@@ -458,12 +458,12 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 
 <!-- ════════════ MAP VIEW ════════════ -->
 <div class="view hidden" id="mapView">
-  <div id="mapContainer"></div>
   <div class="map-topbar">
     <button class="map-back" id="mapBackBtn">
       <svg width="10" height="16" viewBox="0 0 10 16" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1L1 8L9 15"/></svg>
     </button>
   </div>
+  <div id="mapContainer"></div>
   <div class="map-bottom">
     <div class="map-location-text" id="mapLocationText">Locating...</div>
     <div class="map-user-text" id="mapUserText">@loading</div>
@@ -670,7 +670,7 @@ function showMapView() {
   setNavActive('navMap');
   initMap();
   // Re-measure container after it becomes visible
-  setTimeout(function(){ if(mapInstance) mapInstance.invalidateSize(); }, 50);
+  setTimeout(function(){ if(mapInstance) mapInstance.invalidateSize(); }, 150);
 }
 function setNavActive(id) {
   ['navTalk','navMap','navChannel'].forEach(function (n) {
@@ -708,8 +708,8 @@ function reverseGeocode(lat, lng) {
 function initMap() {
   if (mapReady) return;
   mapReady = true;
-  var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(css);
-  var s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(css);
+  var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
   s.onload  = buildMap;
   s.onerror = function () { showToast('Map failed to load'); mapReady = false; };
   document.head.appendChild(s);
@@ -717,11 +717,13 @@ function initMap() {
 function buildMap() {
   var lat = userLat || 37.7749, lng = userLng || -122.4194;
   mapInstance = L.map('mapContainer', { zoomControl:false, attributionControl:false }).setView([lat,lng], 14);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom:19 }).addTo(mapInstance);
+  var tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom:19 });
+  tileLayer.addTo(mapInstance);
+  tileLayer.on('load', function(){ mapInstance.invalidateSize(); });
   var icon = L.divIcon({ className:'', html:'<div style="width:16px;height:16px;border-radius:50%;background:#007aff;border:3px solid white;box-shadow:0 0 8px rgba(0,122,255,0.6)"></div>', iconSize:[16,16], iconAnchor:[8,8] });
   userMarker = L.marker([lat,lng], {icon:icon}).addTo(mapInstance);
   // Invalidate size after flex layout settles so tiles fill the container correctly
-  setTimeout(function(){ if(mapInstance) mapInstance.invalidateSize(); }, 100);
+  setTimeout(function(){ if(mapInstance) mapInstance.invalidateSize(); }, 200);
   if (myRoom) talkHereBtn.disabled = false;
 }
 function updateMapMarker() {
