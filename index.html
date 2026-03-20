@@ -620,6 +620,8 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 
 // ── Config ──
 var SERVER_URL  = 'https://server-y327.onrender.com';
+var SB_URL      = 'https://bgqeqiyfgpdvgeepignt.supabase.co';
+var SB_KEY      = 'sb_publishable_eLoAp9t0x-t7id3a-3LUow_SaBM6EC6';
 var MAX_REC_SEC = 60;
 var MIN_REC_MS  = 500;
 var CIRC        = 864; // 2π × 137.5
@@ -718,6 +720,7 @@ for (var _i = 1; _i <= 8; _i++) wBars.push(document.getElementById('wb' + _i));
     socket.on('connect', _urlRoomHandler);
   }
 
+  geoLoadData();   // load zone data from localStorage immediately — no map needed
   getLocation();
   wireUI();
 })();
@@ -962,6 +965,15 @@ var _geoLastCheckLat = null;
 var _geoLastCheckLng = null;
 var _geoLastCodedLat = null;
 var _geoLastCodedLng = null;
+// Stable per-device ID for Supabase RLS — generated once, stored in localStorage
+var _deviceId = (function() {
+  var id = localStorage.getItem('wt_device_id');
+  if (!id) {
+    id = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    localStorage.setItem('wt_device_id', id);
+  }
+  return id;
+})();
 
 // ── Haversine distance (m) ──
 function geoDistance(lat1, lng1, lat2, lng2) {
@@ -971,33 +983,174 @@ function geoDistance(lat1, lng1, lat2, lng2) {
   return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// ── Load from localStorage ──
-function geoInit() {
-  if (_geoInitDone) return;
-  _geoInitDone = true;
-  // Build color picker in create sheet
-  var row = document.getElementById('geoColorRow');
-  if (row) {
-    GEO_COLORS.forEach(function(c) {
-      var sw = document.createElement('div');
-      sw.className = 'geo-color-swatch' + (c === geoSelectedColor ? ' selected' : '');
-      sw.style.background = c;
-      sw.addEventListener('click', function() {
-        geoSelectedColor = c;
-        row.querySelectorAll('.geo-color-swatch').forEach(function(s){ s.classList.remove('selected'); });
-        sw.classList.add('selected');
-        if (geoPreviewCircle) { geoPreviewCircle.setStyle({ color: c, fillColor: c }); }
-      });
-      row.appendChild(sw);
-    });
-  }
-  try {
-    var saved = JSON.parse(localStorage.getItem('wt_geo_zones') || '[]');
-    saved.forEach(function(z) { geoAddZoneToMap(z); });
-  } catch(e) {}
+// ── Supabase REST helpers ──
+function _sbHeaders() {
+  return {
+    'Content-Type':  'application/json',
+    'apikey':        SB_KEY,
+    'Authorization': 'Bearer ' + SB_KEY,
+    'x-device-id':  _deviceId,       // used by RLS policy
+    'Prefer':        'return=representation'
+  };
 }
 
-// ── Persist ──
+// Fetch all zones for this device from Supabase
+function sbFetchZones(onSuccess, onError) {
+  fetch(SB_URL + '/rest/v1/geo_zones?device_id=eq.' + encodeURIComponent(_deviceId) + '&order=created_at.asc', {
+    method: 'GET',
+    headers: _sbHeaders()
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function(rows) {
+    onSuccess(rows.map(function(r) {
+      return {
+        id:       r.id,
+        name:     r.name,
+        channel:  r.channel,
+        lat:      r.lat,
+        lng:      r.lng,
+        radius:   r.radius,
+        color:    r.color,
+        autoJoin: r.auto_join
+      };
+    }));
+  })
+  .catch(function(e) { if (onError) onError(e); });
+}
+
+// Upsert a zone (insert or update)
+function sbUpsertZone(z, onError) {
+  fetch(SB_URL + '/rest/v1/geo_zones', {
+    method: 'POST',
+    headers: Object.assign({}, _sbHeaders(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+    body: JSON.stringify({
+      id:        z.id,
+      device_id: _deviceId,
+      name:      z.name,
+      channel:   z.channel,
+      lat:       z.lat,
+      lng:       z.lng,
+      radius:    z.radius,
+      color:     z.color,
+      auto_join: z.autoJoin
+    })
+  })
+  .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); })
+  .catch(function(e) {
+    console.error('sbUpsertZone failed:', e);
+    if (onError) onError(e);
+  });
+}
+
+// Delete a zone by id
+function sbDeleteZone(id, onError) {
+  fetch(SB_URL + '/rest/v1/geo_zones?id=eq.' + encodeURIComponent(id) + '&device_id=eq.' + encodeURIComponent(_deviceId), {
+    method: 'DELETE',
+    headers: _sbHeaders()
+  })
+  .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); })
+  .catch(function(e) {
+    console.error('sbDeleteZone failed:', e);
+    if (onError) onError(e);
+  });
+}
+
+// ── geoLoadData: fetch from Supabase, fall back to localStorage if offline ──
+function geoLoadData() {
+  if (_geoInitDone) return;
+  _geoInitDone = true;
+
+  function _applyZones(zones) {
+    geoZones = []; // reset before loading
+    zones.forEach(function(z) {
+      geoZones.push({
+        id: z.id, name: z.name || z.channel, channel: z.channel,
+        lat: z.lat, lng: z.lng, radius: z.radius,
+        color: z.color || GEO_COLORS[0], autoJoin: z.autoJoin !== false,
+        circle: null, marker: null, bannerEl: null
+      });
+    });
+    // Cache to localStorage for offline use
+    geoPersist();
+    // If GPS already arrived, re-check all zones with updated data
+    if (userLat && userLng) {
+      _geoLastCheckLat = null; _geoLastCheckLng = null;
+      geoCheckAll(userLat, userLng);
+    }
+    // If map is already open, draw newly loaded zones
+    if (mapInstance) geoDrawAll();
+  }
+
+  // Try Supabase first
+  sbFetchZones(
+    function(zones) { _applyZones(zones); },
+    function() {
+      // Offline fallback — load from localStorage
+      try {
+        var saved = JSON.parse(localStorage.getItem('wt_geo_zones') || '[]');
+        _applyZones(saved);
+      } catch(e) {}
+    }
+  );
+}
+
+// ── geoDrawAll: draw all loaded zones onto the map — called once map is ready ──
+function geoDrawAll() {
+  geoZones.forEach(function(z) {
+    if (!z.circle) _geoDrawZone(z);
+  });
+  // Also build the color picker now that the DOM is ready
+  _geoBuildColorPicker();
+}
+
+// ── _geoBuildColorPicker: build color swatches in create sheet ──
+function _geoBuildColorPicker() {
+  var row = document.getElementById('geoColorRow');
+  if (!row || row.children.length > 0) return; // already built
+  GEO_COLORS.forEach(function(c) {
+    var sw = document.createElement('div');
+    sw.className = 'geo-color-swatch' + (c === geoSelectedColor ? ' selected' : '');
+    sw.style.background = c;
+    sw.addEventListener('click', function() {
+      geoSelectedColor = c;
+      row.querySelectorAll('.geo-color-swatch').forEach(function(s){ s.classList.remove('selected'); });
+      sw.classList.add('selected');
+      if (geoPreviewCircle) { geoPreviewCircle.setStyle({ color: c, fillColor: c }); }
+    });
+    row.appendChild(sw);
+  });
+}
+
+// ── _geoDrawZone: draw a single zone's circle+marker onto the map ──
+function _geoDrawZone(z) {
+  if (!mapInstance || z.circle) return;
+  var color  = z.color || GEO_COLORS[0];
+  var inside = !!geoInsideZones[z.id];
+  z.circle = L.circle([z.lat, z.lng], {
+    radius: z.radius, color: color, fillColor: color,
+    fillOpacity: inside ? 0.18 : 0.1,
+    weight: inside ? 2.5 : 2,
+    dashArray: inside ? null : '6 4',
+    opacity: inside ? 1 : 0.7
+  }).addTo(mapInstance);
+  var labelHtml = '<div style="background:rgba(10,10,12,0.85);color:#fff;font-size:11px;font-weight:500;' +
+    'padding:3px 8px;border-radius:10px;white-space:nowrap;' +
+    'border:1.5px solid ' + color + ';box-shadow:0 1px 8px rgba(0,0,0,0.5)">' +
+    _esc(z.name || z.channel) + '</div>';
+  var labelIcon = L.divIcon({ className:'', html: labelHtml, iconAnchor:[0,10] });
+  z.marker = L.marker([z.lat, z.lng], { icon: labelIcon, interactive: false }).addTo(mapInstance);
+  z.circle.on('click', (function(zone){ return function() { geoShowBanner(zone); }; })(z));
+}
+
+// ── geoInit: legacy alias — kept so buildMap() still works ──
+function geoInit() {
+  geoDrawAll();
+}
+
+// ── Persist: localStorage cache only (Supabase is called directly in save/delete) ──
 function geoPersist() {
   var data = geoZones.map(function(z) {
     return { id:z.id, name:z.name, channel:z.channel, lat:z.lat, lng:z.lng, radius:z.radius, color:z.color, autoJoin:z.autoJoin };
@@ -1010,30 +1163,18 @@ function _esc(s) {
   return String(s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; });
 }
 
-// ── Add zone to map ──
+// ── Add zone (called when user saves a new zone) ──
 function geoAddZoneToMap(z) {
-  if (!mapInstance) return;
-  var color  = z.color || GEO_COLORS[0];
-  var circle = L.circle([z.lat, z.lng], {
-    radius: z.radius, color: color, fillColor: color,
-    fillOpacity: 0.1, weight: 2, dashArray: '6 4', opacity: 0.7
-  }).addTo(mapInstance);
-
-  var labelHtml = '<div style="background:rgba(10,10,12,0.85);color:#fff;font-size:11px;font-weight:500;' +
-    'padding:3px 8px;border-radius:10px;white-space:nowrap;' +
-    'border:1.5px solid ' + color + ';box-shadow:0 1px 8px rgba(0,0,0,0.5)">' +
-    _esc(z.name || z.channel) + '</div>';
-  var labelIcon = L.divIcon({ className:'', html: labelHtml, iconAnchor:[0,10] });
-  var marker = L.marker([z.lat, z.lng], { icon: labelIcon, interactive: false }).addTo(mapInstance);
-
+  // Register data record first
   var zone = {
     id: z.id, name: z.name || z.channel, channel: z.channel,
     lat: z.lat, lng: z.lng, radius: z.radius,
-    color: color, autoJoin: z.autoJoin !== false,
-    circle: circle, marker: marker, bannerEl: null
+    color: z.color || GEO_COLORS[0], autoJoin: z.autoJoin !== false,
+    circle: null, marker: null, bannerEl: null
   };
   geoZones.push(zone);
-  circle.on('click', function() { geoShowBanner(zone); });
+  // Draw immediately if map is already open
+  if (mapInstance) _geoDrawZone(zone);
 }
 
 // ── Delete zone ──
@@ -1041,17 +1182,19 @@ function geoDeleteZone(id) {
   var idx = geoZones.findIndex(function(z){ return z.id === id; });
   if (idx === -1) return;
   var z = geoZones[idx];
-  if (z.circle) mapInstance.removeLayer(z.circle);
-  if (z.marker) mapInstance.removeLayer(z.marker);
+  if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
+  if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
   if (z.bannerEl) { z.bannerEl.remove(); z.bannerEl = null; }
   geoZones.splice(idx, 1);
   delete geoInsideZones[id];
   geoPersist();
+  // Sync deletion to Supabase in background
+  sbDeleteZone(id);
 }
 
 // ── Update zone circle style when inside/outside ──
 function _geoStyleZone(zone, inside) {
-  if (!zone.circle) return;
+  if (!zone.circle) return; // zone data loaded but map not yet opened — skip visual
   zone.circle.setStyle({
     fillOpacity: inside ? 0.18 : 0.1,
     weight:      inside ? 2.5  : 2,
@@ -1062,6 +1205,8 @@ function _geoStyleZone(zone, inside) {
 
 // ── Show/update banner for a zone ──
 function geoShowBanner(zone) {
+  // geoBanners is inside mapView — only render banner when map is visible
+  // For auto-join triggered from main view, the toast is sufficient
   var banners = document.getElementById('geoBanners');
   if (!banners) return;
   // Reuse existing banner element if already shown for this zone
@@ -1250,6 +1395,8 @@ function geoSaveZone() {
   if (geoPreviewCircle) { mapInstance.removeLayer(geoPreviewCircle); geoPreviewCircle = null; }
   geoAddZoneToMap(zone);
   geoPersist();
+  // Sync to Supabase in background — optimistic, UI already updated
+  sbUpsertZone(zone, function() { showToast('Saved locally (sync failed)'); });
   document.getElementById('geoOverlay').classList.remove('open');
   geoNewZone = null;
   showToast('Zone saved — ' + name);
