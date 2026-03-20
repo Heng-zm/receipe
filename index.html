@@ -620,8 +620,6 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 
 // ── Config ──
 var SERVER_URL  = 'https://server-y327.onrender.com';
-var SB_URL      = 'https://bgqeqiyfgpdvgeepignt.supabase.co';
-var SB_KEY      = 'sb_publishable_eLoAp9t0x-t7id3a-3LUow_SaBM6EC6';
 var MAX_REC_SEC = 60;
 var MIN_REC_MS  = 500;
 var CIRC        = 864; // 2π × 137.5
@@ -983,49 +981,32 @@ function geoDistance(lat1, lng1, lat2, lng2) {
   return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// ── Supabase REST helpers ──
-function _sbHeaders() {
-  return {
-    'Content-Type':  'application/json',
-    'apikey':        SB_KEY,
-    'Authorization': 'Bearer ' + SB_KEY,
-    'x-device-id':  _deviceId,       // used by RLS policy
-    'Prefer':        'return=representation'
-  };
-}
+// ── Supabase calls routed via backend proxy (see SERVER_URL/zones) ──
 
-// Fetch all zones for this device from Supabase
+// Fetch all zones via backend proxy (keeps Supabase key server-side)
 function sbFetchZones(onSuccess, onError) {
-  fetch(SB_URL + '/rest/v1/geo_zones?device_id=eq.' + encodeURIComponent(_deviceId) + '&order=created_at.asc', {
-    method: 'GET',
-    headers: _sbHeaders()
+  fetch(SERVER_URL + '/zones?device_id=' + encodeURIComponent(_deviceId), {
+    method: 'GET'
   })
   .then(function(r) {
-    if (!r.ok) throw new Error('HTTP ' + r.status);
+    if (!r.ok) return r.text().then(function(t){ throw new Error(r.status + ': ' + t); });
     return r.json();
   })
   .then(function(rows) {
     onSuccess(rows.map(function(r) {
-      return {
-        id:       r.id,
-        name:     r.name,
-        channel:  r.channel,
-        lat:      r.lat,
-        lng:      r.lng,
-        radius:   r.radius,
-        color:    r.color,
-        autoJoin: r.auto_join
-      };
+      return { id:r.id, name:r.name, channel:r.channel,
+               lat:r.lat, lng:r.lng, radius:r.radius,
+               color:r.color, autoJoin:r.auto_join };
     }));
   })
-  .catch(function(e) { if (onError) onError(e); });
+  .catch(function(e) { console.warn('sbFetchZones:', e); if (onError) onError(e); });
 }
 
-// Upsert a zone (insert or update)
+// Upsert a zone via backend proxy
 function sbUpsertZone(z, onError) {
-  fetch(SB_URL + '/rest/v1/geo_zones', {
+  fetch(SERVER_URL + '/zones', {
     method: 'POST',
-    headers: Object.assign({}, _sbHeaders(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       id:        z.id,
       device_id: _deviceId,
@@ -1038,20 +1019,25 @@ function sbUpsertZone(z, onError) {
       auto_join: z.autoJoin
     })
   })
-  .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); })
+  .then(function(r) {
+    if (!r.ok) return r.text().then(function(t){ throw new Error(r.status + ': ' + t); });
+  })
   .catch(function(e) {
     console.error('sbUpsertZone failed:', e);
     if (onError) onError(e);
   });
 }
 
-// Delete a zone by id
+// Delete a zone via backend proxy
 function sbDeleteZone(id, onError) {
-  fetch(SB_URL + '/rest/v1/geo_zones?id=eq.' + encodeURIComponent(id) + '&device_id=eq.' + encodeURIComponent(_deviceId), {
-    method: 'DELETE',
-    headers: _sbHeaders()
+  fetch(
+    SERVER_URL + '/zones/' + encodeURIComponent(id) +
+    '?device_id=' + encodeURIComponent(_deviceId),
+    { method: 'DELETE' }
+  )
+  .then(function(r) {
+    if (!r.ok) return r.text().then(function(t){ throw new Error(r.status + ': ' + t); });
   })
-  .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); })
   .catch(function(e) {
     console.error('sbDeleteZone failed:', e);
     if (onError) onError(e);
@@ -1064,23 +1050,47 @@ function geoLoadData() {
   _geoInitDone = true;
 
   function _applyZones(zones) {
-    geoZones = []; // reset before loading
+    // Merge: keep existing drawn zones, add/update from server data
+    var existingById = {};
+    geoZones.forEach(function(z){ existingById[z.id] = z; });
+
+    var newZones = [];
     zones.forEach(function(z) {
-      geoZones.push({
-        id: z.id, name: z.name || z.channel, channel: z.channel,
-        lat: z.lat, lng: z.lng, radius: z.radius,
-        color: z.color || GEO_COLORS[0], autoJoin: z.autoJoin !== false,
-        circle: null, marker: null, bannerEl: null
-      });
+      var existing = existingById[z.id];
+      if (existing) {
+        // Update data fields, preserve live Leaflet objects
+        existing.name     = z.name || z.channel;
+        existing.channel  = z.channel;
+        existing.radius   = z.radius;
+        existing.color    = z.color || GEO_COLORS[0];
+        existing.autoJoin = z.autoJoin !== false;
+        newZones.push(existing);
+        delete existingById[z.id];
+      } else {
+        newZones.push({
+          id: z.id, name: z.name || z.channel, channel: z.channel,
+          lat: z.lat, lng: z.lng, radius: z.radius,
+          color: z.color || GEO_COLORS[0], autoJoin: z.autoJoin !== false,
+          circle: null, marker: null, bannerEl: null
+        });
+      }
     });
+    // Remove zones that no longer exist in Supabase
+    Object.values(existingById).forEach(function(z) {
+      if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
+      if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
+      if (z.bannerEl) { z.bannerEl.remove(); z.bannerEl = null; }
+    });
+    geoZones = newZones;
+
     // Cache to localStorage for offline use
     geoPersist();
-    // If GPS already arrived, re-check all zones with updated data
+    // Re-check zones with fresh data
     if (userLat && userLng) {
       _geoLastCheckLat = null; _geoLastCheckLng = null;
       geoCheckAll(userLat, userLng);
     }
-    // If map is already open, draw newly loaded zones
+    // Draw any new zones if map is open
     if (mapInstance) geoDrawAll();
   }
 
