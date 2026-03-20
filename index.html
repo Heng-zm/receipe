@@ -1598,6 +1598,106 @@ socket.on('error', function (data) {
   } else { showToast(data.msg || 'Server error'); }
 });
 
+// ── Realtime zone sync — server broadcasts when any device saves/deletes a zone ──
+socket.on('zone_upserted', function(data) {
+  var isOwn = data.device_id === _deviceId;
+  // Skip if this is our own save (already applied locally, optimistically)
+  if (isOwn) return;
+
+  var z = {
+    id:        data.id,
+    deviceId:  data.device_id,
+    createdBy: data.created_by || '',
+    name:      data.name,
+    channel:   data.channel,
+    lat:       data.lat,
+    lng:       data.lng,
+    radius:    data.radius,
+    color:     data.color,
+    autoJoin:  data.auto_join
+  };
+
+  var idx = geoZones.findIndex(function(x){ return x.id === z.id; });
+  if (idx === -1) {
+    // New zone from another device — add it
+    geoAddZoneToMap(z);
+    geoPersist();
+    showToast('New zone: ' + z.name + ' by @' + (z.createdBy || 'someone'));
+  } else {
+    // Updated zone — patch data fields, redraw label
+    var existing = geoZones[idx];
+    existing.name     = z.name;
+    existing.channel  = z.channel;
+    existing.radius   = z.radius;
+    existing.color    = z.color;
+    existing.autoJoin = z.autoJoin;
+    // Redraw circle + label if map is open
+    if (existing.circle && mapInstance) {
+      existing.circle.setStyle({ color: z.color, fillColor: z.color });
+      existing.circle.setRadius(z.radius);
+    }
+    if (existing.marker && mapInstance) {
+      mapInstance.removeLayer(existing.marker);
+      var labelHtml = '<div style="background:rgba(10,10,12,0.85);color:#fff;font-size:11px;font-weight:500;' +
+        'padding:3px 8px;border-radius:10px;white-space:nowrap;border:1.5px solid ' + z.color +
+        ';box-shadow:0 1px 8px rgba(0,0,0,0.5)">' + _esc(z.name || z.channel) + '</div>';
+      var icon = L.divIcon({ className:'', html: labelHtml, iconAnchor:[0,10] });
+      existing.marker = L.marker([existing.lat, existing.lng], { icon: icon, interactive: false }).addTo(mapInstance);
+    }
+    geoPersist();
+  }
+  // Re-check if user is inside any updated zone
+  if (userLat && userLng) {
+    _geoLastCheckLat = null; _geoLastCheckLng = null;
+    geoCheckAll(userLat, userLng);
+  }
+});
+
+socket.on('zone_deleted', function(data) {
+  var isOwn = data.device_id === _deviceId;
+  if (isOwn) return; // already removed locally
+
+  var idx = geoZones.findIndex(function(x){ return x.id === data.id; });
+  if (idx === -1) return;
+  var z = geoZones[idx];
+  if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
+  if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
+  if (z.bannerEl) { z.bannerEl.remove(); z.bannerEl = null; }
+  geoZones.splice(idx, 1);
+  delete geoInsideZones[data.id];
+  geoPersist();
+  showToast('Zone removed');
+});
+
+// ── Periodic full sync fallback (every 60s) — catches missed realtime events ──
+setInterval(function() {
+  if (!_geoInitDone) return;
+  sbFetchZones(function(zones) {
+    // Quietly merge without resetting _geoInitDone
+    var existingById = {};
+    geoZones.forEach(function(z){ existingById[z.id] = z; });
+    var seen = {};
+    zones.forEach(function(z) {
+      seen[z.id] = true;
+      if (!existingById[z.id]) {
+        // New zone appeared — add it silently
+        geoAddZoneToMap(z);
+      }
+    });
+    // Remove zones that disappeared from server
+    geoZones.slice().forEach(function(z) {
+      if (!seen[z.id]) {
+        if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
+        if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
+        if (z.bannerEl) { z.bannerEl.remove(); z.bannerEl = null; }
+        geoZones.splice(geoZones.indexOf(z), 1);
+        delete geoInsideZones[z.id];
+      }
+    });
+    geoPersist();
+  }, function(){});
+}, 60000);
+
 // ── Recording ──
 async function startRecording() {
   if (!myRoom || isRecording) return;
