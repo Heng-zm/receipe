@@ -183,9 +183,9 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 
 /* ── Message log ── */
 .msg-log-wrap {
-  flex:1; min-height:0; max-height:180px;
+  flex:1; min-height:0; max-height:160px;
   padding:0 16px; overflow-y:auto;
-  display:flex; flex-direction:column; gap:5px;
+  display:flex; flex-direction:column; gap:4px;
   -webkit-overflow-scrolling:touch; margin-bottom:2px;
 }
 .msg-log-wrap::-webkit-scrollbar { display:none; }
@@ -193,37 +193,46 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 /* Empty state */
 .msg-empty {
   flex:1; display:flex; align-items:center; justify-content:center;
-  font-size:12px; color:rgba(255,255,255,0.15); letter-spacing:0.3px;
-  padding:12px 0;
+  font-size:12px; color:rgba(255,255,255,0.12); letter-spacing:0.3px;
+  padding:10px 0;
 }
 
-.msg-row { display:flex; align-items:flex-end; gap:6px; flex-shrink:0; }
+.msg-row { display:flex; flex-shrink:0; }
 @media (prefers-reduced-motion:no-preference) {
-  .msg-row { animation:fadeup 0.2s ease; }
+  .msg-row { animation:fadeup 0.18s ease; }
 }
-@keyframes fadeup { from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;} }
+@keyframes fadeup { from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:none;} }
 .msg-row.me   { justify-content:flex-end; }
 .msg-row.them { justify-content:flex-start; }
 
-.msg-bubble { display:flex; align-items:center; gap:8px; padding:9px 13px; border-radius:18px; cursor:pointer; max-width:min(260px, 72vw); transition:opacity 0.15s; }
-.msg-bubble:active { opacity:0.7; }
-.msg-row.me   .msg-bubble { background:rgba(255,255,255,0.14); border-radius:16px 16px 3px 16px; }
-.msg-row.them .msg-bubble { background:rgba(0,122,255,0.2); border:1px solid rgba(0,122,255,0.25); border-radius:16px 16px 16px 3px; }
+/* Bubble: all content inside, no external meta column */
+.msg-bubble {
+  display:flex; flex-direction:column; gap:4px;
+  padding:8px 11px; border-radius:14px;
+  cursor:pointer; max-width:min(240px, 68vw);
+  transition:opacity 0.12s;
+}
+.msg-bubble:active { opacity:0.65; }
+.msg-row.me   .msg-bubble { background:rgba(255,255,255,0.12); border-radius:14px 14px 3px 14px; }
+.msg-row.them .msg-bubble { background:rgba(0,122,255,0.18);   border-radius:14px 14px 14px 3px; }
 
-.msg-play { width:26px; height:26px; border-radius:50%; background:rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.15s; }
-.msg-play:hover { background:rgba(255,255,255,0.25); }
-.msg-row.them .msg-play { background:rgba(0,122,255,0.3); }
+/* Top row: play button + waveform/dur */
+.msg-top { display:flex; align-items:center; gap:8px; }
+.msg-play { width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.msg-row.them .msg-play { background:rgba(255,255,255,0.2); }
 
-.msg-info { display:flex; flex-direction:column; gap:3px; min-width:0; }
-.msg-sender { font-size:10px; color:rgba(0,122,255,0.8); letter-spacing:0.3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.msg-dur { font-size:12px; color:rgba(255,255,255,0.88); letter-spacing:0.2px; }
-.msg-prog { width:72px; height:2px; background:rgba(255,255,255,0.15); border-radius:1px; overflow:hidden; }
-.msg-prog-fill { height:100%; width:0%; background:rgba(255,255,255,0.75); border-radius:1px; }
-.msg-row.them .msg-prog-fill { background:rgba(100,180,255,0.9); }
+.msg-wave-wrap { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.msg-sender { font-size:10px; font-weight:400; color:rgba(255,255,255,0.45); letter-spacing:0.2px; }
+.msg-row.them .msg-sender { color:rgba(120,190,255,0.7); }
+.msg-dur { font-size:13px; font-weight:400; color:rgba(255,255,255,0.9); }
+.msg-prog { width:80px; height:2px; background:rgba(255,255,255,0.12); border-radius:1px; overflow:hidden; margin-top:1px; }
+.msg-prog-fill { height:100%; width:0%; background:rgba(255,255,255,0.6); border-radius:1px; }
+.msg-row.them .msg-prog-fill { background:rgba(150,200,255,0.85); }
 
-.msg-meta { display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; }
-.msg-time { font-size:10px; color:rgba(255,255,255,0.2); }
-.msg-rcpt { font-size:10px; color:rgba(255,255,255,0.2); }
+/* Footer row: time + receipt — inside bubble, right-aligned */
+.msg-footer { display:flex; align-items:center; justify-content:flex-end; gap:5px; }
+.msg-time { font-size:10px; color:rgba(255,255,255,0.22); }
+.msg-rcpt { font-size:10px; color:rgba(255,255,255,0.22); }
 .msg-rcpt.ok { color:var(--green); }
 
 /* ── Status line ── */
@@ -1261,7 +1270,7 @@ socket.on('voice_message', function (data) {
 });
 socket.on('msg_delivered', function (data) {
   var el = document.getElementById('rcpt_'+data.msg_id);
-  if (el) { el.textContent = 'Delivered'; el.classList.add('ok'); }
+  if (el) { el.textContent = '✓✓'; el.classList.add('ok'); }
 });
 socket.on('error', function (data) {
   var code = data.code || '';
@@ -1303,7 +1312,7 @@ async function startRecording() {
     catch (err) { showToast('Mic: ' + err.message); return; }
   }
 
-  recChunks=[]; isRecording=true; isCancelling=false; recStartTime=Date.now();
+  recChunks=[]; isRecording=true; isCancelling=false; recStartTime=Date.now(); _recStopFired=false;
 
   var mime = ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg'].find(function(m){return MediaRecorder.isTypeSupported(m);}) || 'audio/webm';
   mediaRec = new MediaRecorder(recStream, {mimeType:mime});
@@ -1369,7 +1378,10 @@ function stopRecording(cancel) {
   if (mediaRec && mediaRec.state !== 'inactive') mediaRec.stop();
 }
 
+var _recStopFired = false; // guard against double-fire on Android
 function onRecorderStop() {
+  if (_recStopFired) return;
+  _recStopFired = true;
   if (recChunks.length === 0) {
     pttCircle.classList.remove('sending');
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
@@ -1486,27 +1498,35 @@ function addMessage(blob, duration, isMe, senderName, msgId, revokeNow) {
 
   var row    = document.createElement('div'); row.className = 'msg-row ' + (isMe ? 'me' : 'them');
   var bubble = document.createElement('div'); bubble.className = 'msg-bubble';
+
+  // ── Top row: play btn + sender/dur/progress ──
+  var msgTop = document.createElement('div'); msgTop.className = 'msg-top';
   var play   = document.createElement('div'); play.className = 'msg-play';
   play.innerHTML = iconPlay();
 
-  var info = document.createElement('div'); info.className = 'msg-info';
+  var waveWrap2 = document.createElement('div'); waveWrap2.className = 'msg-wave-wrap';
   if (!isMe) {
     var sEl = document.createElement('div'); sEl.className = 'msg-sender'; sEl.textContent = '@'+senderName;
-    info.appendChild(sEl);
+    waveWrap2.appendChild(sEl);
   }
   var durEl = document.createElement('div'); durEl.className = 'msg-dur'; durEl.textContent = dur;
   var prog  = document.createElement('div'); prog.className = 'msg-prog';
   var fill  = document.createElement('div'); fill.className = 'msg-prog-fill';
-  prog.appendChild(fill); info.appendChild(durEl); info.appendChild(prog);
-  bubble.appendChild(play); bubble.appendChild(info);
+  prog.appendChild(fill);
+  waveWrap2.appendChild(durEl); waveWrap2.appendChild(prog);
+  msgTop.appendChild(play); msgTop.appendChild(waveWrap2);
+  bubble.appendChild(msgTop);
 
-  var meta = document.createElement('div'); meta.className = 'msg-meta';
-  var tEl  = document.createElement('div'); tEl.className = 'msg-time'; tEl.textContent = time;
-  meta.appendChild(tEl);
+  // ── Footer row: time + receipt inside bubble ──
+  var footer = document.createElement('div'); footer.className = 'msg-footer';
+  var tEl    = document.createElement('div'); tEl.className = 'msg-time'; tEl.textContent = time;
+  footer.appendChild(tEl);
+  var rcpt;
   if (isMe) {
-    var rcpt = document.createElement('div'); rcpt.className = 'msg-rcpt'; rcpt.id = 'rcpt_'+msgId; rcpt.textContent = 'Sent';
-    meta.appendChild(rcpt);
+    rcpt = document.createElement('div'); rcpt.className = 'msg-rcpt'; rcpt.id = 'rcpt_'+msgId; rcpt.textContent = '✓';
+    footer.appendChild(rcpt);
   }
+  bubble.appendChild(footer);
 
   var playing = false;
   var progRAF = null;
@@ -1586,8 +1606,7 @@ function addMessage(blob, duration, isMe, senderName, msgId, revokeNow) {
     startPlay(null);
   });
 
-  if (isMe) { row.appendChild(bubble); row.appendChild(meta); }
-  else       { row.appendChild(meta);  row.appendChild(bubble); }
+  row.appendChild(bubble);
 
   msgLog.appendChild(row);
   msgLog.scrollTop = msgLog.scrollHeight;
