@@ -215,19 +215,43 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 }
 .map-topbar {
   position:relative; z-index:20; flex-shrink:0;
-  display:flex; align-items:center;
-  padding:calc(env(safe-area-inset-top,48px) + 6px) 16px 10px;
-  background:rgba(0,0,0,0.6);
-  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  display:flex; align-items:center; gap:10px;
+  padding:calc(env(safe-area-inset-top,48px) + 6px) 14px 12px;
+  background:rgba(0,0,0,0.72);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(255,255,255,0.06);
 }
 .map-back {
-  width:34px; height:34px; border-radius:50%;
-  background:rgba(255,255,255,0.12);
-  border:none; cursor:pointer;
+  width:36px; height:36px; border-radius:50%;
+  background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.1);
+  cursor:pointer; flex-shrink:0;
   display:flex; align-items:center; justify-content:center;
   transition:background 0.15s var(--ease-out), transform 0.12s var(--ease-out);
 }
 .map-back:active { background:rgba(255,255,255,0.2); transform:scale(0.9); }
+/* Channel info pill in topbar */
+.map-topbar-info {
+  flex:1; min-width:0;
+  display:flex; flex-direction:column; gap:1px;
+}
+.map-topbar-channel {
+  font-size:14px; font-weight:600; color:var(--white);
+  letter-spacing:-0.1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.map-topbar-sub {
+  font-size:11px; font-weight:400; color:rgba(255,255,255,0.4);
+  letter-spacing:0.05px;
+}
+/* Zone count badge */
+.map-zone-badge {
+  flex-shrink:0;
+  background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:20px; padding:4px 10px;
+  font-size:11px; font-weight:600; color:rgba(255,255,255,0.6);
+  letter-spacing:0.1px; white-space:nowrap;
+}
 /* Map fills space between topbar and bottom — flex child, not absolute */
 #mapContainer {
   flex:1; min-height:0;
@@ -235,14 +259,24 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 }
 .map-bottom {
   position:relative; z-index:20; flex-shrink:0;
-  background:rgba(0,0,0,0.82);
-  backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px);
-  padding:18px 20px calc(env(safe-area-inset-bottom,0px) + 22px);
-  display:flex; flex-direction:column; gap:12px;
-  border-top:1px solid rgba(255,255,255,0.09);
+  background:rgba(0,0,0,0.88);
+  backdrop-filter:blur(28px); -webkit-backdrop-filter:blur(28px);
+  padding:14px 16px calc(env(safe-area-inset-bottom,0px) + 16px);
+  display:flex; flex-direction:column; gap:10px;
+  border-top:1px solid rgba(255,255,255,0.07);
 }
-.map-location-text { text-align:center; font-size:15px; font-weight:500; letter-spacing:-0.1px; }
-.map-user-text { text-align:center; font-size:13px; font-weight:400; color:rgba(255,255,255,0.55); letter-spacing:0.05px; }
+/* Location row: icon + text side by side */
+.map-info-row {
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+}
+.map-location-text {
+  font-size:14px; font-weight:500; letter-spacing:-0.1px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;
+}
+.map-user-text {
+  font-size:12px; font-weight:400; color:rgba(255,255,255,0.45);
+  letter-spacing:0.05px; flex-shrink:0; white-space:nowrap;
+}
 .talk-here-btn {
   width:100%; padding:16px;
   background:var(--blue); border:none; border-radius:14px;
@@ -279,52 +313,78 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 
 /* ── Geofence UI ── */
 
-/* FAB toolbar — right side of map, above bottom sheet */
+/* FAB toolbar — pinned to bottom-right, above the bottom panel */
 .geo-toolbar {
-  position:absolute; right:14px; bottom:calc(env(safe-area-inset-bottom,0px) + 148px);
-  z-index:20; display:flex; flex-direction:column; gap:8px;
+  position:absolute; right:14px;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 152px);
+  z-index:22; display:flex; flex-direction:column; gap:10px;
+  align-items:center;
 }
 .geo-fab {
-  width:44px; height:44px; border-radius:50%; border:none; cursor:pointer;
+  width:46px; height:46px; border-radius:50%; border:none; cursor:pointer;
   display:flex; align-items:center; justify-content:center;
   transition:opacity 0.15s var(--ease-out), transform 0.14s var(--ease-spring);
-  box-shadow:0 2px 14px rgba(0,0,0,0.55);
+  box-shadow:0 4px 16px rgba(0,0,0,0.65);
   will-change:transform;
 }
 .geo-fab:active { opacity:0.7; transform:scale(0.88); }
-.geo-fab.add  { background:var(--blue); }
-.geo-fab.list { background:rgba(28,28,30,0.95); border:1px solid rgba(255,255,255,0.13); }
-
-/* Zone banner stack — sits above bottom sheet, doesn't overlap it */
-.geo-banners {
-  position:absolute; bottom:calc(env(safe-area-inset-bottom,0px) + 148px);
-  left:12px; right:64px; z-index:20;
-  display:flex; flex-direction:column; gap:6px;
+.geo-fab.add  { background:var(--blue); box-shadow:0 4px 18px rgba(0,122,255,0.45); }
+.geo-fab.list {
+  background:rgba(32,32,34,0.96);
+  border:1px solid rgba(255,255,255,0.12);
+  box-shadow:0 2px 12px rgba(0,0,0,0.5);
 }
+
+/* Zone banner stack — compact row just above bottom panel, max-height scrollable */
+.geo-banners {
+  position:absolute;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 148px);
+  left:12px; right:12px; z-index:20;
+  display:flex; flex-direction:column; gap:5px;
+  max-height:200px; overflow-y:auto;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  pointer-events:none;          /* let taps fall through to map */
+}
+.geo-banners::-webkit-scrollbar { display:none; }
 .geo-banner {
-  display:flex; align-items:center; gap:10px;
-  padding:10px 14px; border-radius:14px;
-  background:rgba(18,18,20,0.92);
-  border:1px solid rgba(255,255,255,0.1);
-  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
-  box-shadow:0 4px 20px rgba(0,0,0,0.5);
-  transform:translateX(-110%); opacity:0;
-  transition:transform 0.32s var(--ease-sheet), opacity 0.28s var(--ease-out);
+  pointer-events:all;
+  display:flex; align-items:center; gap:8px;
+  padding:9px 10px 9px 12px; border-radius:12px;
+  background:rgba(12,12,14,0.94);
+  border:1px solid rgba(255,255,255,0.08);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  box-shadow:0 2px 12px rgba(0,0,0,0.6);
+  transform:translateY(8px) scale(0.98); opacity:0;
+  transition:transform 0.3s var(--ease-out), opacity 0.26s var(--ease-out);
   will-change:transform, opacity;
   cursor:pointer;
 }
-.geo-banner.on { transform:translateX(0); opacity:1; }
-.geo-banner-accent { width:4px; border-radius:2px; align-self:stretch; flex-shrink:0; }
-.geo-banner-body { flex:1; min-width:0; }
-.geo-banner-title { font-size:13px; font-weight:600; color:var(--white); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:-0.1px; }
-.geo-banner-sub   { font-size:11px; font-weight:400; color:rgba(255,255,255,0.45); margin-top:2px; line-height:1.4; }
-.geo-banner-prox  { display:flex; align-items:center; gap:4px; margin-top:4px; }
-.geo-prox-bar     { flex:1; height:3px; background:rgba(255,255,255,0.12); border-radius:2px; overflow:hidden; }
-.geo-prox-fill    { height:100%; border-radius:2px; transition:width 0.4s var(--ease-out); }
-.geo-prox-label   { font-size:11px; font-weight:400; color:rgba(255,255,255,0.35); white-space:nowrap; }
-.geo-banner-action { flex-shrink:0; border:none; border-radius:8px; font-family:inherit; font-size:12px; font-weight:600; letter-spacing:0.1px; padding:6px 11px; cursor:pointer; }
-.geo-banner-action { transition:opacity 0.15s var(--ease-out), transform 0.12s var(--ease-spring); }
+.geo-banner.on { transform:translateY(0) scale(1); opacity:1; }
+.geo-banner-accent { width:3px; border-radius:2px; align-self:stretch; flex-shrink:0; min-height:28px; }
+.geo-banner-body { flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
+.geo-banner-info { flex:1; min-width:0; }
+.geo-banner-title { font-size:13px; font-weight:600; color:var(--white); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:-0.1px; line-height:1.3; }
+.geo-banner-sub   { font-size:11px; font-weight:400; color:rgba(255,255,255,0.38); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* Inline prox — single line, no row below */
+.geo-banner-dist  { font-size:11px; font-weight:500; color:rgba(255,255,255,0.3); white-space:nowrap; flex-shrink:0; }
+.geo-banner-action {
+  flex-shrink:0; border:none; border-radius:8px; font-family:inherit;
+  font-size:12px; font-weight:600; letter-spacing:0.1px; padding:6px 13px;
+  cursor:pointer; transition:opacity 0.15s var(--ease-out), transform 0.12s var(--ease-spring);
+}
 .geo-banner-action:active { opacity:0.7; transform:scale(0.93); }
+/* Dismiss X button */
+.geo-banner-dismiss {
+  width:22px; height:22px; border-radius:50%; flex-shrink:0;
+  background:rgba(255,255,255,0.08); border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  color:rgba(255,255,255,0.4); font-size:12px; line-height:1;
+  transition:background 0.15s var(--ease-out), transform 0.12s var(--ease-spring);
+}
+.geo-banner-dismiss:active { background:rgba(255,255,255,0.16); transform:scale(0.9); }
+/* Remove old sub-elements we replaced */
+.geo-banner-prox, .geo-prox-bar, .geo-prox-fill, .geo-prox-label { display:none; }
 
 /* Draw hint pill */
 .geo-draw-hint {
@@ -529,8 +589,13 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 <div class="view hidden" id="mapView">
   <div class="map-topbar">
     <button class="map-back" id="mapBackBtn">
-      <svg width="10" height="16" viewBox="0 0 10 16" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1L1 8L9 15"/></svg>
+      <svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1L1 7.5L8 14"/></svg>
     </button>
+    <div class="map-topbar-info">
+      <div class="map-topbar-channel" id="mapTopChannel">Map</div>
+      <div class="map-topbar-sub" id="mapTopSub" id="mapLocationText2"></div>
+    </div>
+    <div class="map-zone-badge" id="mapZoneBadge" style="display:none">0 zones</div>
   </div>
   <div id="mapContainer"></div>
 
@@ -555,8 +620,10 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
   </div>
 
   <div class="map-bottom">
-    <div class="map-location-text" id="mapLocationText">Locating...</div>
-    <div class="map-user-text" id="mapUserText">@loading</div>
+    <div class="map-info-row">
+      <div class="map-location-text" id="mapLocationText">Locating...</div>
+      <div class="map-user-text" id="mapUserText">@loading</div>
+    </div>
     <button class="talk-here-btn" id="talkHereBtn" disabled>Talk Here</button>
   </div>
 </div>
@@ -887,6 +954,7 @@ function setLocationText(s) {
   locationStr = s;
   locationText.textContent = s;
   mapLocText.textContent   = s;
+  _updateMapTopbar();
 }
 function reverseGeocode(lat, lng) {
   fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng)
@@ -950,6 +1018,7 @@ function joinChannel(room) {
   setStatus('Joining ' + room + '...', 'warn');
   socket.emit('join_room', { room: room, name: myName });
   if (mapInstance) talkHereBtn.disabled = false;
+  _updateMapTopbar();
 }
 function openNameSheet() {
   document.getElementById('nameInput').value = myName.toUpperCase();
@@ -1122,6 +1191,7 @@ function geoLoadData() {
     }
     // Draw any new zones if map is open
     if (mapInstance) geoDrawAll();
+    _updateMapZoneBadge();
   }
 
   // Try Supabase first
@@ -1233,6 +1303,7 @@ function geoDeleteZone(id) {
   delete geoInsideZones[id];
   geoPersist();
   sbDeleteZone(id);
+  _updateMapZoneBadge();
 }
 
 // ── Update zone circle style when inside/outside ──
@@ -1248,77 +1319,87 @@ function _geoStyleZone(zone, inside) {
 
 // ── Show/update banner for a zone ──
 function geoShowBanner(zone) {
-  // geoBanners is inside mapView — only render banner when map is visible
-  // For auto-join triggered from main view, the toast is sufficient
   var banners = document.getElementById('geoBanners');
   if (!banners) return;
-  // Reuse existing banner element if already shown for this zone
   var el = zone.bannerEl;
   if (!el) {
     el = document.createElement('div');
     el.className = 'geo-banner';
     el.dataset.zoneId = zone.id;
+
+    var isMine = zone.deviceId === _deviceId;
+    var nameStr = _esc(zone.name);
+    var chStr   = _esc(zone.channel);
+    // Only show channel if different from name
+    var titleStr = nameStr + (zone.name !== zone.channel ? '<span style="font-weight:400;opacity:0.45;font-size:12px"> · #' + chStr + '</span>' : '');
+    if (isMine) titleStr += '<span style="font-size:10px;background:rgba(255,255,255,0.08);padding:1px 6px;border-radius:4px;margin-left:5px;color:rgba(255,255,255,0.4)">mine</span>';
+
     el.innerHTML =
       '<div class="geo-banner-accent" style="background:' + zone.color + '"></div>' +
       '<div class="geo-banner-body">' +
-        '<div class="geo-banner-title">' + _esc(zone.name) + ' · <span style="opacity:0.6;font-weight:400">#' + _esc(zone.channel) + '</span>' + (zone.deviceId === _deviceId ? ' <span style="font-size:10px;background:rgba(255,255,255,0.1);padding:1px 5px;border-radius:4px">mine</span>' : '') + '</div>' +
-        '<div class="geo-banner-sub" id="gbsub_' + zone.id + '">Locating...</div>' +
-        '<div class="geo-banner-prox">' +
-          '<div class="geo-prox-bar"><div class="geo-prox-fill" id="gbfill_' + zone.id + '" style="background:' + zone.color + '"></div></div>' +
-          '<div class="geo-prox-label" id="gblabel_' + zone.id + '"></div>' +
+        '<div class="geo-banner-info">' +
+          '<div class="geo-banner-title">' + titleStr + '</div>' +
+          '<div class="geo-banner-sub" id="gbsub_' + zone.id + '"></div>' +
         '</div>' +
+        '<span class="geo-banner-dist" id="gbdist_' + zone.id + '"></span>' +
       '</div>' +
-      '<button class="geo-banner-action" id="gbaction_' + zone.id + '"></button>';
+      '<button class="geo-banner-action" id="gbaction_' + zone.id + '"></button>' +
+      '<button class="geo-banner-dismiss" id="gbdismiss_' + zone.id + '" aria-label="Dismiss">✕</button>';
+
+    // Tap body → join + navigate
     el.addEventListener('click', function(e) {
-      if (e.target.closest('.geo-banner-action')) return; // handled separately
-      // Tap banner body → go to talk view and join
-      joinChannel(zone.channel);
-      showMain();
+      if (e.target.closest('.geo-banner-action') || e.target.closest('.geo-banner-dismiss')) return;
+      joinChannel(zone.channel); showMain();
     });
-    el.querySelector('#gbaction_' + zone.id).addEventListener('click', function() {
-      var inside = !!geoInsideZones[zone.id];
-      if (myRoom === zone.channel) {
-        showMain(); // already active — go to talk view
-      } else if (inside || true) {
-        joinChannel(zone.channel);
-        showMain();
-      }
+    // Action button
+    el.querySelector('#gbaction_' + zone.id).addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (myRoom === zone.channel) { showMain(); }
+      else { joinChannel(zone.channel); showMain(); }
     });
+    // Dismiss button — hide banner, don't delete zone
+    el.querySelector('#gbdismiss_' + zone.id).addEventListener('click', function(e) {
+      e.stopPropagation();
+      geoHideBanner(zone);
+    });
+
     banners.appendChild(el);
     zone.bannerEl = el;
-    // Animate in after paint
     requestAnimationFrame(function(){ requestAnimationFrame(function(){ el.classList.add('on'); }); });
+
+    // Update zone badge in topbar
+    _updateMapZoneBadge();
   }
   geoUpdateBanner(zone);
 }
 
-// ── Update banner distance/proximity/button ──
+// ── Update banner distance + button ──
 function geoUpdateBanner(zone) {
   var el = zone.bannerEl;
   if (!el) return;
   var subEl    = document.getElementById('gbsub_'    + zone.id);
-  var fillEl   = document.getElementById('gbfill_'   + zone.id);
-  var labelEl  = document.getElementById('gblabel_'  + zone.id);
+  var distEl   = document.getElementById('gbdist_'   + zone.id);
   var actionEl = document.getElementById('gbaction_' + zone.id);
   if (!subEl) return;
 
-  var dist = (userLat && userLng) ? Math.round(geoDistance(userLat, userLng, zone.lat, zone.lng)) : null;
+  var dist   = (userLat && userLng) ? Math.round(geoDistance(userLat, userLng, zone.lat, zone.lng)) : null;
   var inside = !!geoInsideZones[zone.id];
 
-  if (dist !== null) {
-    var pct = inside ? 100 : Math.max(0, Math.round((1 - dist / (zone.radius * 2)) * 100));
-    fillEl.style.width   = pct + '%';
+  if (dist !== null && distEl) {
     var distStr = dist >= 1000 ? (dist/1000).toFixed(1) + ' km' : dist + ' m';
-    labelEl.textContent  = inside ? 'Inside' : distStr + ' away';
-    subEl.textContent    = inside ? 'You are inside this zone' : 'Tap to join · ' + distStr + ' from center';
+    distEl.textContent = inside ? '● inside' : distStr;
+    distEl.style.color = inside ? zone.color : 'rgba(255,255,255,0.3)';
+  }
+  if (subEl) {
+    subEl.textContent = inside ? 'You are inside this zone' : ('#' + zone.channel);
   }
 
   if (myRoom === zone.channel) {
     actionEl.textContent = 'Active';
-    actionEl.style.cssText = 'background:' + zone.color + '20;color:' + zone.color + ';border:1px solid ' + zone.color + '40';
+    actionEl.style.cssText = 'background:' + zone.color + '22;color:' + zone.color + ';border:1px solid ' + zone.color + '44;font-family:inherit';
   } else {
     actionEl.textContent = 'Join';
-    actionEl.style.cssText = 'background:' + zone.color + ';color:#fff;border:none';
+    actionEl.style.cssText = 'background:' + zone.color + ';color:#fff;border:none;font-family:inherit';
   }
 }
 
@@ -1493,6 +1574,24 @@ function geoOpenList() {
   document.getElementById('geoListOverlay').classList.add('open');
 }
 function geoCloseList() { document.getElementById('geoListOverlay').classList.remove('open'); }
+
+// ── Update map topbar zone badge ──
+function _updateMapZoneBadge() {
+  var badge = document.getElementById('mapZoneBadge');
+  if (!badge) return;
+  var n = geoZones.length;
+  if (n === 0) { badge.style.display = 'none'; return; }
+  badge.style.display = '';
+  badge.textContent = n + (n === 1 ? ' zone' : ' zones');
+}
+
+// ── Update map topbar channel/location ──
+function _updateMapTopbar() {
+  var chEl  = document.getElementById('mapTopChannel');
+  var subEl = document.getElementById('mapTopSub');
+  if (chEl) chEl.textContent = myRoom ? '#' + myRoom : 'Map';
+  if (subEl) subEl.textContent = locationStr || '';
+}
 
 // ── Helpers ──
 var toastTimer = null;
