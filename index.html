@@ -544,7 +544,11 @@ var audioCtx  = null;
 var analyser  = null;
 var vizRAF    = null;
 var vizData   = null;
-var vizIsRx   = false; // true = colour bars blue (RX), false = white (TX)
+var vizIsRx      = false; // true = colour bars blue (RX), false = white (TX)
+// Shared AudioContext — created once on first user gesture, never recreated
+// iOS requires AudioContext to be created/resumed inside a user gesture
+var sharedCtx    = null;
+var audioUnlocked= false;
 
 // ── DOM refs ──
 var pttCircle    = document.getElementById('pttCircle');
@@ -892,8 +896,23 @@ socket.on('error', function (data) {
 // ── Recording ──
 async function startRecording() {
   if (!myRoom || isRecording) return;
-  try { recStream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false }); }
-  catch (err) { showToast('Mic: ' + err.message); return; }
+  unlockAudio(); // ensure AudioContext is running before we need it
+  try {
+    recStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl:  true,
+        channelCount:     1,
+        sampleRate:       16000
+      },
+      video: false
+    });
+  } catch (_) {
+    // Fallback: plain constraints (older Android/iOS)
+    try { recStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); }
+    catch (err) { showToast('Mic: ' + err.message); return; }
+  }
 
   recChunks=[]; isRecording=true; isCancelling=false; recStartTime=Date.now();
 
@@ -901,7 +920,7 @@ async function startRecording() {
   mediaRec = new MediaRecorder(recStream, {mimeType:mime});
   mediaRec.ondataavailable = function(e) { if (e.data && e.data.size > 0) recChunks.push(e.data); };
   mediaRec.onstop = onRecorderStop;
-  mediaRec.start(100);
+  mediaRec.start(250);
 
   // UI — TX state
   pttCircle.classList.add('tx');
@@ -944,9 +963,9 @@ function stopRecording(cancel) {
 
   if (recStream) { recStream.getTracks().forEach(function(t){t.stop();}); recStream=null; }
   recDuration = elapsed / 1000;
-  isCancelling = isCancelling || cancel || (elapsed < MIN_REC_MS);
+  var shouldCancel = cancel || isCancelling || (elapsed < MIN_REC_MS);
 
-  if (isCancelling) {
+  if (shouldCancel) {
     if (elapsed < MIN_REC_MS && !cancel) showToast('Hold longer to record');
     else { chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot'; setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn'); }
     isCancelling = false;
@@ -1008,39 +1027,44 @@ function drainQueue() {
 }
 
 function playIcomChirp(onDone) {
-  try {
-    var ctx = new AudioContext(), t = ctx.currentTime;
-    function tone(freq, start, end) {
-      var o = ctx.createOscillator(), g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      o.frequency.value = freq;
-      g.gain.setValueAtTime(0, start);
-      g.gain.linearRampToValueAtTime(0.18, start + 0.008);
-      g.gain.setValueAtTime(0.18, end - 0.015);
-      g.gain.linearRampToValueAtTime(0, end);
-      o.start(start); o.stop(end);
-      return o;
-    }
-    tone(880,  t,        t+0.07);
-    var o2 = tone(1320, t+0.10, t+0.17);
-    o2.onended = function () { ctx.close(); setTimeout(onDone, 40); };
-  } catch(e) { onDone(); }
+  getSharedCtx(function(ctx) {
+    if (!ctx) { onDone(); return; }
+    try {
+      var t = ctx.currentTime;
+      function tone(freq, start, end) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(0, start);
+        g.gain.linearRampToValueAtTime(0.18, start + 0.008);
+        g.gain.setValueAtTime(0.18, end - 0.015);
+        g.gain.linearRampToValueAtTime(0, end);
+        o.start(start); o.stop(end);
+        return o;
+      }
+      tone(880, t, t+0.07);
+      var o2 = tone(1320, t+0.10, t+0.17);
+      o2.onended = function() { setTimeout(onDone, 40); };
+    } catch(e) { onDone(); }
+  });
 }
 
 function playEndBeep() {
-  try {
-    var ctx = new AudioContext(), t = ctx.currentTime;
-    function tone(freq, start, end) {
-      var o = ctx.createOscillator(), g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination); o.frequency.value = freq;
-      g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.13, start+0.007);
-      g.gain.setValueAtTime(0.13, end-0.015); g.gain.linearRampToValueAtTime(0, end);
-      o.start(start); o.stop(end); return o;
-    }
-    tone(1100, t,       t+0.07);
-    var o2 = tone(660, t+0.10, t+0.17);
-    o2.onended = function () { ctx.close(); };
-  } catch(e) {}
+  getSharedCtx(function(ctx) {
+    if (!ctx) return;
+    try {
+      var t = ctx.currentTime;
+      function tone(freq, start, end) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination); o.frequency.value = freq;
+        g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.13, start+0.007);
+        g.gain.setValueAtTime(0.13, end-0.015); g.gain.linearRampToValueAtTime(0, end);
+        o.start(start); o.stop(end); return o;
+      }
+      tone(1100, t, t+0.07);
+      tone(660, t+0.10, t+0.17);
+    } catch(e) {}
+  });
 }
 
 // ── addMessage — returns { trigger, stop } for queue ──
@@ -1082,8 +1106,10 @@ function addMessage(blob, duration, isMe, senderName, msgId) {
   var progRAF = null;
   var endCb   = null;
 
+  var activeSource = null; // AudioBufferSourceNode for this message
   function stopFn() {
     if (!playing) return;
+    if (activeSource) { try { activeSource.stop(); } catch(e){} activeSource = null; }
     audio.pause(); audio.currentTime = 0;
     if (progRAF) { cancelAnimationFrame(progRAF); progRAF = null; }
     fill.style.width = '0%';
@@ -1120,9 +1146,9 @@ function addMessage(blob, duration, isMe, senderName, msgId) {
       setStatus('From @'+senderName+'...', 'rx');
       startVolMeterAudio(audio);
     }
-    audio.play().catch(function() { stopFn(); if (endCb){endCb();endCb=null;} });
-    progRAF = requestAnimationFrame(updateProg);
-    audio.onended = function() {
+    // BUG 2: iOS blocks audio.play() from socket events — use decodeAndPlay instead
+    var onEndedFn = function() {
+      // playback finished naturally
       stopFn();
       URL.revokeObjectURL(url);
       if (!isMe) {
@@ -1133,7 +1159,14 @@ function addMessage(blob, duration, isMe, senderName, msgId) {
       }
       if (endCb) { endCb(); endCb = null; }
     };
-    audio.onerror = function() { stopFn(); URL.revokeObjectURL(url); if(endCb){endCb();endCb=null;} };
+    onEndedFn._setSrc = function(src) { activeSource = src; };
+    decodeAndPlay(blob, onEndedFn, function() {
+      // playback error
+      stopFn(); URL.revokeObjectURL(url);
+      if (endCb) { endCb(); endCb = null; }
+    });
+    if (!isMe) { startVolMeterAudio(); }
+    progRAF = requestAnimationFrame(updateProg);
   }
 
   bubble.addEventListener('click', function() {
@@ -1157,17 +1190,47 @@ function setWaveBarsColor(cls) {
 function iconPlay()  { return '<svg width="9" height="11" viewBox="0 0 9 11" fill="white"><polygon points="0,0 9,5.5 0,11"/></svg>'; }
 function iconPause() { return '<svg width="9" height="9" viewBox="0 0 9 9" fill="white"><rect x="0" y="0" width="3.5" height="9" rx="1"/><rect x="5.5" y="0" width="3.5" height="9" rx="1"/></svg>'; }
 function formatDur(sec) { var s=Math.round(sec),m=Math.floor(s/60),r=s%60; return m+':'+(r<10?'0':'')+r; }
-function b64toBlob(b64,mime) {
-  try { var bin=atob(b64),arr=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i); return new Blob([arr],{type:mime}); }
-  catch(e) { return new Blob([],{type:mime}); }
+function b64toBlob(b64, mime) {
+  // BUG 8: chunked conversion — much faster on low-end Android for large audio
+  try {
+    var bin   = atob(b64);
+    var len   = bin.length;
+    var chunk = 8192;
+    var parts = [];
+    for (var i = 0; i < len; i += chunk) {
+      var end  = Math.min(i + chunk, len);
+      var arr  = new Uint8Array(end - i);
+      for (var j = i; j < end; j++) arr[j - i] = bin.charCodeAt(j);
+      parts.push(arr);
+    }
+    return new Blob(parts, { type: mime });
+  } catch(e) { return new Blob([], { type: mime }); }
 }
 
 // ── Volume meters ──
 function startVolMeter(stream, isRx) {
   stopVolMeter();
   vizIsRx = isRx;
-  audioCtx = new AudioContext(); analyser = audioCtx.createAnalyser(); analyser.fftSize = 32;
-  audioCtx.createMediaStreamSource(stream).connect(analyser);
+  // Use sharedCtx so iOS doesn't block a new AudioContext creation
+  getSharedCtx(function(ctx) {
+    if (!ctx) return;
+    analyser = ctx.createAnalyser(); analyser.fftSize = 32;
+    ctx.createMediaStreamSource(stream).connect(analyser);
+    vizData = new Uint8Array(analyser.frequencyBinCount);
+    function tick() {
+      if (!analyser) return;
+      analyser.getByteFrequencyData(vizData);
+      for (var i=0;i<8;i++) { var v=vizData[i*2]||0; wBars[i].style.height=Math.max(2,Math.min(18,v*0.18))+'px'; }
+      vizRAF = requestAnimationFrame(tick);
+    }
+    vizRAF = requestAnimationFrame(tick);
+  });
+}
+
+function startVolMeterAudio() {
+  // RX waveform: use sharedCtx analyser (audio plays through it via decodeAndPlay)
+  stopVolMeter();
+  if (!sharedCtx || !analyser) return;
   vizData = new Uint8Array(analyser.frequencyBinCount);
   function tick() {
     if (!analyser) return;
@@ -1178,40 +1241,85 @@ function startVolMeter(stream, isRx) {
   vizRAF = requestAnimationFrame(tick);
 }
 
-function startVolMeterAudio(audioEl) {
-  // Visualise a playing Audio element (for RX waveform)
-  stopVolMeter();
-  try {
-    audioCtx = new AudioContext(); analyser = audioCtx.createAnalyser(); analyser.fftSize = 32;
-    var src = audioCtx.createMediaElementSource(audioEl);
-    src.connect(analyser); src.connect(audioCtx.destination);
-    vizData = new Uint8Array(analyser.frequencyBinCount);
-    function tick() {
-      if (!analyser) return;
-      analyser.getByteFrequencyData(vizData);
-      for (var i=0;i<8;i++) { var v=vizData[i*2]||0; wBars[i].style.height=Math.max(2,Math.min(18,v*0.18))+'px'; }
-      vizRAF = requestAnimationFrame(tick);
-    }
-    vizRAF = requestAnimationFrame(tick);
-  } catch(e) { /* MediaElementSource already used — silently skip */ }
-}
-
 function stopVolMeter() {
   if (vizRAF) { cancelAnimationFrame(vizRAF); vizRAF=null; }
-  if (audioCtx) { audioCtx.close(); audioCtx=null; }
-  analyser=null; vizData=null;
+  // Do NOT close sharedCtx — it stays alive for the session
+  if (analyser) { try { analyser.disconnect(); } catch(e){} analyser=null; }
+  vizData=null;
   wBars.forEach(function(b){b.style.height='3px';});
 }
 
+// ── Shared AudioContext (iOS-safe) ──
+// iOS requires AudioContext to be created/resumed inside a user gesture.
+// We create it once on the first PTT press and reuse it for the session.
+function getSharedCtx(cb) {
+  if (sharedCtx && sharedCtx.state === 'running') { cb(sharedCtx); return; }
+  if (!sharedCtx) {
+    try { sharedCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { cb(null); return; }
+  }
+  if (sharedCtx.state === 'suspended') {
+    sharedCtx.resume().then(function(){ cb(sharedCtx); }).catch(function(){ cb(null); });
+  } else {
+    cb(sharedCtx);
+  }
+}
+
+function unlockAudio() {
+  // Called on first user gesture (touchstart of PTT)
+  getSharedCtx(function(ctx) {
+    if (!ctx) return;
+    // Play a silent buffer to fully unlock on iOS
+    var buf = ctx.createBuffer(1, 1, 22050);
+    var src = ctx.createBufferSource();
+    src.buffer = buf; src.connect(ctx.destination); src.start(0);
+  });
+}
+
+// ── BUG 2: iOS-safe audio playback via AudioBuffer ──
+// Decodes a Blob into an AudioBuffer and plays it through sharedCtx.
+// This works even when called from a socket event (no user gesture needed
+// after the AudioContext was unlocked on first PTT press).
+function decodeAndPlay(blob, onEnded, onError) {
+  getSharedCtx(function(ctx) {
+    if (!ctx) { if (onError) onError(); return; }
+    var reader = new FileReader();
+    reader.onload = function() {
+      ctx.decodeAudioData(
+        reader.result,
+        function(buffer) {
+          // Connect through analyser for RX waveform visualisation (BUG 3 fix)
+          if (!analyser) {
+            analyser = ctx.createAnalyser(); analyser.fftSize = 32;
+            analyser.connect(ctx.destination);
+          }
+          var source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(analyser);
+          // Store reference so stopFn can cancel it
+          if (typeof onEnded._setSrc === 'function') onEnded._setSrc(source);
+          source.onended = onEnded;
+          source.start(0);
+        },
+        function() { if (onError) onError(); }
+      );
+    };
+    reader.onerror = function() { if (onError) onError(); };
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
 function playBeep(freq, dur) {
-  try {
-    var ctx=new AudioContext(),o=ctx.createOscillator(),g=ctx.createGain();
-    o.connect(g); g.connect(ctx.destination); o.frequency.value=freq;
-    g.gain.setValueAtTime(0.1,ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);
-    o.start(); o.stop(ctx.currentTime+dur);
-    o.onended=function(){ctx.close();};
-  } catch(e){}
+  getSharedCtx(function(ctx) {
+    if (!ctx) return;
+    try {
+      var o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination); o.frequency.value=freq;
+      g.gain.setValueAtTime(0.1,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);
+      o.start(); o.stop(ctx.currentTime+dur);
+    } catch(e){}
+  });
 }
 </script>
 </body>
