@@ -1839,59 +1839,74 @@ function drainQueue() {
   if (queuePlaying || playQueue.length === 0) return;
   queuePlaying = true;
   var item = playQueue.shift();
-  var safeNext = function() { queuePlaying = false; drainQueue(); };
+  var done = false;                           // FIX 5: single-fire guard — prevents double safeNext
+  var safeNext = function() {
+    if (done) return;
+    done = true;
+    queuePlaying = false;
+    drainQueue();
+  };
+
+  // FIX 6: closure-local playing flag for the timer — immune to global queuePlaying reuse
+  var itemPlaying = true;
+  var ctxStartTime = 0;                       // FIX 8: set when source actually starts
+  var timerRAF = null;
+
+  function startTimer() {
+    var dur = item.duration || 0;
+    (function tickTimer() {
+      if (!itemPlaying) return;
+      var el = sharedCtx ? Math.min(dur > 0 ? dur : 999, Math.max(0, sharedCtx.currentTime - ctxStartTime)) : 0;
+      var m = Math.floor(el / 60), s = Math.floor(el % 60);
+      circTimer.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+      timerRAF = requestAnimationFrame(tickTimer);
+    })();
+  }
+
+  function cleanupRx() {
+    itemPlaying = false;
+    if (timerRAF) { cancelAnimationFrame(timerRAF); timerRAF = null; }
+    circTimer.textContent = '0:00';
+    pttCircle.classList.remove('rx');
+    ripples.classList.remove('rx');
+    waveWrap.classList.remove('on');
+    stopVolMeter();
+    setWaveBarsColor('tx');
+    chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
+    setStatus('Hold to record, release to send', 'ok');
+  }
+
+  // FIX 2: small gap between end-beep and next item's chirp
+  var onEndedFn = function() {
+    cleanupRx();
+    socket.emit('msg_delivered', { msg_id: item.msgId, to: item.senderSid });
+    playEndBeep();
+    setTimeout(safeNext, 220);               // let end-beep finish before next chirp starts
+  };
+
+  // FIX 1+8: _setSrc is called by decodeAndPlay when source ACTUALLY starts —
+  //           start the vol meter and timer here, not before decoding
+  onEndedFn._setSrc = function(source) {
+    ctxStartTime = sharedCtx ? sharedCtx.currentTime : 0;  // FIX 8: accurate start time
+    startTimer();
+    startVolMeterAudio();                    // FIX 1: analyser exists now (created in decodeAndPlay)
+  };
+
   try {
     playIcomChirp(function() {
-      // Show sender in status while playing
       pttCircle.classList.add('rx');
       ripples.classList.add('rx');
       waveWrap.classList.add('on');
       setWaveBarsColor('rx');
       chDot.className = 'ch-dot rx';
       setStatus('From @' + item.senderName + '...', 'rx');
-      startVolMeterAudio();
-
-      // Track playback time for circ-timer
-      if (sharedCtx) {
-        var startT = sharedCtx.currentTime;
-        var dur    = item.duration || 0;
-        var timerRAF;
-        (function tickTimer() {
-          if (!queuePlaying) return;
-          var el = (dur > 0) ? Math.min(dur, sharedCtx.currentTime - startT) : 0;
-          var m  = Math.floor(el / 60), s = Math.floor(el % 60);
-          circTimer.textContent = m + ':' + (s < 10 ? '0' : '') + s;
-          timerRAF = requestAnimationFrame(tickTimer);
-        })();
-        var origNext = safeNext;
-        safeNext = function() {
-          cancelAnimationFrame(timerRAF);
-          circTimer.textContent = '0:00';
-          origNext();
-        };
-      }
-
-      var onEndedFn = function() {
-        pttCircle.classList.remove('rx');
-        ripples.classList.remove('rx');
-        waveWrap.classList.remove('on');
-        stopVolMeter();
-        setWaveBarsColor('tx');
-        chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
-        setStatus('Hold to record, release to send', 'ok');
-        playEndBeep();
-        // Emit delivery receipt
-        socket.emit('msg_delivered', { msg_id: item.msgId, to: item.senderSid });
+      // FIX 3+4: pass cleanupRx+safeNext as error handler so queue never gets stuck
+      decodeAndPlay(item.blob, onEndedFn, function() {
+        cleanupRx();
         safeNext();
-      };
-      onEndedFn._setSrc = function(s) {
-        if (sharedCtx) {
-          // update start time once source actually begins
-        }
-      };
-      decodeAndPlay(item.blob, onEndedFn, safeNext);
+      });
     });
-  } catch(e) { console.error('drainQueue error:', e); safeNext(); }
+  } catch(e) { console.error('drainQueue error:', e); cleanupRx(); safeNext(); }
 }
 
 function playIcomChirp(onDone) {
@@ -1977,9 +1992,10 @@ function startVolMeter(stream, isRx) {
 }
 
 function startVolMeterAudio() {
-  // RX waveform: use sharedCtx analyser (audio plays through it via decodeAndPlay)
-  stopVolMeter();
-  if (!sharedCtx || !analyser) return;
+  // RX waveform — called from _setSrc (after decodeAndPlay creates the analyser)
+  // so analyser is guaranteed to exist when this runs.
+  if (vizRAF) { cancelAnimationFrame(vizRAF); vizRAF = null; }  // cancel any old RAF
+  if (!analyser) return;   // should not happen, but guard anyway
   vizData = new Uint8Array(analyser.frequencyBinCount);
   function tick() {
     if (!analyser) return;
@@ -2056,21 +2072,25 @@ function unlockAudio() {
   }
 }
 
-// ── BUG 2: iOS-safe audio playback via AudioBuffer ──
-// Decodes a Blob into an AudioBuffer and plays it through sharedCtx.
-// This works even when called from a socket event (no user gesture needed
-// after the AudioContext was unlocked on first PTT press).
+// ── iOS/Android-safe audio playback via AudioBuffer ──
 function decodeAndPlay(blob, onEnded, onError) {
+  var fired = false;                         // FIX 4: guard — onEnded/onError fire exactly once
+  function safeEnded() { if (!fired) { fired = true; onEnded(); } }
+  function safeError() { if (!fired) { fired = true; if (onError) onError(); } }
+
   getSharedCtx(function(ctx) {
-    if (!ctx) { if (onError) onError(); return; }
+    if (!ctx) { safeError(); return; }
 
     function doDecode() {
+      // FIX 7: reject empty blobs before decoding — avoids silent decode error
+      if (!blob || blob.size === 0) { safeError(); return; }
+
       var reader = new FileReader();
       reader.onload = function() {
         ctx.decodeAudioData(
           reader.result,
           function(buffer) {
-            // Route through analyser so waveform responds to RX audio
+            // Ensure analyser exists (created here so startVolMeterAudio can reuse it)
             if (!analyser) {
               analyser = ctx.createAnalyser();
               analyser.fftSize = 32;
@@ -2079,20 +2099,28 @@ function decodeAndPlay(blob, onEnded, onError) {
             var source = ctx.createBufferSource();
             source.buffer = buffer;
             source.connect(analyser);
+
+            // Notify caller that source exists (starts timer + vol meter)
             if (typeof onEnded._setSrc === 'function') onEnded._setSrc(source);
-            source.onended = onEnded;
+
+            source.onended = safeEnded;
             source.start(0);
+
+            // FIX 4: watchdog — if onended never fires (Android short-clip bug),
+            //         force-complete after duration + 3s grace period
+            var watchdogMs = Math.max(3000, (buffer.duration * 1000) + 3000);
+            setTimeout(safeEnded, watchdogMs);
           },
-          function() { if (onError) onError(); }
+          function() { safeError(); }        // decode failed (corrupt/unsupported codec)
         );
       };
-      reader.onerror = function() { if (onError) onError(); };
+      reader.onerror = function() { safeError(); };
       reader.readAsArrayBuffer(blob);
     }
 
-    // Resume context first — Android suspends it after screen lock/backgrounding
-    if (ctx.state === 'suspended') {
-      ctx.resume().then(doDecode).catch(function() { if (onError) onError(); });
+    // FIX 3: resume on BOTH 'suspended' and 'interrupted' (Safari-specific state)
+    if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+      ctx.resume().then(doDecode).catch(safeError);
     } else {
       doDecode();
     }
