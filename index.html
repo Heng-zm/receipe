@@ -7,835 +7,1020 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>WalkieTalk</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #000;
-    --white: #fff;
-    --dim: rgba(255,255,255,0.35);
-    --dimmer: rgba(255,255,255,0.12);
-    --green: #30d158;
-    --red: #ff453a;
-    --amber: #ffd60a;
-    --blue: #0a84ff;
-  }
+:root {
+  --bg: #000;
+  --white: #fff;
+  --dim: rgba(255,255,255,0.45);
+  --dimmer: rgba(255,255,255,0.15);
+  --green: #30d158;
+  --red: #ff453a;
+  --amber: #ffd60a;
+  --blue: #007aff;
+}
 
-  *, *::before, *::after {
-    box-sizing: border-box; margin: 0; padding: 0;
-    -webkit-tap-highlight-color: transparent;
-  }
-  html, body {
-    width: 100%; height: 100%;
-    background: var(--bg); color: var(--white);
-    font-family: 'DM Sans', sans-serif;
-    overflow: hidden; -webkit-font-smoothing: antialiased;
-  }
-  .app {
-    width: 100%; height: 100dvh;
-    display: grid;
-    grid-template-rows: auto auto 1fr auto;
-    padding: env(safe-area-inset-top, 48px) 0 env(safe-area-inset-bottom, 24px);
-  }
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
 
-  /* Topbar */
-  .topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 24px 0;
-  }
-  .topbar-left { display: flex; flex-direction: column; gap: 3px; }
-  .user-handle {
-    font-family: 'DM Mono', monospace;
-    font-size: 22px; font-weight: 400; letter-spacing: -0.5px;
-  }
-  .user-location { font-size: 13px; color: var(--dim); font-weight: 300; }
-  .settings-btn {
-    width: 36px; height: 36px; border-radius: 50%;
-    border: 1.5px solid var(--dimmer); background: transparent;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: background 0.15s;
-  }
-  .settings-btn:active { background: var(--dimmer); }
+html,body {
+  width:100%; height:100%;
+  background:var(--bg);
+  color:var(--white);
+  font-family:-apple-system,'SF Pro Display','Helvetica Neue',sans-serif;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
 
-  /* Channel bar */
-  .channel-bar { display: flex; justify-content: center; padding: 14px 24px 0; }
-  .channel-pill {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: var(--dimmer); border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 100px; padding: 7px 16px;
-    cursor: pointer; transition: background 0.15s;
-  }
-  .channel-pill:active { background: rgba(255,255,255,0.18); }
-  .channel-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--dim); flex-shrink: 0;
-    transition: background 0.3s, box-shadow 0.3s;
-  }
-  .channel-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
-  .channel-dot.rec    { background: var(--red);   box-shadow: 0 0 8px var(--red); animation: dotblink 0.5s ease-in-out infinite alternate; }
-  .channel-dot.send   { background: var(--blue);  box-shadow: 0 0 8px var(--blue); }
-  @keyframes dotblink { to { opacity: 0.3; } }
-  .channel-name {
-    font-family: 'DM Mono', monospace; font-size: 13px;
-    letter-spacing: 1.5px; color: var(--white);
-    min-width: 80px; text-align: center;
-  }
-  .channel-name.ph { color: var(--dim); }
+/* ── Views ── */
+.view { position:absolute; inset:0; display:flex; flex-direction:column; transition:opacity 0.3s; }
+.view.hidden { opacity:0; pointer-events:none; }
 
-  /* Center PTT */
-  .center {
-    display: flex; align-items: center; justify-content: center; position: relative;
-  }
+/* ══════════════════════════════
+   MAIN VIEW
+══════════════════════════════ */
+#mainView {
+  background:#000;
+  padding: env(safe-area-inset-top,48px) 0 env(safe-area-inset-bottom,28px);
+}
 
-  /* Cancel hint — shows while recording */
-  .cancel-hint {
-    position: absolute; top: -28px;
-    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
-    color: var(--red); opacity: 0; transition: opacity 0.2s;
-    pointer-events: none;
-  }
-  .cancel-hint.on { opacity: 1; }
+/* ── Top bar ── */
+.topbar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 20px 0;
+  flex-shrink:0;
+}
+.topbar-icons { display:flex; gap:14px; align-items:center; }
+.top-icon-btn {
+  background:none; border:none; cursor:pointer;
+  color:var(--white); opacity:0.9; padding:2px;
+  display:flex; align-items:center; justify-content:center;
+}
+.top-icon-btn:active { opacity:0.5; }
+.power-btn {
+  width:32px; height:32px;
+  border-radius:50%;
+  border:1.5px solid rgba(255,255,255,0.2);
+  background:transparent;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:background 0.15s;
+}
+.power-btn:active { background:rgba(255,255,255,0.1); }
 
-  /* Ripples */
-  .ripples {
-    position: absolute; width: 270px; height: 270px;
-    border-radius: 50%; pointer-events: none;
-  }
-  .ripple {
-    position: absolute; inset: 0; border-radius: 50%;
-    border: 1px solid rgba(255,69,58,0.4); opacity: 0;
-  }
-  .ripples.rec .ripple:nth-child(1) { animation: ripout 1.5s ease-out infinite 0s; }
-  .ripples.rec .ripple:nth-child(2) { animation: ripout 1.5s ease-out infinite 0.5s; }
-  .ripples.rec .ripple:nth-child(3) { animation: ripout 1.5s ease-out infinite 1s; }
-  @keyframes ripout {
-    0%   { transform: scale(1);   opacity: 0.5; }
-    100% { transform: scale(2.1); opacity: 0; }
-  }
+/* ── Username ── */
+.username-wrap { padding:10px 20px 0; flex-shrink:0; }
+.username {
+  font-size:32px;
+  font-weight:400;
+  letter-spacing:-0.5px;
+  color:var(--white);
+  cursor:pointer;
+  display:inline-block;
+}
+.username:active { opacity:0.6; }
 
-  /* PTT circle */
-  .ptt-outer {
-    width: 270px; height: 270px; border-radius: 50%;
-    border: 1.5px solid rgba(255,255,255,0.9);
-    display: flex; align-items: center; justify-content: center;
-    position: relative; transition: border-color 0.2s, transform 0.15s;
-    cursor: pointer;
-    -webkit-user-select: none; user-select: none; touch-action: none;
-  }
-  .ptt-outer.disabled { border-color: rgba(255,255,255,0.18); cursor: default; }
-  .ptt-outer.rec      { border-color: var(--red); transform: scale(1.03); }
-  .ptt-outer.sending  { border-color: var(--blue); }
-  .ptt-outer.cancelling { border-color: var(--amber); transform: scale(0.96); }
+/* ── Location ── */
+.location-wrap {
+  display:flex; align-items:center; justify-content:center;
+  padding:6px 20px 0;
+  flex-shrink:0;
+}
+.location-text {
+  font-size:15px;
+  font-weight:300;
+  color:var(--dim);
+  text-align:center;
+  letter-spacing:0.1px;
+}
 
-  .ptt-inner {
-    width: 228px; height: 228px; border-radius: 50%;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 12px;
-    background: transparent; transition: background 0.2s; pointer-events: none;
-  }
-  .ptt-outer.rec       .ptt-inner { background: rgba(255,69,58,0.08); }
-  .ptt-outer.sending   .ptt-inner { background: rgba(10,132,255,0.08); }
-  .ptt-outer.cancelling .ptt-inner { background: rgba(255,214,10,0.08); }
+/* ── Channel pill (hidden when no channel) ── */
+.channel-wrap {
+  display:flex; justify-content:center;
+  padding:8px 20px 0;
+  flex-shrink:0;
+  min-height:28px;
+}
+.channel-pill {
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(255,255,255,0.1);
+  border-radius:100px; padding:4px 12px;
+  cursor:pointer;
+}
+.channel-pill:active { background:rgba(255,255,255,0.18); }
+.ch-dot {
+  width:6px; height:6px; border-radius:50%;
+  background:var(--dim);
+  transition:background 0.3s, box-shadow 0.3s;
+  flex-shrink:0;
+}
+.ch-dot.online { background:var(--green); box-shadow:0 0 5px var(--green); }
+.ch-dot.rec    { background:var(--red); box-shadow:0 0 6px var(--red); animation:dotblink 0.5s ease-in-out infinite alternate; }
+.ch-dot.send   { background:var(--blue); box-shadow:0 0 5px var(--blue); }
+@keyframes dotblink { to { opacity:0.2; } }
+.ch-name {
+  font-size:12px; font-weight:400;
+  color:rgba(255,255,255,0.7);
+  letter-spacing:0.8px;
+  max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.channel-pill.ph .ch-name { color:var(--dim); }
+.peer-ct { font-size:11px; color:rgba(255,255,255,0.35); }
 
-  .ptt-icon { transition: opacity 0.2s; }
-  .ptt-outer.disabled .ptt-icon { opacity: 0.2; }
+/* ── PTT circle ── */
+.circle-wrap {
+  flex:1;
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+}
 
-  .ptt-label {
-    font-size: 11px; font-weight: 300; letter-spacing: 2.5px;
-    text-transform: uppercase; color: var(--dim); transition: color 0.2s;
-  }
-  .ptt-outer.disabled   .ptt-label { opacity: 0.25; }
-  .ptt-outer.rec        .ptt-label { color: var(--red); }
-  .ptt-outer.sending    .ptt-label { color: var(--blue); }
-  .ptt-outer.cancelling .ptt-label { color: var(--amber); }
+/* Ripples */
+.ripples { position:absolute; width:292px; height:292px; border-radius:50%; pointer-events:none; }
+.ripple  { position:absolute; inset:0; border-radius:50%; border:1px solid rgba(255,255,255,0.15); opacity:0; }
+.ripples.rec .ripple:nth-child(1) { animation:ripout 1.8s ease-out infinite 0s; }
+.ripples.rec .ripple:nth-child(2) { animation:ripout 1.8s ease-out infinite 0.6s; }
+.ripples.rec .ripple:nth-child(3) { animation:ripout 1.8s ease-out infinite 1.2s; }
+@keyframes ripout { 0%{transform:scale(1);opacity:0.4;} 100%{transform:scale(2.0);opacity:0;} }
 
-  /* Recording timer inside circle */
-  .rec-timer {
-    position: absolute; top: 18px;
-    font-family: 'DM Mono', monospace; font-size: 13px;
-    color: var(--red); letter-spacing: 2px;
-    opacity: 0; transition: opacity 0.2s;
-  }
-  .ptt-outer.rec .rec-timer { opacity: 1; }
-  .ptt-outer.cancelling .rec-timer { color: var(--amber); opacity: 1; }
+/* Cancel hint */
+.cancel-hint {
+  position:absolute; top:-36px;
+  font-size:12px; font-weight:300;
+  letter-spacing:0.5px;
+  color:rgba(255,255,255,0.5);
+  opacity:0; transition:opacity 0.2s;
+  pointer-events:none;
+}
+.cancel-hint.on { opacity:1; }
 
-  /* Bottombar */
-  .bottombar {
-    display: flex; flex-direction: column;
-    align-items: center; gap: 8px; padding: 0 16px 8px;
-  }
+/* Limit arc */
+.limit-svg {
+  position:absolute; width:300px; height:300px;
+  transform:rotate(-90deg); pointer-events:none;
+}
+#limitArc {
+  stroke-dasharray:864;
+  stroke-dashoffset:864;
+  transition:stroke-dashoffset 0.2s linear;
+}
 
-  /* Waveform */
-  .waveform {
-    display: flex; align-items: center;
-    justify-content: center; gap: 3px;
-    height: 28px; opacity: 0; transition: opacity 0.3s;
-  }
-  .waveform.on { opacity: 1; }
-  .wbar { width: 3px; height: 4px; background: var(--red); border-radius: 2px; transition: height 0.04s; }
+/* Main circle button */
+.ptt-circle {
+  width:292px; height:292px; border-radius:50%;
+  border:1.5px solid var(--white);
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+  cursor:pointer;
+  -webkit-user-select:none; user-select:none; touch-action:none;
+  transition:border-color 0.2s, transform 0.12s;
+  background:transparent;
+}
+.ptt-circle.disabled  { border-color:rgba(255,255,255,0.2); cursor:default; }
+.ptt-circle.rec       { border-color:var(--white); transform:scale(1.02); }
+.ptt-circle.sending   { border-color:rgba(255,255,255,0.5); }
+.ptt-circle.cancelling{ border-color:rgba(255,255,255,0.3); transform:scale(0.97); }
 
-  /* Message log */
-  .msg-log {
-    width: 100%;
-    max-height: 160px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 4px 4px;
-    -webkit-overflow-scrolling: touch;
-  }
-  .msg-log::-webkit-scrollbar { display: none; }
+.ptt-inner {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; pointer-events:none;
+  transition:opacity 0.15s;
+}
+.ptt-circle.disabled .ptt-inner { opacity:0.25; }
 
-  .msg-row {
-    display: flex; align-items: flex-end; gap: 8px;
-    animation: fadeup 0.25s ease;
-    flex-shrink: 0;
-  }
-  @keyframes fadeup { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-  .msg-row.me   { justify-content: flex-end; }
-  .msg-row.them { justify-content: flex-start; }
+/* Mic SVG icon — matches screenshot exactly */
+.mic-svg { transition:opacity 0.2s; }
 
-  .msg-bubble {
-    display: flex; align-items: center; gap: 8px;
-    padding: 9px 14px; border-radius: 20px;
-    cursor: pointer; max-width: 240px;
-    transition: opacity 0.15s; position: relative;
-  }
-  .msg-bubble:active { opacity: 0.75; }
-  .msg-row.me   .msg-bubble { background: var(--blue); border-radius: 18px 18px 4px 18px; }
-  .msg-row.them .msg-bubble { background: rgba(255,255,255,0.13); border-radius: 18px 18px 18px 4px; }
+.ptt-hint {
+  font-size:12px; font-weight:300;
+  color:var(--dim); letter-spacing:0.5px;
+  opacity:0; transition:opacity 0.2s;
+}
+.ptt-hint.on { opacity:1; }
 
-  /* Play/stop icon */
-  .msg-play-btn {
-    width: 28px; height: 28px; border-radius: 50%;
-    background: rgba(255,255,255,0.2);
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; transition: background 0.15s;
-  }
-  .msg-play-btn:hover { background: rgba(255,255,255,0.3); }
+/* Recording timer inside circle */
+.rec-time {
+  position:absolute; top:22px;
+  font-size:13px; font-weight:300;
+  color:rgba(255,255,255,0.7);
+  letter-spacing:1px;
+  opacity:0; transition:opacity 0.2s;
+  font-variant-numeric:tabular-nums;
+}
+.ptt-circle.rec .rec-time { opacity:1; }
 
-  .msg-info { display: flex; flex-direction: column; gap: 4px; }
-  .msg-duration {
-    font-family: 'DM Mono', monospace; font-size: 12px;
-    color: rgba(255,255,255,0.9); letter-spacing: 1px;
-  }
-  .msg-progress {
-    width: 90px; height: 3px; background: rgba(255,255,255,0.2);
-    border-radius: 2px; overflow: hidden;
-  }
-  .msg-progress-fill {
-    height: 100%; width: 0%;
-    background: rgba(255,255,255,0.85);
-    border-radius: 2px; transition: width 0.08s linear;
-  }
-  .msg-time {
-    font-size: 10px; color: rgba(255,255,255,0.4);
-    letter-spacing: 0.5px; align-self: flex-end;
-    margin-bottom: 2px; white-space: nowrap;
-  }
+/* ── Waveform ── */
+.wave-wrap {
+  display:flex; align-items:center; justify-content:center;
+  gap:3px; height:20px;
+  opacity:0; transition:opacity 0.3s;
+  flex-shrink:0; margin-bottom:4px;
+}
+.wave-wrap.on { opacity:1; }
+.wbar { width:2.5px; height:3px; background:var(--white); border-radius:2px; transition:height 0.04s; }
 
-  /* Unread dot on channel pill */
-  .unread-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--red); border: 1.5px solid #000;
-    position: absolute; top: -2px; right: -2px;
-    opacity: 0; transition: opacity 0.2s;
-  }
-  .channel-pill { position: relative; }
-  .channel-pill.has-unread .unread-dot { opacity: 1; }
+/* ── Message log ── */
+.msg-log-wrap {
+  padding:0 16px;
+  flex-shrink:0;
+  max-height:90px;
+  overflow-y:auto;
+  display:flex; flex-direction:column; gap:5px;
+  -webkit-overflow-scrolling:touch;
+  margin-bottom:4px;
+}
+.msg-log-wrap::-webkit-scrollbar { display:none; }
+.msg-row { display:flex; align-items:flex-end; gap:6px; animation:fadeup 0.2s ease; flex-shrink:0; }
+@keyframes fadeup { from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;} }
+.msg-row.me   { justify-content:flex-end; }
+.msg-row.them { justify-content:flex-start; }
+.msg-bubble {
+  display:flex; align-items:center; gap:7px;
+  padding:8px 12px; border-radius:18px;
+  cursor:pointer; max-width:250px; transition:opacity 0.15s;
+}
+.msg-bubble:active { opacity:0.7; }
+.msg-row.me   .msg-bubble { background:rgba(255,255,255,0.15); border-radius:16px 16px 3px 16px; }
+.msg-row.them .msg-bubble { background:rgba(255,255,255,0.1);  border-radius:16px 16px 16px 3px; }
+.msg-play { width:24px; height:24px; border-radius:50%; background:rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.msg-info { display:flex; flex-direction:column; gap:3px; }
+.msg-sender { font-size:10px; color:rgba(255,255,255,0.45); letter-spacing:0.3px; }
+.msg-dur { font-size:12px; color:rgba(255,255,255,0.85); }
+.msg-prog { width:70px; height:2px; background:rgba(255,255,255,0.15); border-radius:1px; overflow:hidden; }
+.msg-prog-fill { height:100%; width:0%; background:rgba(255,255,255,0.7); border-radius:1px; transition:width 0.08s linear; }
+.msg-meta { display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; }
+.msg-time { font-size:10px; color:rgba(255,255,255,0.25); }
+.msg-rcpt { font-size:10px; color:rgba(255,255,255,0.25); }
+.msg-rcpt.ok { color:var(--green); }
 
-  /* Status line */
-  .status-line {
-    font-size: 13px; font-weight: 300; color: var(--dim);
-    letter-spacing: 0.3px; text-align: center;
-    min-height: 18px; transition: color 0.3s;
-  }
-  .status-line.ok   { color: var(--green); }
-  .status-line.err  { color: var(--red); }
-  .status-line.warn { color: var(--amber); }
+/* ── Status line ── */
+.status-line {
+  font-size:13px; font-weight:300; text-align:center;
+  color:var(--dim); min-height:18px; padding:0 20px 2px;
+  flex-shrink:0; letter-spacing:0.2px;
+  transition:color 0.3s;
+}
+.status-line.ok   { color:var(--green); }
+.status-line.err  { color:var(--red); }
+.status-line.warn { color:var(--amber); }
 
-  /* Bottom sheet */
-  .overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-    display: flex; align-items: flex-end; z-index: 50;
-    opacity: 0; pointer-events: none; transition: opacity 0.2s;
-  }
-  .overlay.open { opacity: 1; pointer-events: all; }
-  .sheet {
-    width: 100%; background: #1c1c1e;
-    border-radius: 20px 20px 0 0;
-    padding: 16px 24px 40px;
-    display: flex; flex-direction: column; gap: 14px;
-    transform: translateY(100%);
-    transition: transform 0.28s cubic-bezier(0.32,0.72,0,1);
-  }
-  .overlay.open .sheet { transform: translateY(0); }
-  .sheet-handle {
-    width: 36px; height: 4px; background: rgba(255,255,255,0.18);
-    border-radius: 2px; margin: 0 auto 6px;
-  }
-  .sheet-title { font-size: 17px; font-weight: 500; text-align: center; }
-  .sheet-input {
-    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px; color: var(--white);
-    font-family: 'DM Mono', monospace; font-size: 20px; letter-spacing: 3px;
-    padding: 16px; outline: none; text-transform: uppercase;
-    width: 100%; text-align: center; transition: border-color 0.2s;
-  }
-  .sheet-input::placeholder { color: rgba(255,255,255,0.18); }
-  .sheet-input:focus { border-color: rgba(255,255,255,0.35); }
-  .sheet-join {
-    background: var(--white); border: none; border-radius: 12px; color: #000;
-    font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 500;
-    padding: 16px; cursor: pointer; transition: opacity 0.15s;
-  }
-  .sheet-join:active { opacity: 0.75; }
-  .sheet-cancel {
-    background: transparent; border: none; color: var(--dim);
-    font-size: 15px; font-family: 'DM Sans', sans-serif;
-    cursor: pointer; text-align: center; padding: 4px;
-  }
+/* ── Bottom nav bar ── */
+.bottom-nav {
+  display:flex; justify-content:space-around; align-items:center;
+  padding:8px 20px calc(env(safe-area-inset-bottom,0px) + 4px);
+  flex-shrink:0;
+}
+.nav-btn {
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  background:none; border:none; cursor:pointer; padding:4px 12px;
+  color:rgba(255,255,255,0.4); transition:color 0.15s;
+}
+.nav-btn:active { color:var(--white); }
+.nav-btn.active { color:var(--white); }
+.nav-label { font-size:10px; letter-spacing:0.3px; }
+
+/* ══════════════════════════════
+   MAP VIEW
+══════════════════════════════ */
+#mapView {
+  background:#1a1a2e;
+}
+.map-topbar {
+  position:absolute; top:0; left:0; right:0;
+  padding:calc(env(safe-area-inset-top,48px) + 4px) 16px 12px;
+  display:flex; align-items:center; gap:12px;
+  z-index:10;
+}
+.map-back {
+  width:32px; height:32px; border-radius:50%;
+  background:rgba(0,0,0,0.5);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border:none; cursor:pointer; color:var(--white);
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.map-back:active { background:rgba(0,0,0,0.7); }
+
+/* Map container */
+#mapContainer { position:absolute; inset:0; }
+
+/* Map bottom sheet */
+.map-bottom {
+  position:absolute; bottom:0; left:0; right:0;
+  background:rgba(0,0,0,0.75);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  padding:16px 20px calc(env(safe-area-inset-bottom,0px) + 20px);
+  display:flex; flex-direction:column; gap:12px;
+  border-top:1px solid rgba(255,255,255,0.1);
+  z-index:10;
+}
+.map-location-text {
+  text-align:center;
+  font-size:15px; font-weight:400;
+  color:var(--white); letter-spacing:0.1px;
+}
+.map-user-text {
+  text-align:center;
+  font-size:13px; font-weight:300;
+  color:rgba(255,255,255,0.6);
+}
+.talk-here-btn {
+  width:100%; padding:16px;
+  background:var(--blue);
+  border:none; border-radius:14px;
+  color:var(--white); font-size:17px; font-weight:500;
+  cursor:pointer; letter-spacing:0.2px;
+  transition:opacity 0.15s, transform 0.1s;
+  -webkit-user-select:none; user-select:none; touch-action:none;
+}
+.talk-here-btn:active, .talk-here-btn.pressed { opacity:0.85; transform:scale(0.99); }
+.talk-here-btn.transmitting {
+  background:#0055cc;
+  animation:btnpulse 0.8s ease-in-out infinite alternate;
+}
+@keyframes btnpulse { from{box-shadow:0 0 0 0 rgba(0,122,255,0.4);} to{box-shadow:0 0 0 12px rgba(0,122,255,0);} }
+
+/* ══════════════════════════════
+   OVERLAYS / SHEETS
+══════════════════════════════ */
+.overlay {
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.75);
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  display:flex; align-items:flex-end; z-index:100;
+  opacity:0; pointer-events:none; transition:opacity 0.22s;
+}
+.overlay.open { opacity:1; pointer-events:all; }
+.sheet {
+  width:100%; background:#1c1c1e;
+  border-radius:20px 20px 0 0;
+  padding:16px 20px 36px;
+  display:flex; flex-direction:column; gap:12px;
+  transform:translateY(100%);
+  transition:transform 0.28s cubic-bezier(0.32,0.72,0,1);
+}
+.overlay.open .sheet { transform:translateY(0); }
+.sheet-handle { width:36px; height:4px; background:rgba(255,255,255,0.18); border-radius:2px; margin:0 auto 4px; }
+.sheet-title { font-size:17px; font-weight:500; text-align:center; }
+.sheet-sub { font-size:13px; color:var(--dim); text-align:center; margin-top:-4px; }
+.sheet-input {
+  background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:12px; color:var(--white);
+  font-family:-apple-system,sans-serif;
+  font-size:20px; letter-spacing:2px;
+  padding:14px 16px; outline:none;
+  text-transform:uppercase; width:100%; text-align:center;
+  transition:border-color 0.2s;
+}
+.sheet-input::placeholder { color:rgba(255,255,255,0.18); }
+.sheet-input:focus { border-color:rgba(255,255,255,0.35); }
+.sheet-btn {
+  border:none; border-radius:12px;
+  font-family:-apple-system,sans-serif;
+  font-size:16px; font-weight:500;
+  padding:15px; cursor:pointer; transition:opacity 0.15s;
+}
+.sheet-btn:active { opacity:0.75; }
+.sheet-btn.primary { background:var(--white); color:#000; }
+.sheet-btn.secondary { background:rgba(255,255,255,0.08); color:var(--white); }
+
+/* ── Toast ── */
+.toast {
+  position:fixed; bottom:calc(env(safe-area-inset-bottom,0px)+90px);
+  left:50%; transform:translateX(-50%) translateY(8px);
+  background:rgba(30,30,32,0.95); border:1px solid rgba(255,255,255,0.1);
+  border-radius:10px; padding:9px 16px;
+  font-size:13px; color:var(--white);
+  opacity:0; transition:opacity 0.22s,transform 0.22s;
+  pointer-events:none; white-space:nowrap; z-index:200;
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* ── Reconnect banner ── */
+.reconnect-bar {
+  display:none; align-items:center; justify-content:center; gap:8px;
+  padding:6px; font-size:12px; color:var(--red);
+  background:rgba(255,69,58,0.1);
+}
+.reconnect-bar.on { display:flex; }
+.spinner { width:11px; height:11px; border:1.5px solid rgba(255,69,58,0.25); border-top-color:var(--red); border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg);} }
 </style>
 </head>
 <body>
-<div class="app">
 
+<!-- ══════════════════════════════
+     MAIN VIEW
+══════════════════════════════ -->
+<div class="view" id="mainView">
+
+  <div class="reconnect-bar" id="reconnectBar">
+    <div class="spinner"></div>
+    <span>Reconnecting...</span>
+  </div>
+
+  <!-- Top bar -->
   <div class="topbar">
-    <div class="topbar-left">
-      <div class="user-handle" id="userHandle">@loading</div>
-      <div class="user-location" id="userLocation">Connecting...</div>
+    <div class="topbar-icons">
+      <!-- Grid icon -->
+      <button class="top-icon-btn" onclick="openChannelSheet()" title="Channels">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <rect x="1" y="1" width="8" height="8" rx="1.5" fill="white" opacity="0.9"/>
+          <rect x="13" y="1" width="8" height="8" rx="1.5" fill="white" opacity="0.9"/>
+          <rect x="1" y="13" width="8" height="8" rx="1.5" fill="white" opacity="0.9"/>
+          <rect x="13" y="13" width="8" height="8" rx="1.5" fill="white" opacity="0.9"/>
+        </svg>
+      </button>
+      <!-- Map icon -->
+      <button class="top-icon-btn" onclick="showMapView()" title="Map">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M1 5l6-3 8 4 6-3v14l-6 3-8-4-6 3V5z" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none" opacity="0.9"/>
+          <line x1="7" y1="2" x2="7" y2="17" stroke="white" stroke-width="1.2" opacity="0.6"/>
+          <line x1="15" y1="5" x2="15" y2="20" stroke="white" stroke-width="1.2" opacity="0.6"/>
+        </svg>
+      </button>
     </div>
-    <button class="settings-btn" id="settingsBtn" title="Join channel">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round">
-        <path d="M8 1v5M5.1 2.9A6 6 0 1 0 10.9 2.9"/>
+    <button class="power-btn" id="powerBtn" onclick="openChannelSheet()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round">
+        <path d="M7 1v5M4.4 2.5A6 6 0 1 0 9.6 2.5"/>
       </svg>
     </button>
   </div>
 
-  <div class="channel-bar">
-    <div class="channel-pill" id="channelPill">
-      <span class="unread-dot" id="unreadDot"></span>
-      <span class="channel-dot" id="channelDot"></span>
-      <span class="channel-name ph" id="channelName">TAP TO JOIN</span>
+  <!-- Username -->
+  <div class="username-wrap">
+    <div class="username" id="usernameEl" onclick="openNameSheet()">@loading</div>
+  </div>
+
+  <!-- Location -->
+  <div class="location-wrap">
+    <div class="location-text" id="locationText">Locating...</div>
+  </div>
+
+  <!-- Channel pill -->
+  <div class="channel-wrap">
+    <div class="channel-pill ph" id="channelPill" onclick="openChannelSheet()">
+      <span class="ch-dot" id="chDot"></span>
+      <span class="ch-name" id="chNameEl">Tap to join channel</span>
+      <span class="peer-ct" id="peerCt"></span>
     </div>
   </div>
 
-  <div class="center">
-    <div class="cancel-hint" id="cancelHint">SLIDE UP TO CANCEL</div>
+  <!-- PTT circle -->
+  <div class="circle-wrap">
+    <div class="cancel-hint" id="cancelHint">Slide up to cancel</div>
+    <svg class="limit-svg" viewBox="0 0 300 300">
+      <circle cx="150" cy="150" r="137.5" fill="none" stroke="rgba(255,69,58,0.35)" stroke-width="2.5"
+        stroke-dasharray="864" stroke-dashoffset="864" id="limitArc" stroke-linecap="round"/>
+    </svg>
     <div class="ripples" id="ripples">
-      <div class="ripple"></div>
-      <div class="ripple"></div>
-      <div class="ripple"></div>
+      <div class="ripple"></div><div class="ripple"></div><div class="ripple"></div>
     </div>
-    <div class="ptt-outer disabled" id="pttBtn">
+    <div class="ptt-circle disabled" id="pttCircle">
       <div class="ptt-inner">
-        <svg class="ptt-icon" width="52" height="52" viewBox="0 0 52 52" fill="none">
-          <rect x="19" y="6" width="14" height="22" rx="7" stroke="white" stroke-width="1.8" fill="none"/>
-          <path d="M10 28c0 8.8 7.2 16 16 16s16-7.2 16-16" stroke="white" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-          <line x1="26" y1="44" x2="26" y2="50" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-          <line x1="19" y1="50" x2="33" y2="50" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <!-- Mic icon matching the screenshot exactly -->
+        <svg class="mic-svg" width="40" height="46" viewBox="0 0 40 46" fill="none">
+          <rect x="12" y="1" width="16" height="24" rx="8" stroke="white" stroke-width="2" fill="none"/>
+          <path d="M4 22c0 8.8 7.2 16 16 16s16-7.2 16-16" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <line x1="20" y1="38" x2="20" y2="44" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="13" y1="44" x2="27" y2="44" stroke="white" stroke-width="2" stroke-linecap="round"/>
         </svg>
-        <span class="ptt-label" id="pttLabel">HOLD TO RECORD</span>
+        <span class="ptt-hint" id="pttHint">Hold to record</span>
       </div>
-      <span class="rec-timer" id="recTimer">0:00</span>
+      <span class="rec-time" id="recTime">0:00</span>
     </div>
   </div>
 
-  <div class="bottombar">
-    <div class="waveform" id="waveform">
-      <div class="wbar" id="w1"></div><div class="wbar" id="w2"></div>
-      <div class="wbar" id="w3"></div><div class="wbar" id="w4"></div>
-      <div class="wbar" id="w5"></div><div class="wbar" id="w6"></div>
-      <div class="wbar" id="w7"></div><div class="wbar" id="w8"></div>
-      <div class="wbar" id="w9"></div><div class="wbar" id="w10"></div>
-      <div class="wbar" id="w11"></div><div class="wbar" id="w12"></div>
-    </div>
-    <div class="msg-log" id="msgLog"></div>
-    <div class="status-line" id="statusLine">Tap channel to get started</div>
+  <!-- Waveform -->
+  <div class="wave-wrap" id="waveWrap">
+    <div class="wbar" id="wb1"></div><div class="wbar" id="wb2"></div>
+    <div class="wbar" id="wb3"></div><div class="wbar" id="wb4"></div>
+    <div class="wbar" id="wb5"></div><div class="wbar" id="wb6"></div>
+    <div class="wbar" id="wb7"></div><div class="wbar" id="wb8"></div>
+    <div class="wbar" id="wb9"></div><div class="wbar" id="wb10"></div>
+  </div>
+
+  <!-- Message log -->
+  <div class="msg-log-wrap" id="msgLog"></div>
+
+  <!-- Status -->
+  <div class="status-line" id="statusLine">Tap grid to join a channel</div>
+
+  <!-- Bottom nav -->
+  <div class="bottom-nav">
+    <button class="nav-btn active" onclick="showMain()">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <circle cx="11" cy="11" r="9.5" stroke="white" stroke-width="1.5" fill="none"/>
+        <rect x="8" y="7" width="6" height="8" rx="3" stroke="white" stroke-width="1.3" fill="none"/>
+        <path d="M5 16c0-3 2.7-5 6-5s6 2 6 5" stroke="white" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+      </svg>
+      <span class="nav-label">Talk</span>
+    </button>
+    <button class="nav-btn" onclick="showMapView()">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <path d="M1 5l6-3 8 4 6-3v14l-6 3-8-4-6 3V5z" stroke="white" stroke-width="1.4" stroke-linejoin="round" fill="none" opacity="0.6"/>
+      </svg>
+      <span class="nav-label">Map</span>
+    </button>
+    <button class="nav-btn" onclick="openChannelSheet()">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <circle cx="11" cy="11" r="3.5" stroke="white" stroke-width="1.4" fill="none" opacity="0.6"/>
+        <path d="M11 1v3M11 18v3M1 11h3M18 11h3M3.3 3.3l2.1 2.1M16.6 16.6l2.1 2.1M16.6 3.3l-2.1 2.1M3.3 16.6l2.1 2.1" stroke="white" stroke-width="1.4" stroke-linecap="round" opacity="0.6"/>
+      </svg>
+      <span class="nav-label">Channel</span>
+    </button>
   </div>
 
 </div>
 
+<!-- ══════════════════════════════
+     MAP VIEW
+══════════════════════════════ -->
+<div class="view hidden" id="mapView">
+  <div id="mapContainer"></div>
+  <div class="map-topbar">
+    <button class="map-back" onclick="showMain()">
+      <svg width="10" height="16" viewBox="0 0 10 16" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 1L1 8L9 15"/>
+      </svg>
+    </button>
+  </div>
+  <div class="map-bottom">
+    <div class="map-location-text" id="mapLocationText">Locating...</div>
+    <div class="map-user-text" id="mapUserText">@loading</div>
+    <button class="talk-here-btn" id="talkHereBtn" disabled>Talk Here</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     SHEETS
+══════════════════════════════ -->
 <!-- Channel sheet -->
-<div class="overlay" id="overlay">
+<div class="overlay" id="channelOverlay">
   <div class="sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-title">Join a Channel</div>
-    <input class="sheet-input" id="sheetInput" placeholder="CHANNEL-01" maxlength="20" autocomplete="off" spellcheck="false"/>
-    <button class="sheet-join" id="sheetJoinBtn">Join</button>
-    <button class="sheet-cancel" id="sheetCancelBtn">Cancel</button>
+    <div class="sheet-sub">Share the same name with friends</div>
+    <input class="sheet-input" id="channelInput" placeholder="CHANNEL-01" maxlength="30" autocomplete="off" spellcheck="false"/>
+    <button class="sheet-btn primary" id="channelJoinBtn">Join</button>
+    <button class="sheet-btn secondary" id="channelCancelBtn">Cancel</button>
   </div>
 </div>
 
+<!-- Name sheet -->
+<div class="overlay" id="nameOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Your name</div>
+    <input class="sheet-input" id="nameInput" placeholder="YOUR NAME" maxlength="20" autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
+    <button class="sheet-btn primary" id="nameSaveBtn">Save</button>
+    <button class="sheet-btn secondary" id="nameCancelBtn">Cancel</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-// ── CONFIG ── Update to your deployed server URL
 var SERVER_URL = 'https://server-y327.onrender.com';
+var MAX_REC_SEC = 60;
+var MIN_REC_MS  = 500;
 
-var socket = io(SERVER_URL, { transports: ['websocket'] });
+var socket = io(SERVER_URL, {
+  transports:['websocket'],
+  reconnection:true,
+  reconnectionDelay:1500,
+  reconnectionAttempts:Infinity
+});
 
 // State
-var peerId        = null;
-var mediaRec      = null;
-var recChunks     = [];
-var recStream     = null;
-var recStartTime  = 0;
-var recDuration   = 0;
-var recInterval   = null;
-var isRecording   = false;
-var isCancelling  = false;
-var audioCtx      = null;
-var analyser      = null;
-var volInterval   = null;
-var currentAudio  = null;   // currently playing Audio object
-var touchStartY   = 0;
-var MIN_REC_MS    = 500;    // ignore taps shorter than 500ms
+var myName      = localStorage.getItem('wt_name') || '';
+var myRoom      = '';
+var peers       = {};
+var activeAudios= [];
+var userLat     = null, userLng = null;
+var locationStr = '';
+var mapInstance = null;
+var userMarker  = null;
 
-// Notification sound (short beep via Web Audio)
-function playBeep(freq, dur) {
-  try {
-    var ctx = new AudioContext();
-    var osc = ctx.createOscillator();
-    var gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + dur);
-    osc.onended = function() { ctx.close(); };
-  } catch(e) {}
+// Recording
+var mediaRec=null,recChunks=[],recStream=null;
+var recStartTime=0,recDuration=0,recInterval=null;
+var isRecording=false,isCancelling=false,touchStartY=0;
+
+// Audio
+var audioCtx=null,analyser=null,volInterval=null;
+
+// DOM
+var pttCircle  = document.getElementById('pttCircle');
+var pttHint    = document.getElementById('pttHint');
+var chDot      = document.getElementById('chDot');
+var chNameEl   = document.getElementById('chNameEl');
+var channelPill= document.getElementById('channelPill');
+var peerCt     = document.getElementById('peerCt');
+var statusLine = document.getElementById('statusLine');
+var usernameEl = document.getElementById('usernameEl');
+var locationText=document.getElementById('locationText');
+var ripples    = document.getElementById('ripples');
+var waveWrap   = document.getElementById('waveWrap');
+var recTime    = document.getElementById('recTime');
+var msgLog     = document.getElementById('msgLog');
+var cancelHint = document.getElementById('cancelHint');
+var limitArc   = document.getElementById('limitArc');
+var talkHereBtn= document.getElementById('talkHereBtn');
+var wBars=[];
+for(var i=1;i<=10;i++) wBars.push(document.getElementById('wb'+i));
+
+// ── Init ──
+(function(){
+  if (!myName) {
+    var adj =['swift','clear','brave','calm','sharp','quiet','bold','keen'];
+    var noun=['wave','link','beam','echo','pulse','relay','freq','node'];
+    myName = adj[Math.floor(Math.random()*8)]+noun[Math.floor(Math.random()*8)];
+    localStorage.setItem('wt_name', myName);
+  }
+  usernameEl.textContent = '@'+myName;
+  document.getElementById('mapUserText').textContent = '@'+myName;
+
+  // Auto-join from ?room=
+  var urlRoom = new URLSearchParams(window.location.search).get('room');
+  if (urlRoom) socket.on('connect', function(){ joinChannel(urlRoom.toUpperCase()); });
+
+  // Geolocation
+  getLocation();
+})();
+
+// ── Location ──
+function getLocation() {
+  if (!navigator.geolocation) { locationStr='Location unavailable'; locationText.textContent=locationStr; return; }
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+    reverseGeocode(userLat, userLng);
+    if (mapInstance) updateMapMarker();
+  }, function() {
+    locationStr = 'Location unavailable';
+    locationText.textContent = locationStr;
+    document.getElementById('mapLocationText').textContent = locationStr;
+  });
 }
 
-// Random handle
-var adj  = ['swift','clear','brave','calm','sharp','quiet','bold','keen'];
-var noun = ['wave','link','beam','echo','pulse','relay','freq','node'];
-document.getElementById('userHandle').textContent =
-  '@' + adj[Math.floor(Math.random() * 8)] + noun[Math.floor(Math.random() * 8)];
-
-// DOM refs
-var pttBtn      = document.getElementById('pttBtn');
-var pttLabel    = document.getElementById('pttLabel');
-var channelDot  = document.getElementById('channelDot');
-var channelName = document.getElementById('channelName');
-var channelPill = document.getElementById('channelPill');
-var statusLine  = document.getElementById('statusLine');
-var userLoc     = document.getElementById('userLocation');
-var ripples     = document.getElementById('ripples');
-var waveform    = document.getElementById('waveform');
-var recTimer    = document.getElementById('recTimer');
-var msgLog      = document.getElementById('msgLog');
-var cancelHint  = document.getElementById('cancelHint');
-var overlay     = document.getElementById('overlay');
-var sheetInput  = document.getElementById('sheetInput');
-var bars        = [];
-for (var i = 1; i <= 12; i++) bars.push(document.getElementById('w' + i));
-
-function setStatus(msg, cls) {
-  statusLine.textContent = msg;
-  statusLine.className = 'status-line' + (cls ? ' ' + cls : '');
+function reverseGeocode(lat, lng) {
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng)
+    .then(function(r){return r.json();})
+    .then(function(data){
+      var a = data.address||{};
+      var city  = a.city||a.town||a.village||a.county||'';
+      var state = a.state||a.region||'';
+      var country = a.country_code ? a.country_code.toUpperCase() : '';
+      locationStr = [city, state, country].filter(Boolean).join(', ');
+      locationText.textContent = locationStr || 'Unknown location';
+      document.getElementById('mapLocationText').textContent = locationStr || 'Unknown location';
+    })
+    .catch(function(){
+      locationStr = lat.toFixed(3)+', '+lng.toFixed(3);
+      locationText.textContent = locationStr;
+      document.getElementById('mapLocationText').textContent = locationStr;
+    });
 }
 
-function nowTime() {
-  var d = new Date();
-  var h = d.getHours(), m = d.getMinutes();
-  return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+// ── Views ──
+function showMain() {
+  document.getElementById('mainView').classList.remove('hidden');
+  document.getElementById('mapView').classList.add('hidden');
 }
 
-// ── Sheet ──
-function openSheet() { overlay.classList.add('open'); setTimeout(function() { sheetInput.focus(); }, 150); }
-function closeSheet() { overlay.classList.remove('open'); }
-overlay.addEventListener('click', function(e) { if (e.target === overlay) closeSheet(); });
-document.getElementById('sheetCancelBtn').addEventListener('click', closeSheet);
-channelPill.addEventListener('click', openSheet);
-document.getElementById('settingsBtn').addEventListener('click', openSheet);
-sheetInput.addEventListener('input', function() { sheetInput.value = sheetInput.value.toUpperCase(); });
-sheetInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') joinChannel(); });
-document.getElementById('sheetJoinBtn').addEventListener('click', joinChannel);
-
-function joinChannel() {
-  var room = sheetInput.value.trim();
-  if (!room) return;
-  socket.emit('join_room', room);
-  channelName.textContent = room;
-  channelName.classList.remove('ph');
-  channelDot.className = 'channel-dot';
-  setStatus('Scanning for peers...', 'warn');
-  closeSheet();
+function showMapView() {
+  document.getElementById('mainView').classList.add('hidden');
+  document.getElementById('mapView').classList.remove('hidden');
+  initMap();
 }
 
-// ── Socket events ──
-socket.on('connect', function() {
-  userLoc.textContent = 'Connected';
-  setStatus('Ready - tap channel to join', '');
-});
+function initMap() {
+  if (mapInstance) return;
+  // Load Leaflet
+  if (!window.L) {
+    var css = document.createElement('link');
+    css.rel='stylesheet'; css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(css);
+    var script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.onload = function(){ buildMap(); };
+    document.head.appendChild(script);
+  } else { buildMap(); }
+}
 
-socket.on('disconnect', function() {
-  userLoc.textContent = 'Disconnected';
-  setStatus('Connection lost', 'err');
-  channelDot.className = 'channel-dot';
-  pttBtn.classList.add('disabled');
-  peerId = null;
-  stopRecording(true);
-});
+function buildMap() {
+  var lat = userLat || 37.7749, lng = userLng || -122.4194;
+  mapInstance = L.map('mapContainer', {
+    zoomControl:false, attributionControl:false
+  }).setView([lat, lng], 14);
 
-socket.on('peer-joined', function(id) {
-  peerId = id;
-  channelDot.className = 'channel-dot online';
-  userLoc.textContent = 'Peer online';
-  setStatus('Hold to record, release to send', 'ok');
-  pttBtn.classList.remove('disabled');
-  playBeep(660, 0.12);
-});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom:19
+  }).addTo(mapInstance);
 
-socket.on('peer-left', function() {
-  peerId = null;
-  channelDot.className = 'channel-dot';
-  userLoc.textContent = 'Waiting for peer...';
-  setStatus('Peer disconnected', 'warn');
-  pttBtn.classList.add('disabled');
-  stopRecording(true);
-  playBeep(300, 0.2);
-});
+  // User marker
+  var icon = L.divIcon({
+    className:'',
+    html:'<div style="width:16px;height:16px;border-radius:50%;background:#007aff;border:3px solid white;box-shadow:0 0 8px rgba(0,122,255,0.6)"></div>',
+    iconSize:[16,16], iconAnchor:[8,8]
+  });
+  userMarker = L.marker([lat,lng],{icon:icon}).addTo(mapInstance);
+  talkHereBtn.disabled = false;
+}
 
-// FIX: event name matches server 'voice_message' underscore
-socket.on('voice_message', function(data) {
-  var blob = b64toBlob(data.audio, data.mime);
-  addMessage(blob, data.duration, false);
-  setStatus('New voice message', 'ok');
-  channelDot.className = 'channel-dot online';
-  channelPill.classList.add('has-unread');
-  playBeep(880, 0.08);
+function updateMapMarker() {
+  if (!mapInstance || !userMarker) return;
+  userMarker.setLatLng([userLat, userLng]);
+  mapInstance.setView([userLat, userLng], 14);
+}
+
+// ── Toast ──
+var toastTimer=null;
+function showToast(msg) {
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove('show');},2400);
+}
+
+// ── Status ──
+function setStatus(msg,cls){
+  statusLine.textContent=msg;
+  statusLine.className='status-line'+(cls?' '+cls:'');
+}
+
+function nowTime(){
+  var d=new Date(),h=d.getHours(),m=d.getMinutes();
+  return (h<10?'0':'')+h+':'+(m<10?'0':'')+m;
+}
+
+function updatePeers(){
+  var n=Object.keys(peers).length;
+  peerCt.textContent = n>0 ? n+' online' : '';
+  document.getElementById('mapLocationText').textContent = locationStr || 'Unknown location';
+}
+
+// ── Sheets ──
+function openChannelSheet(){
+  document.getElementById('channelOverlay').classList.add('open');
+  setTimeout(function(){document.getElementById('channelInput').focus();},150);
+}
+function closeChannelSheet(){ document.getElementById('channelOverlay').classList.remove('open'); }
+document.getElementById('channelOverlay').addEventListener('click',function(e){if(e.target===this)closeChannelSheet();});
+document.getElementById('channelCancelBtn').addEventListener('click',closeChannelSheet);
+document.getElementById('channelInput').addEventListener('input',function(){this.value=this.value.toUpperCase();});
+document.getElementById('channelInput').addEventListener('keydown',function(e){if(e.key==='Enter')doJoin();});
+document.getElementById('channelJoinBtn').addEventListener('click',doJoin);
+
+function doJoin(){
+  var r=document.getElementById('channelInput').value.trim();
+  if(!r) return;
+  joinChannel(r); closeChannelSheet();
+}
+function joinChannel(room){
+  myRoom=room;
+  chNameEl.textContent=room; channelPill.classList.remove('ph');
+  chDot.className='ch-dot'; setStatus('Joining '+room+'...','warn');
+  socket.emit('join_room',{room:room,name:myName});
+}
+
+function openNameSheet(){
+  document.getElementById('nameInput').value=myName;
+  document.getElementById('nameOverlay').classList.add('open');
+  setTimeout(function(){document.getElementById('nameInput').focus();},150);
+}
+document.getElementById('nameOverlay').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+document.getElementById('nameCancelBtn').addEventListener('click',function(){document.getElementById('nameOverlay').classList.remove('open');});
+document.getElementById('nameInput').addEventListener('keydown',function(e){if(e.key==='Enter')saveName();});
+document.getElementById('nameSaveBtn').addEventListener('click',saveName);
+function saveName(){
+  var n=document.getElementById('nameInput').value.trim();
+  if(!n) return;
+  myName=n.toLowerCase().replace(/\s+/g,'_');
+  localStorage.setItem('wt_name',myName);
+  usernameEl.textContent='@'+myName;
+  document.getElementById('mapUserText').textContent='@'+myName;
+  document.getElementById('nameOverlay').classList.remove('open');
+  if(myRoom) socket.emit('update_name',{name:myName});
+  showToast('Name updated');
+}
+
+// ── Socket ──
+socket.on('connect',function(){
+  document.getElementById('reconnectBar').classList.remove('on');
+  if(!myRoom) setStatus('Tap grid to join a channel','');
+});
+socket.on('disconnect',function(){
+  document.getElementById('reconnectBar').classList.add('on');
+  setStatus('Connection lost...','err');
+  pttCircle.classList.add('disabled'); pttHint.classList.remove('on');
+  talkHereBtn.disabled=true; stopRecording(true);
+});
+socket.on('connect_error',function(){
+  document.getElementById('reconnectBar').classList.add('on');
+});
+socket.on('room_state',function(data){
+  peers={};
+  (data.members||[]).forEach(function(m){if(m.sid!==socket.id)peers[m.sid]=m.name||m.sid.slice(0,6);});
+  updatePeers();
+  var n=Object.keys(peers).length;
+  chDot.className='ch-dot'+(n>0?' online':'');
+  setStatus(n>0?'Hold to record, release to send':'Waiting for others to join...', n>0?'ok':'warn');
+  pttCircle.classList.remove('disabled'); pttHint.classList.add('on');
+  talkHereBtn.disabled=false; playBeep(700,0.09);
+});
+socket.on('peer_joined',function(data){
+  peers[data.sid]=data.name||data.sid.slice(0,6); updatePeers();
+  chDot.className='ch-dot online';
+  setStatus('Hold to record, release to send','ok');
+  pttCircle.classList.remove('disabled'); pttHint.classList.add('on');
+  talkHereBtn.disabled=false;
+  showToast('@'+(data.name||'someone')+' joined'); playBeep(660,0.08);
+});
+socket.on('peer_left',function(data){
+  var name=peers[data.sid]||'someone'; delete peers[data.sid]; updatePeers();
+  if(Object.keys(peers).length===0){ chDot.className='ch-dot'; setStatus('Waiting for others...','warn'); }
+  showToast('@'+name+' left'); playBeep(400,0.14);
+});
+socket.on('peer_name_updated',function(data){if(peers[data.sid]){peers[data.sid]=data.name;updatePeers();}});
+socket.on('voice_message',function(data){
+  var blob=b64toBlob(data.audio,data.mime);
+  var sender=data.sender_name||peers[data.sender_sid]||'unknown';
+  addMessage(blob,data.duration,false,sender,data.msg_id);
+  socket.emit('msg_delivered',{msg_id:data.msg_id,to:data.sender_sid});
+  chDot.className='ch-dot online';
+  playBeep(900,0.06);
+  if(!document.hidden){
+    setTimeout(function(){
+      var rows=msgLog.querySelectorAll('.msg-row.them');
+      var last=rows[rows.length-1];
+      if(last){var b=last.querySelector('.msg-bubble');if(b)b.click();}
+    },250);
+  }
+});
+socket.on('msg_delivered',function(data){
+  var el=document.getElementById('rcpt_'+data.msg_id);
+  if(el){el.textContent='Delivered';el.classList.add('ok');}
 });
 
 // ── Recording ──
-async function startRecording() {
-  if (pttBtn.classList.contains('disabled') || isRecording) return;
-
-  try {
-    recStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-  } catch(err) {
-    setStatus('Mic error: ' + err.message, 'err');
-    return;
-  }
-
-  recChunks    = [];
-  isRecording  = true;
-  isCancelling = false;
-  recStartTime = Date.now();
-
-  // Pick best supported mime
-  var mime = 'audio/webm';
-  if (!MediaRecorder.isTypeSupported('audio/webm')) {
-    mime = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 'audio/ogg';
-  }
-
-  mediaRec = new MediaRecorder(recStream, { mimeType: mime });
-  mediaRec.ondataavailable = function(e) { if (e.data && e.data.size > 0) recChunks.push(e.data); };
+async function startRecording(){
+  if(pttCircle.classList.contains('disabled')||isRecording) return;
+  try{ recStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false}); }
+  catch(err){ showToast('Mic error: '+err.message); return; }
+  recChunks=[]; isRecording=true; isCancelling=false; recStartTime=Date.now();
+  var mime='audio/webm';
+  if(!MediaRecorder.isTypeSupported('audio/webm')) mime=MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':'audio/ogg';
+  mediaRec=new MediaRecorder(recStream,{mimeType:mime});
+  mediaRec.ondataavailable=function(e){if(e.data&&e.data.size>0)recChunks.push(e.data);};
   mediaRec.start(100);
-
-  // UI
-  pttBtn.classList.add('rec');
-  pttLabel.textContent = 'RECORDING';
-  ripples.classList.add('rec');
-  waveform.classList.add('on');
-  channelDot.className = 'channel-dot rec';
-  cancelHint.classList.add('on');
-  setStatus('Recording... release to send', 'err');
-  playBeep(440, 0.06);
-
-  recInterval = setInterval(function() {
-    var elapsed = (Date.now() - recStartTime) / 1000;
-    var m = Math.floor(elapsed / 60);
-    var s = Math.floor(elapsed % 60);
-    recTimer.textContent = m + ':' + (s < 10 ? '0' : '') + s;
-  }, 200);
-
-  startVolMeter(recStream);
+  pttCircle.classList.add('rec'); ripples.classList.add('rec');
+  waveWrap.classList.add('on'); cancelHint.classList.add('on');
+  chDot.className='ch-dot rec';
+  setStatus('Recording... release to send','err');
+  playBeep(500,0.05); startVolMeter(recStream);
+  recInterval=setInterval(function(){
+    var el=(Date.now()-recStartTime)/1000;
+    var m=Math.floor(el/60),s=Math.floor(el%60);
+    recTime.textContent=m+':'+(s<10?'0':'')+s;
+    limitArc.style.strokeDashoffset=864*(1-Math.min(el/MAX_REC_SEC,1));
+    if(el>=MAX_REC_SEC) stopRecording(false);
+  },200);
 }
 
-function stopRecording(cancel) {
-  if (!isRecording) return;
-
-  var elapsed = Date.now() - recStartTime;
-  isRecording = false;
-
-  clearInterval(recInterval);
-  recTimer.textContent = '0:00';
-
-  pttBtn.classList.remove('rec', 'sending', 'cancelling');
-  pttLabel.textContent = 'HOLD TO RECORD';
-  ripples.classList.remove('rec');
-  waveform.classList.remove('on');
-  cancelHint.classList.remove('on');
+function stopRecording(cancel){
+  if(!isRecording) return;
+  var elapsed=Date.now()-recStartTime; isRecording=false;
+  clearInterval(recInterval); recTime.textContent='0:00'; limitArc.style.strokeDashoffset=864;
+  pttCircle.classList.remove('rec','sending','cancelling'); ripples.classList.remove('rec');
+  waveWrap.classList.remove('on'); cancelHint.classList.remove('on');
   stopVolMeter();
-
-  if (recStream) {
-    recStream.getTracks().forEach(function(t) { t.stop(); });
-    recStream = null;
-  }
-
-  // FIX: capture duration before async mediaRec.onstop fires
-  recDuration = elapsed / 1000;
-
-  var shouldCancel = cancel || isCancelling || (elapsed < MIN_REC_MS);
-
-  if (shouldCancel) {
-    channelDot.className = peerId ? 'channel-dot online' : 'channel-dot';
-    if (elapsed < MIN_REC_MS && !cancel && !isCancelling) {
-      setStatus('Hold longer to record', 'warn');
-    } else {
-      setStatus(peerId ? 'Hold to record, release to send' : 'Waiting for peer...', peerId ? 'ok' : 'warn');
-    }
-    if (mediaRec && mediaRec.state !== 'inactive') mediaRec.stop();
+  if(recStream){recStream.getTracks().forEach(function(t){t.stop();});recStream=null;}
+  recDuration=elapsed/1000;
+  var shouldCancel=cancel||isCancelling||(elapsed<MIN_REC_MS);
+  if(shouldCancel){
+    if(elapsed<MIN_REC_MS&&!cancel&&!isCancelling) showToast('Hold longer to record');
+    else setStatus(Object.keys(peers).length>0?'Hold to record, release to send':'Waiting for others...',Object.keys(peers).length>0?'ok':'warn');
+    if(mediaRec&&mediaRec.state!=='inactive') mediaRec.stop();
+    chDot.className=Object.keys(peers).length>0?'ch-dot online':'ch-dot';
     return;
   }
-
-  if (!mediaRec) return;
-
-  mediaRec.onstop = function() {
-    if (recChunks.length === 0) {
-      setStatus('Recording too short', 'warn');
-      return;
-    }
-    var mime = mediaRec.mimeType;
-    var blob = new Blob(recChunks, { type: mime });
-    recChunks = [];
-    sendVoiceMessage(blob, recDuration, mime);
+  if(!mediaRec) return;
+  mediaRec.onstop=function(){
+    if(recChunks.length===0){setStatus('Recording too short','warn');return;}
+    var mime=mediaRec.mimeType, blob=new Blob(recChunks,{type:mime}); recChunks=[];
+    sendVoice(blob,recDuration,mime);
   };
-
-  if (mediaRec.state !== 'inactive') {
-    mediaRec.stop();
-  }
+  if(mediaRec.state!=='inactive') mediaRec.stop();
+  pttCircle.classList.add('sending'); chDot.className='ch-dot send';
+  setStatus('Sending...','');
 }
 
-function sendVoiceMessage(blob, duration, mime) {
-  pttBtn.classList.add('sending');
-  pttLabel.textContent = 'SENDING';
-  channelDot.className = 'channel-dot send';
-  setStatus('Sending...', '');
-
-  var reader = new FileReader();
-  reader.onload = function() {
-    var b64 = reader.result.split(',')[1];
-    // FIX: event name matches server handler 'voice_message' (underscore)
-    socket.emit('voice_message', {
-      to:       peerId,
-      audio:    b64,
-      mime:     mime,
-      duration: Math.round(duration * 10) / 10
-    });
-    addMessage(blob, duration, true);
-    pttBtn.classList.remove('sending');
-    pttLabel.textContent = 'HOLD TO RECORD';
-    channelDot.className = 'channel-dot online';
-    setStatus('Sent!', 'ok');
-    setTimeout(function() {
-      if (!isRecording) setStatus('Hold to record, release to send', 'ok');
-    }, 1500);
+function sendVoice(blob,duration,mime){
+  var msgId=Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  var reader=new FileReader();
+  reader.onload=function(){
+    var b64=reader.result.split(',')[1];
+    socket.emit('voice_message',{room:myRoom,audio:b64,mime:mime,duration:Math.round(duration*10)/10,msg_id:msgId,sender_name:myName});
+    addMessage(blob,duration,true,myName,msgId);
+    pttCircle.classList.remove('sending');
+    chDot.className=Object.keys(peers).length>0?'ch-dot online':'ch-dot';
+    setStatus('Sent!','ok');
+    setTimeout(function(){if(!isRecording)setStatus('Hold to record, release to send','ok');},1500);
   };
-  reader.onerror = function() {
-    setStatus('Send failed', 'err');
-    pttBtn.classList.remove('sending');
-    pttLabel.textContent = 'HOLD TO RECORD';
-    channelDot.className = 'channel-dot online';
+  reader.onerror=function(){
+    showToast('Send failed'); pttCircle.classList.remove('sending');
+    setStatus('Hold to record, release to send','ok');
+    chDot.className=Object.keys(peers).length>0?'ch-dot online':'ch-dot';
   };
   reader.readAsDataURL(blob);
 }
 
-// ── Message log ──
-var activeAudios = [];
-
-function addMessage(blob, duration, isMe) {
-  var url  = URL.createObjectURL(blob);
-  var dur  = formatDur(duration);
-  var time = nowTime();
-
-  var row = document.createElement('div');
-  row.className = 'msg-row ' + (isMe ? 'me' : 'them');
-
-  var timeEl = document.createElement('div');
-  timeEl.className = 'msg-time';
-  timeEl.textContent = time;
-
-  var bubble = document.createElement('div');
-  bubble.className = 'msg-bubble';
-
-  var playBtn = document.createElement('div');
-  playBtn.className = 'msg-play-btn';
-  playBtn.innerHTML = '<svg width="10" height="12" viewBox="0 0 10 12" fill="white"><polygon points="0,0 10,6 0,12"/></svg>';
-
-  var info = document.createElement('div');
-  info.className = 'msg-info';
-  info.innerHTML =
-    '<div class="msg-duration">' + dur + '</div>' +
-    '<div class="msg-progress"><div class="msg-progress-fill"></div></div>';
-
-  bubble.appendChild(playBtn);
-  bubble.appendChild(info);
-
-  // FIX: stop any currently playing audio before starting new one
-  var audio       = new Audio(url);
-  var progFill    = info.querySelector('.msg-progress-fill');
-  var progInterval= null;
-  var playing     = false;
-
-  function stopThis() {
-    audio.pause();
-    audio.currentTime = 0;
-    clearInterval(progInterval);
-    progFill.style.width = '0%';
-    playing = false;
-    playBtn.innerHTML = '<svg width="10" height="12" viewBox="0 0 10 12" fill="white"><polygon points="0,0 10,6 0,12"/></svg>';
-  }
-
-  bubble.addEventListener('click', function() {
-    if (playing) { stopThis(); return; }
-
-    // Stop all other playing messages
-    activeAudios.forEach(function(fn) { fn(); });
-
-    playing = true;
-    activeAudios.push(stopThis);
-
-    playBtn.innerHTML =
-      '<svg width="10" height="10" viewBox="0 0 10 10" fill="white">' +
-        '<rect x="0" y="0" width="3.5" height="10" rx="1"/>' +
-        '<rect x="6.5" y="0" width="3.5" height="10" rx="1"/>' +
-      '</svg>';
-
-    audio.play().catch(function() { stopThis(); });
-
-    progInterval = setInterval(function() {
-      if (!audio.duration) return;
-      progFill.style.width = ((audio.currentTime / audio.duration) * 100) + '%';
-    }, 80);
-
-    audio.onended = function() {
-      stopThis();
-      // FIX: revoke object URL to free memory
-      URL.revokeObjectURL(url);
-      activeAudios = activeAudios.filter(function(fn) { return fn !== stopThis; });
-    };
+// ── Messages ──
+function addMessage(blob,duration,isMe,senderName,msgId){
+  var url=URL.createObjectURL(blob),dur=formatDur(duration),time=nowTime();
+  var row=document.createElement('div'); row.className='msg-row '+(isMe?'me':'them');
+  var bubble=document.createElement('div'); bubble.className='msg-bubble';
+  var play=document.createElement('div'); play.className='msg-play';
+  play.innerHTML='<svg width="9" height="11" viewBox="0 0 9 11" fill="white"><polygon points="0,0 9,5.5 0,11"/></svg>';
+  var info=document.createElement('div'); info.className='msg-info';
+  if(!isMe){var sEl=document.createElement('div');sEl.className='msg-sender';sEl.textContent='@'+senderName;info.appendChild(sEl);}
+  var durEl=document.createElement('div');durEl.className='msg-dur';durEl.textContent=dur;
+  var prog=document.createElement('div');prog.className='msg-prog';
+  var fill=document.createElement('div');fill.className='msg-prog-fill';fill.id='fill_'+msgId;
+  prog.appendChild(fill); info.appendChild(durEl); info.appendChild(prog);
+  bubble.appendChild(play); bubble.appendChild(info);
+  var meta=document.createElement('div');meta.className='msg-meta';
+  var tEl=document.createElement('div');tEl.className='msg-time';tEl.textContent=time;meta.appendChild(tEl);
+  if(isMe){var rcpt=document.createElement('div');rcpt.className='msg-rcpt';rcpt.id='rcpt_'+msgId;rcpt.textContent='Sent';meta.appendChild(rcpt);}
+  var audio=new Audio(url),playing=false,progInt=null;
+  function stopThis(){audio.pause();audio.currentTime=0;clearInterval(progInt);fill.style.width='0%';playing=false;play.innerHTML='<svg width="9" height="11" viewBox="0 0 9 11" fill="white"><polygon points="0,0 9,5.5 0,11"/></svg>';}
+  bubble.addEventListener('click',function(){
+    if(playing){stopThis();return;}
+    activeAudios.forEach(function(fn){fn();});
+    playing=true; activeAudios.push(stopThis);
+    play.innerHTML='<svg width="9" height="9" viewBox="0 0 9 9" fill="white"><rect x="0" y="0" width="3.5" height="9" rx="1"/><rect x="5.5" y="0" width="3.5" height="9" rx="1"/></svg>';
+    audio.play().catch(stopThis);
+    progInt=setInterval(function(){if(!audio.duration)return;fill.style.width=((audio.currentTime/audio.duration)*100)+'%';},80);
+    audio.onended=function(){stopThis();URL.revokeObjectURL(url);activeAudios=activeAudios.filter(function(fn){return fn!==stopThis;});};
   });
-
-  if (isMe) {
-    row.appendChild(bubble);
-    row.appendChild(timeEl);
-  } else {
-    row.appendChild(timeEl);
-    row.appendChild(bubble);
-  }
-
-  msgLog.appendChild(row);
-  // Auto-scroll to latest
-  msgLog.scrollTop = msgLog.scrollHeight;
+  if(isMe){row.appendChild(bubble);row.appendChild(meta);}else{row.appendChild(meta);row.appendChild(bubble);}
+  msgLog.appendChild(row); msgLog.scrollTop=msgLog.scrollHeight;
 }
 
-function formatDur(sec) {
-  var s = Math.round(sec);
-  var m = Math.floor(s / 60);
-  var r = s % 60;
-  return m + ':' + (r < 10 ? '0' : '') + r;
-}
-
-function b64toBlob(b64, mime) {
-  var bin = atob(b64);
-  var arr = new Uint8Array(bin.length);
-  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-  return new Blob([arr], { type: mime });
-}
+function formatDur(sec){var s=Math.round(sec),m=Math.floor(s/60),r=s%60;return m+':'+(r<10?'0':'')+r;}
+function b64toBlob(b64,mime){var bin=atob(b64),arr=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new Blob([arr],{type:mime});}
 
 // ── Volume meter ──
-function startVolMeter(stream) {
-  audioCtx = new AudioContext();
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 64;
+function startVolMeter(stream){
+  audioCtx=new AudioContext(); analyser=audioCtx.createAnalyser(); analyser.fftSize=32;
   audioCtx.createMediaStreamSource(stream).connect(analyser);
-  var d = new Uint8Array(analyser.frequencyBinCount);
-  volInterval = setInterval(function() {
+  var d=new Uint8Array(analyser.frequencyBinCount);
+  volInterval=setInterval(function(){
     analyser.getByteFrequencyData(d);
-    bars.forEach(function(b, i) {
-      var v = d[i * 2] || 0;
-      b.style.height = Math.max(4, Math.min(24, v * 0.22)) + 'px';
-    });
-  }, 40);
+    wBars.forEach(function(b,i){var v=d[i*2]||0;b.style.height=Math.max(2,Math.min(18,v*0.18))+'px';});
+  },40);
 }
-function stopVolMeter() {
-  clearInterval(volInterval);
-  if (audioCtx) { audioCtx.close(); audioCtx = null; }
-  analyser = null;
-  bars.forEach(function(b) { b.style.height = '4px'; });
+function stopVolMeter(){
+  clearInterval(volInterval);if(audioCtx){audioCtx.close();audioCtx=null;}analyser=null;
+  wBars.forEach(function(b){b.style.height='3px';});
 }
 
-// ── PTT: mouse ──
-pttBtn.addEventListener('mousedown', function(e) {
-  e.preventDefault();
-  startRecording();
-});
-pttBtn.addEventListener('mouseup', function() {
-  stopRecording(false);
-});
-// FIX: don't cancel on mouseleave — only stop (so dragging out still sends)
-pttBtn.addEventListener('mouseleave', function() {
-  if (isRecording) stopRecording(false);
-});
+// ── Beep ──
+function playBeep(freq,dur){
+  try{var ctx=new AudioContext(),osc=ctx.createOscillator(),g=ctx.createGain();osc.connect(g);g.connect(ctx.destination);osc.frequency.value=freq;g.gain.setValueAtTime(0.1,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);osc.start();osc.stop(ctx.currentTime+dur);osc.onended=function(){ctx.close();};}catch(e){}
+}
 
-// ── PTT: touch with swipe-up-to-cancel ──
-pttBtn.addEventListener('touchstart', function(e) {
-  e.preventDefault();
-  touchStartY = e.touches[0].clientY;
-  startRecording();
-}, { passive: false });
+// ── PTT: map view Talk Here button ──
+var mapTouchStartY=0;
+talkHereBtn.addEventListener('mousedown',function(e){e.preventDefault();startRecording();});
+talkHereBtn.addEventListener('mouseup',function(){stopRecording(false);});
+talkHereBtn.addEventListener('mouseleave',function(){if(isRecording)stopRecording(false);});
+talkHereBtn.addEventListener('touchstart',function(e){e.preventDefault();mapTouchStartY=e.touches[0].clientY;startRecording();talkHereBtn.classList.add('pressed');},{passive:false});
+talkHereBtn.addEventListener('touchend',function(e){e.preventDefault();stopRecording(false);talkHereBtn.classList.remove('pressed');},{passive:false});
+talkHereBtn.addEventListener('touchcancel',function(e){e.preventDefault();stopRecording(true);talkHereBtn.classList.remove('pressed');},{passive:false});
 
-pttBtn.addEventListener('touchmove', function(e) {
-  e.preventDefault();
-  if (!isRecording) return;
-  var dy = touchStartY - e.touches[0].clientY;
-  if (dy > 60) {
-    // Swipe up > 60px = cancelling
-    if (!isCancelling) {
-      isCancelling = true;
-      pttBtn.classList.add('cancelling');
-      pttBtn.classList.remove('rec');
-      pttLabel.textContent = 'RELEASE TO CANCEL';
-      ripples.classList.remove('rec');
-    }
-  } else {
-    // Swipe back down = resume recording
-    if (isCancelling) {
-      isCancelling = false;
-      pttBtn.classList.remove('cancelling');
-      pttBtn.classList.add('rec');
-      pttLabel.textContent = 'RECORDING';
-      ripples.classList.add('rec');
-    }
-  }
-}, { passive: false });
+// ── PTT: main circle ──
+pttCircle.addEventListener('mousedown',function(e){e.preventDefault();startRecording();});
+pttCircle.addEventListener('mouseup',function(){stopRecording(false);});
+pttCircle.addEventListener('mouseleave',function(){if(isRecording)stopRecording(false);});
+pttCircle.addEventListener('touchstart',function(e){e.preventDefault();touchStartY=e.touches[0].clientY;startRecording();},{passive:false});
+pttCircle.addEventListener('touchmove',function(e){
+  e.preventDefault(); if(!isRecording)return;
+  var dy=touchStartY-e.touches[0].clientY;
+  if(dy>60&&!isCancelling){isCancelling=true;pttCircle.classList.add('cancelling');pttCircle.classList.remove('rec');ripples.classList.remove('rec');}
+  else if(dy<=60&&isCancelling){isCancelling=false;pttCircle.classList.remove('cancelling');pttCircle.classList.add('rec');ripples.classList.add('rec');}
+},{passive:false});
+pttCircle.addEventListener('touchend',function(e){e.preventDefault();stopRecording(false);},{passive:false});
+pttCircle.addEventListener('touchcancel',function(e){e.preventDefault();stopRecording(true);},{passive:false});
 
-pttBtn.addEventListener('touchend', function(e) {
-  e.preventDefault();
-  stopRecording(false);
-}, { passive: false });
-
-pttBtn.addEventListener('touchcancel', function(e) {
-  e.preventDefault();
-  stopRecording(true);
-}, { passive: false });
-
-// ── Space bar ──
-document.addEventListener('keydown', function(e) {
-  if (e.code === 'Space' && !e.repeat) startRecording();
-});
-document.addEventListener('keyup', function(e) {
-  if (e.code === 'Space') stopRecording(false);
-});
-
-// ── Clear unread on channel tap ──
-channelPill.addEventListener('click', function() {
-  channelPill.classList.remove('has-unread');
-});
+// Space bar
+document.addEventListener('keydown',function(e){if(e.code==='Space'&&!e.repeat)startRecording();});
+document.addEventListener('keyup',function(e){if(e.code==='Space')stopRecording(false);});
 </script>
 </body>
 </html>
