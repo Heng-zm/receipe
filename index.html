@@ -24,16 +24,12 @@
     box-sizing: border-box; margin: 0; padding: 0;
     -webkit-tap-highlight-color: transparent;
   }
-
   html, body {
     width: 100%; height: 100%;
-    background: var(--bg);
-    color: var(--white);
+    background: var(--bg); color: var(--white);
     font-family: 'DM Sans', sans-serif;
-    overflow: hidden;
-    -webkit-font-smoothing: antialiased;
+    overflow: hidden; -webkit-font-smoothing: antialiased;
   }
-
   .app {
     width: 100%; height: 100dvh;
     display: grid;
@@ -41,7 +37,7 @@
     padding: env(safe-area-inset-top, 48px) 0 env(safe-area-inset-bottom, 24px);
   }
 
-  /* Top bar */
+  /* Topbar */
   .topbar {
     display: flex; align-items: center; justify-content: space-between;
     padding: 12px 24px 0;
@@ -61,9 +57,7 @@
   .settings-btn:active { background: var(--dimmer); }
 
   /* Channel bar */
-  .channel-bar {
-    display: flex; justify-content: center; padding: 14px 24px 0;
-  }
+  .channel-bar { display: flex; justify-content: center; padding: 14px 24px 0; }
   .channel-pill {
     display: inline-flex; align-items: center; gap: 8px;
     background: var(--dimmer); border: 1px solid rgba(255,255,255,0.07);
@@ -80,7 +74,6 @@
   .channel-dot.rec    { background: var(--red);   box-shadow: 0 0 8px var(--red); animation: dotblink 0.5s ease-in-out infinite alternate; }
   .channel-dot.send   { background: var(--blue);  box-shadow: 0 0 8px var(--blue); }
   @keyframes dotblink { to { opacity: 0.3; } }
-
   .channel-name {
     font-family: 'DM Mono', monospace; font-size: 13px;
     letter-spacing: 1.5px; color: var(--white);
@@ -88,12 +81,21 @@
   }
   .channel-name.ph { color: var(--dim); }
 
-  /* Center */
+  /* Center PTT */
   .center {
     display: flex; align-items: center; justify-content: center; position: relative;
   }
 
-  /* Ripple rings */
+  /* Cancel hint — shows while recording */
+  .cancel-hint {
+    position: absolute; top: -28px;
+    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--red); opacity: 0; transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .cancel-hint.on { opacity: 1; }
+
+  /* Ripples */
   .ripples {
     position: absolute; width: 270px; height: 270px;
     border-radius: 50%; pointer-events: none;
@@ -115,13 +117,14 @@
     width: 270px; height: 270px; border-radius: 50%;
     border: 1.5px solid rgba(255,255,255,0.9);
     display: flex; align-items: center; justify-content: center;
-    position: relative; transition: border-color 0.2s;
+    position: relative; transition: border-color 0.2s, transform 0.15s;
     cursor: pointer;
     -webkit-user-select: none; user-select: none; touch-action: none;
   }
   .ptt-outer.disabled { border-color: rgba(255,255,255,0.18); cursor: default; }
-  .ptt-outer.rec      { border-color: var(--red); }
+  .ptt-outer.rec      { border-color: var(--red); transform: scale(1.03); }
   .ptt-outer.sending  { border-color: var(--blue); }
+  .ptt-outer.cancelling { border-color: var(--amber); transform: scale(0.96); }
 
   .ptt-inner {
     width: 228px; height: 228px; border-radius: 50%;
@@ -129,8 +132,9 @@
     align-items: center; justify-content: center; gap: 12px;
     background: transparent; transition: background 0.2s; pointer-events: none;
   }
-  .ptt-outer.rec     .ptt-inner { background: rgba(255,69,58,0.08); }
-  .ptt-outer.sending .ptt-inner { background: rgba(10,132,255,0.08); }
+  .ptt-outer.rec       .ptt-inner { background: rgba(255,69,58,0.08); }
+  .ptt-outer.sending   .ptt-inner { background: rgba(10,132,255,0.08); }
+  .ptt-outer.cancelling .ptt-inner { background: rgba(255,214,10,0.08); }
 
   .ptt-icon { transition: opacity 0.2s; }
   .ptt-outer.disabled .ptt-icon { opacity: 0.2; }
@@ -139,11 +143,12 @@
     font-size: 11px; font-weight: 300; letter-spacing: 2.5px;
     text-transform: uppercase; color: var(--dim); transition: color 0.2s;
   }
-  .ptt-outer.disabled .ptt-label { opacity: 0.25; }
-  .ptt-outer.rec      .ptt-label { color: var(--red); }
-  .ptt-outer.sending  .ptt-label { color: var(--blue); }
+  .ptt-outer.disabled   .ptt-label { opacity: 0.25; }
+  .ptt-outer.rec        .ptt-label { color: var(--red); }
+  .ptt-outer.sending    .ptt-label { color: var(--blue); }
+  .ptt-outer.cancelling .ptt-label { color: var(--amber); }
 
-  /* Record duration badge */
+  /* Recording timer inside circle */
   .rec-timer {
     position: absolute; top: 18px;
     font-family: 'DM Mono', monospace; font-size: 13px;
@@ -151,11 +156,12 @@
     opacity: 0; transition: opacity 0.2s;
   }
   .ptt-outer.rec .rec-timer { opacity: 1; }
+  .ptt-outer.cancelling .rec-timer { color: var(--amber); opacity: 1; }
 
-  /* Bottom */
+  /* Bottombar */
   .bottombar {
     display: flex; flex-direction: column;
-    align-items: center; gap: 10px; padding: 0 24px 8px;
+    align-items: center; gap: 8px; padding: 0 16px 8px;
   }
 
   /* Waveform */
@@ -166,48 +172,79 @@
   }
   .waveform.on { opacity: 1; }
   .wbar { width: 3px; height: 4px; background: var(--red); border-radius: 2px; transition: height 0.04s; }
-  .wbar.send { background: var(--blue); }
 
   /* Message log */
   .msg-log {
-    width: 100%; max-height: 80px; overflow-y: auto;
-    display: flex; flex-direction: column-reverse; gap: 6px;
-    padding: 0 4px;
+    width: 100%;
+    max-height: 160px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 4px 4px;
+    -webkit-overflow-scrolling: touch;
   }
+  .msg-log::-webkit-scrollbar { display: none; }
+
   .msg-row {
-    display: flex; align-items: center; gap: 10px;
-    animation: fadeup 0.3s ease;
+    display: flex; align-items: flex-end; gap: 8px;
+    animation: fadeup 0.25s ease;
+    flex-shrink: 0;
   }
-  @keyframes fadeup { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-  .msg-row.me  { justify-content: flex-end; }
+  @keyframes fadeup { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .msg-row.me   { justify-content: flex-end; }
   .msg-row.them { justify-content: flex-start; }
 
   .msg-bubble {
     display: flex; align-items: center; gap: 8px;
-    padding: 8px 14px; border-radius: 20px;
-    cursor: pointer; max-width: 220px;
-    transition: opacity 0.15s;
+    padding: 9px 14px; border-radius: 20px;
+    cursor: pointer; max-width: 240px;
+    transition: opacity 0.15s; position: relative;
   }
   .msg-bubble:active { opacity: 0.75; }
-  .msg-row.me   .msg-bubble { background: var(--blue); border-radius: 20px 20px 4px 20px; }
-  .msg-row.them .msg-bubble { background: rgba(255,255,255,0.12); border-radius: 20px 20px 20px 4px; }
+  .msg-row.me   .msg-bubble { background: var(--blue); border-radius: 18px 18px 4px 18px; }
+  .msg-row.them .msg-bubble { background: rgba(255,255,255,0.13); border-radius: 18px 18px 18px 4px; }
 
+  /* Play/stop icon */
+  .msg-play-btn {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: background 0.15s;
+  }
+  .msg-play-btn:hover { background: rgba(255,255,255,0.3); }
+
+  .msg-info { display: flex; flex-direction: column; gap: 4px; }
   .msg-duration {
     font-family: 'DM Mono', monospace; font-size: 12px;
     color: rgba(255,255,255,0.9); letter-spacing: 1px;
   }
-  .msg-play-icon { flex-shrink: 0; }
-
-  /* Progress bar inside bubble */
   .msg-progress {
-    width: 80px; height: 3px; background: rgba(255,255,255,0.25);
+    width: 90px; height: 3px; background: rgba(255,255,255,0.2);
     border-radius: 2px; overflow: hidden;
   }
   .msg-progress-fill {
-    height: 100%; width: 0%; background: rgba(255,255,255,0.8);
-    border-radius: 2px; transition: width 0.1s linear;
+    height: 100%; width: 0%;
+    background: rgba(255,255,255,0.85);
+    border-radius: 2px; transition: width 0.08s linear;
+  }
+  .msg-time {
+    font-size: 10px; color: rgba(255,255,255,0.4);
+    letter-spacing: 0.5px; align-self: flex-end;
+    margin-bottom: 2px; white-space: nowrap;
   }
 
+  /* Unread dot on channel pill */
+  .unread-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--red); border: 1.5px solid #000;
+    position: absolute; top: -2px; right: -2px;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .channel-pill { position: relative; }
+  .channel-pill.has-unread .unread-dot { opacity: 1; }
+
+  /* Status line */
   .status-line {
     font-size: 13px; font-weight: 300; color: var(--dim);
     letter-spacing: 0.3px; text-align: center;
@@ -278,12 +315,14 @@
 
   <div class="channel-bar">
     <div class="channel-pill" id="channelPill">
+      <span class="unread-dot" id="unreadDot"></span>
       <span class="channel-dot" id="channelDot"></span>
       <span class="channel-name ph" id="channelName">TAP TO JOIN</span>
     </div>
   </div>
 
   <div class="center">
+    <div class="cancel-hint" id="cancelHint">SLIDE UP TO CANCEL</div>
     <div class="ripples" id="ripples">
       <div class="ripple"></div>
       <div class="ripple"></div>
@@ -331,19 +370,43 @@
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
+// ── CONFIG ── Update to your deployed server URL
 var SERVER_URL = 'https://server-y327.onrender.com';
+
 var socket = io(SERVER_URL, { transports: ['websocket'] });
 
-var peerId       = null;
-var mediaRec     = null;
-var recChunks    = [];
-var recStream    = null;
-var recStartTime = 0;
-var recInterval  = null;
-var isRecording  = false;
-var audioCtx     = null;
-var analyser     = null;
-var volInterval  = null;
+// State
+var peerId        = null;
+var mediaRec      = null;
+var recChunks     = [];
+var recStream     = null;
+var recStartTime  = 0;
+var recDuration   = 0;
+var recInterval   = null;
+var isRecording   = false;
+var isCancelling  = false;
+var audioCtx      = null;
+var analyser      = null;
+var volInterval   = null;
+var currentAudio  = null;   // currently playing Audio object
+var touchStartY   = 0;
+var MIN_REC_MS    = 500;    // ignore taps shorter than 500ms
+
+// Notification sound (short beep via Web Audio)
+function playBeep(freq, dur) {
+  try {
+    var ctx = new AudioContext();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + dur);
+    osc.onended = function() { ctx.close(); };
+  } catch(e) {}
+}
 
 // Random handle
 var adj  = ['swift','clear','brave','calm','sharp','quiet','bold','keen'];
@@ -351,20 +414,22 @@ var noun = ['wave','link','beam','echo','pulse','relay','freq','node'];
 document.getElementById('userHandle').textContent =
   '@' + adj[Math.floor(Math.random() * 8)] + noun[Math.floor(Math.random() * 8)];
 
-// DOM
-var pttBtn     = document.getElementById('pttBtn');
-var pttLabel   = document.getElementById('pttLabel');
-var channelDot = document.getElementById('channelDot');
-var channelName= document.getElementById('channelName');
-var statusLine = document.getElementById('statusLine');
-var userLoc    = document.getElementById('userLocation');
-var ripples    = document.getElementById('ripples');
-var waveform   = document.getElementById('waveform');
-var recTimer   = document.getElementById('recTimer');
-var msgLog     = document.getElementById('msgLog');
-var overlay    = document.getElementById('overlay');
-var sheetInput = document.getElementById('sheetInput');
-var bars       = [];
+// DOM refs
+var pttBtn      = document.getElementById('pttBtn');
+var pttLabel    = document.getElementById('pttLabel');
+var channelDot  = document.getElementById('channelDot');
+var channelName = document.getElementById('channelName');
+var channelPill = document.getElementById('channelPill');
+var statusLine  = document.getElementById('statusLine');
+var userLoc     = document.getElementById('userLocation');
+var ripples     = document.getElementById('ripples');
+var waveform    = document.getElementById('waveform');
+var recTimer    = document.getElementById('recTimer');
+var msgLog      = document.getElementById('msgLog');
+var cancelHint  = document.getElementById('cancelHint');
+var overlay     = document.getElementById('overlay');
+var sheetInput  = document.getElementById('sheetInput');
+var bars        = [];
 for (var i = 1; i <= 12; i++) bars.push(document.getElementById('w' + i));
 
 function setStatus(msg, cls) {
@@ -372,12 +437,18 @@ function setStatus(msg, cls) {
   statusLine.className = 'status-line' + (cls ? ' ' + cls : '');
 }
 
+function nowTime() {
+  var d = new Date();
+  var h = d.getHours(), m = d.getMinutes();
+  return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+}
+
 // ── Sheet ──
 function openSheet() { overlay.classList.add('open'); setTimeout(function() { sheetInput.focus(); }, 150); }
 function closeSheet() { overlay.classList.remove('open'); }
 overlay.addEventListener('click', function(e) { if (e.target === overlay) closeSheet(); });
 document.getElementById('sheetCancelBtn').addEventListener('click', closeSheet);
-document.getElementById('channelPill').addEventListener('click', openSheet);
+channelPill.addEventListener('click', openSheet);
 document.getElementById('settingsBtn').addEventListener('click', openSheet);
 sheetInput.addEventListener('input', function() { sheetInput.value = sheetInput.value.toUpperCase(); });
 sheetInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') joinChannel(); });
@@ -394,11 +465,12 @@ function joinChannel() {
   closeSheet();
 }
 
-// ── Socket ──
+// ── Socket events ──
 socket.on('connect', function() {
   userLoc.textContent = 'Connected';
   setStatus('Ready - tap channel to join', '');
 });
+
 socket.on('disconnect', function() {
   userLoc.textContent = 'Disconnected';
   setStatus('Connection lost', 'err');
@@ -407,13 +479,16 @@ socket.on('disconnect', function() {
   peerId = null;
   stopRecording(true);
 });
+
 socket.on('peer-joined', function(id) {
   peerId = id;
   channelDot.className = 'channel-dot online';
   userLoc.textContent = 'Peer online';
   setStatus('Hold to record, release to send', 'ok');
   pttBtn.classList.remove('disabled');
+  playBeep(660, 0.12);
 });
+
 socket.on('peer-left', function() {
   peerId = null;
   channelDot.className = 'channel-dot';
@@ -421,19 +496,23 @@ socket.on('peer-left', function() {
   setStatus('Peer disconnected', 'warn');
   pttBtn.classList.add('disabled');
   stopRecording(true);
+  playBeep(300, 0.2);
 });
 
-// Receive audio message as base64
-socket.on('voice-message', function(data) {
+// FIX: event name matches server 'voice_message' underscore
+socket.on('voice_message', function(data) {
   var blob = b64toBlob(data.audio, data.mime);
   addMessage(blob, data.duration, false);
   setStatus('New voice message', 'ok');
   channelDot.className = 'channel-dot online';
+  channelPill.classList.add('has-unread');
+  playBeep(880, 0.08);
 });
 
-// ── Record ──
+// ── Recording ──
 async function startRecording() {
   if (pttBtn.classList.contains('disabled') || isRecording) return;
+
   try {
     recStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
   } catch(err) {
@@ -441,8 +520,9 @@ async function startRecording() {
     return;
   }
 
-  recChunks   = [];
-  isRecording = true;
+  recChunks    = [];
+  isRecording  = true;
+  isCancelling = false;
   recStartTime = Date.now();
 
   // Pick best supported mime
@@ -452,7 +532,7 @@ async function startRecording() {
   }
 
   mediaRec = new MediaRecorder(recStream, { mimeType: mime });
-  mediaRec.ondataavailable = function(e) { if (e.data.size > 0) recChunks.push(e.data); };
+  mediaRec.ondataavailable = function(e) { if (e.data && e.data.size > 0) recChunks.push(e.data); };
   mediaRec.start(100);
 
   // UI
@@ -461,9 +541,10 @@ async function startRecording() {
   ripples.classList.add('rec');
   waveform.classList.add('on');
   channelDot.className = 'channel-dot rec';
+  cancelHint.classList.add('on');
   setStatus('Recording... release to send', 'err');
+  playBeep(440, 0.06);
 
-  // Live timer
   recInterval = setInterval(function() {
     var elapsed = (Date.now() - recStartTime) / 1000;
     var m = Math.floor(elapsed / 60);
@@ -471,22 +552,23 @@ async function startRecording() {
     recTimer.textContent = m + ':' + (s < 10 ? '0' : '') + s;
   }, 200);
 
-  // Volume meter
   startVolMeter(recStream);
 }
 
 function stopRecording(cancel) {
   if (!isRecording) return;
+
+  var elapsed = Date.now() - recStartTime;
   isRecording = false;
 
   clearInterval(recInterval);
   recTimer.textContent = '0:00';
 
-  pttBtn.classList.remove('rec');
-  pttBtn.classList.remove('sending');
+  pttBtn.classList.remove('rec', 'sending', 'cancelling');
   pttLabel.textContent = 'HOLD TO RECORD';
   ripples.classList.remove('rec');
   waveform.classList.remove('on');
+  cancelHint.classList.remove('on');
   stopVolMeter();
 
   if (recStream) {
@@ -494,25 +576,41 @@ function stopRecording(cancel) {
     recStream = null;
   }
 
-  if (cancel || !mediaRec) {
+  // FIX: capture duration before async mediaRec.onstop fires
+  recDuration = elapsed / 1000;
+
+  var shouldCancel = cancel || isCancelling || (elapsed < MIN_REC_MS);
+
+  if (shouldCancel) {
     channelDot.className = peerId ? 'channel-dot online' : 'channel-dot';
-    if (peerId) setStatus('Hold to record, release to send', 'ok');
+    if (elapsed < MIN_REC_MS && !cancel && !isCancelling) {
+      setStatus('Hold longer to record', 'warn');
+    } else {
+      setStatus(peerId ? 'Hold to record, release to send' : 'Waiting for peer...', peerId ? 'ok' : 'warn');
+    }
+    if (mediaRec && mediaRec.state !== 'inactive') mediaRec.stop();
     return;
   }
 
-  var duration = (Date.now() - recStartTime) / 1000;
+  if (!mediaRec) return;
 
   mediaRec.onstop = function() {
+    if (recChunks.length === 0) {
+      setStatus('Recording too short', 'warn');
+      return;
+    }
     var mime = mediaRec.mimeType;
     var blob = new Blob(recChunks, { type: mime });
-    sendVoiceMessage(blob, duration, mime);
     recChunks = [];
+    sendVoiceMessage(blob, recDuration, mime);
   };
-  mediaRec.stop();
+
+  if (mediaRec.state !== 'inactive') {
+    mediaRec.stop();
+  }
 }
 
 function sendVoiceMessage(blob, duration, mime) {
-  // Show sending state
   pttBtn.classList.add('sending');
   pttLabel.textContent = 'SENDING';
   channelDot.className = 'channel-dot send';
@@ -521,64 +619,118 @@ function sendVoiceMessage(blob, duration, mime) {
   var reader = new FileReader();
   reader.onload = function() {
     var b64 = reader.result.split(',')[1];
-    socket.emit('voice-message', {
-      to: peerId,
-      audio: b64,
-      mime: mime,
+    // FIX: event name matches server handler 'voice_message' (underscore)
+    socket.emit('voice_message', {
+      to:       peerId,
+      audio:    b64,
+      mime:     mime,
       duration: Math.round(duration * 10) / 10
     });
-    // Add to own log
     addMessage(blob, duration, true);
-    // Reset UI
     pttBtn.classList.remove('sending');
     pttLabel.textContent = 'HOLD TO RECORD';
     channelDot.className = 'channel-dot online';
-    setStatus('Sent! Hold to record again', 'ok');
+    setStatus('Sent!', 'ok');
+    setTimeout(function() {
+      if (!isRecording) setStatus('Hold to record, release to send', 'ok');
+    }, 1500);
+  };
+  reader.onerror = function() {
+    setStatus('Send failed', 'err');
+    pttBtn.classList.remove('sending');
+    pttLabel.textContent = 'HOLD TO RECORD';
+    channelDot.className = 'channel-dot online';
   };
   reader.readAsDataURL(blob);
 }
 
 // ── Message log ──
+var activeAudios = [];
+
 function addMessage(blob, duration, isMe) {
-  var url = URL.createObjectURL(blob);
-  var dur = formatDur(duration);
+  var url  = URL.createObjectURL(blob);
+  var dur  = formatDur(duration);
+  var time = nowTime();
 
   var row = document.createElement('div');
   row.className = 'msg-row ' + (isMe ? 'me' : 'them');
 
+  var timeEl = document.createElement('div');
+  timeEl.className = 'msg-time';
+  timeEl.textContent = time;
+
   var bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
-  bubble.innerHTML =
-    '<svg class="msg-play-icon" width="16" height="16" viewBox="0 0 16 16" fill="white">' +
-      '<polygon points="4,2 14,8 4,14"/>' +
-    '</svg>' +
-    '<div>' +
-      '<div class="msg-duration">' + dur + '</div>' +
-      '<div class="msg-progress"><div class="msg-progress-fill" id="prog_' + Date.now() + '"></div></div>' +
-    '</div>';
 
-  var audio = new Audio(url);
-  var progFill = bubble.querySelector('.msg-progress-fill');
-  var playing = false;
+  var playBtn = document.createElement('div');
+  playBtn.className = 'msg-play-btn';
+  playBtn.innerHTML = '<svg width="10" height="12" viewBox="0 0 10 12" fill="white"><polygon points="0,0 10,6 0,12"/></svg>';
+
+  var info = document.createElement('div');
+  info.className = 'msg-info';
+  info.innerHTML =
+    '<div class="msg-duration">' + dur + '</div>' +
+    '<div class="msg-progress"><div class="msg-progress-fill"></div></div>';
+
+  bubble.appendChild(playBtn);
+  bubble.appendChild(info);
+
+  // FIX: stop any currently playing audio before starting new one
+  var audio       = new Audio(url);
+  var progFill    = info.querySelector('.msg-progress-fill');
+  var progInterval= null;
+  var playing     = false;
+
+  function stopThis() {
+    audio.pause();
+    audio.currentTime = 0;
+    clearInterval(progInterval);
+    progFill.style.width = '0%';
+    playing = false;
+    playBtn.innerHTML = '<svg width="10" height="12" viewBox="0 0 10 12" fill="white"><polygon points="0,0 10,6 0,12"/></svg>';
+  }
 
   bubble.addEventListener('click', function() {
-    if (playing) { audio.pause(); audio.currentTime = 0; playing = false; return; }
+    if (playing) { stopThis(); return; }
+
+    // Stop all other playing messages
+    activeAudios.forEach(function(fn) { fn(); });
+
     playing = true;
-    audio.play();
-    var progInterval = setInterval(function() {
+    activeAudios.push(stopThis);
+
+    playBtn.innerHTML =
+      '<svg width="10" height="10" viewBox="0 0 10 10" fill="white">' +
+        '<rect x="0" y="0" width="3.5" height="10" rx="1"/>' +
+        '<rect x="6.5" y="0" width="3.5" height="10" rx="1"/>' +
+      '</svg>';
+
+    audio.play().catch(function() { stopThis(); });
+
+    progInterval = setInterval(function() {
       if (!audio.duration) return;
-      var pct = (audio.currentTime / audio.duration) * 100;
-      progFill.style.width = pct + '%';
-    }, 100);
+      progFill.style.width = ((audio.currentTime / audio.duration) * 100) + '%';
+    }, 80);
+
     audio.onended = function() {
-      clearInterval(progInterval);
-      progFill.style.width = '0%';
-      playing = false;
+      stopThis();
+      // FIX: revoke object URL to free memory
+      URL.revokeObjectURL(url);
+      activeAudios = activeAudios.filter(function(fn) { return fn !== stopThis; });
     };
   });
 
-  row.appendChild(bubble);
-  msgLog.insertBefore(row, msgLog.firstChild);
+  if (isMe) {
+    row.appendChild(bubble);
+    row.appendChild(timeEl);
+  } else {
+    row.appendChild(timeEl);
+    row.appendChild(bubble);
+  }
+
+  msgLog.appendChild(row);
+  // Auto-scroll to latest
+  msgLog.scrollTop = msgLog.scrollHeight;
 }
 
 function formatDur(sec) {
@@ -588,7 +740,6 @@ function formatDur(sec) {
   return m + ':' + (r < 10 ? '0' : '') + r;
 }
 
-// ── Base64 -> Blob ──
 function b64toBlob(b64, mime) {
   var bin = atob(b64);
   var arr = new Uint8Array(bin.length);
@@ -618,17 +769,73 @@ function stopVolMeter() {
   bars.forEach(function(b) { b.style.height = '4px'; });
 }
 
-// ── PTT events ──
-pttBtn.addEventListener('mousedown',   startRecording);
-pttBtn.addEventListener('mouseup',     function() { stopRecording(false); });
-pttBtn.addEventListener('mouseleave',  function() { stopRecording(false); });
-pttBtn.addEventListener('touchstart',  function(e) { e.preventDefault(); startRecording(); },      { passive: false });
-pttBtn.addEventListener('touchend',    function(e) { e.preventDefault(); stopRecording(false); },  { passive: false });
-pttBtn.addEventListener('touchcancel', function(e) { e.preventDefault(); stopRecording(true); },   { passive: false });
+// ── PTT: mouse ──
+pttBtn.addEventListener('mousedown', function(e) {
+  e.preventDefault();
+  startRecording();
+});
+pttBtn.addEventListener('mouseup', function() {
+  stopRecording(false);
+});
+// FIX: don't cancel on mouseleave — only stop (so dragging out still sends)
+pttBtn.addEventListener('mouseleave', function() {
+  if (isRecording) stopRecording(false);
+});
 
-// Space bar
-document.addEventListener('keydown', function(e) { if (e.code === 'Space' && !e.repeat) startRecording(); });
-document.addEventListener('keyup',   function(e) { if (e.code === 'Space') stopRecording(false); });
+// ── PTT: touch with swipe-up-to-cancel ──
+pttBtn.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  touchStartY = e.touches[0].clientY;
+  startRecording();
+}, { passive: false });
+
+pttBtn.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  if (!isRecording) return;
+  var dy = touchStartY - e.touches[0].clientY;
+  if (dy > 60) {
+    // Swipe up > 60px = cancelling
+    if (!isCancelling) {
+      isCancelling = true;
+      pttBtn.classList.add('cancelling');
+      pttBtn.classList.remove('rec');
+      pttLabel.textContent = 'RELEASE TO CANCEL';
+      ripples.classList.remove('rec');
+    }
+  } else {
+    // Swipe back down = resume recording
+    if (isCancelling) {
+      isCancelling = false;
+      pttBtn.classList.remove('cancelling');
+      pttBtn.classList.add('rec');
+      pttLabel.textContent = 'RECORDING';
+      ripples.classList.add('rec');
+    }
+  }
+}, { passive: false });
+
+pttBtn.addEventListener('touchend', function(e) {
+  e.preventDefault();
+  stopRecording(false);
+}, { passive: false });
+
+pttBtn.addEventListener('touchcancel', function(e) {
+  e.preventDefault();
+  stopRecording(true);
+}, { passive: false });
+
+// ── Space bar ──
+document.addEventListener('keydown', function(e) {
+  if (e.code === 'Space' && !e.repeat) startRecording();
+});
+document.addEventListener('keyup', function(e) {
+  if (e.code === 'Space') stopRecording(false);
+});
+
+// ── Clear unread on channel tap ──
+channelPill.addEventListener('click', function() {
+  channelPill.classList.remove('has-unread');
+});
 </script>
 </body>
 </html>
