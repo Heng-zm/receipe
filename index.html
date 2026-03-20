@@ -771,14 +771,21 @@ function wireUI() {
   document.addEventListener('keydown', function (e) { if (e.code === 'Space' && !e.repeat) startRecording(); });
   document.addEventListener('keyup',   function (e) { if (e.code === 'Space') stopRecording(false); });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) channelPill.classList.remove('has-unread'); });
-  // Fix 5: unlock AudioContext on ANY touch — so receive-only users get audio too
-  document.addEventListener('touchstart', function() { unlockAudio(); }, { once: true, passive: true });
-  document.addEventListener('click',      function() { unlockAudio(); }, { once: true });
+  // Unlock AudioContext on first interaction with any interactive element.
+  // We use capture:true so it fires before any other handler, guaranteeing
+  // we're still inside the user gesture call stack when AudioContext is created.
+  var _audioUnlockHandler = function() {
+    unlockAudio();
+    document.removeEventListener('touchstart', _audioUnlockHandler, { capture: true });
+    document.removeEventListener('mousedown',  _audioUnlockHandler, { capture: true });
+  };
+  document.addEventListener('touchstart', _audioUnlockHandler, { capture: true, passive: true });
+  document.addEventListener('mousedown',  _audioUnlockHandler, { capture: true });
 }
 
 // ── PTT wiring ──
 function wirePTT(el, isMapBtn) {
-  el.addEventListener('mousedown',  function (e) { e.preventDefault(); startRecording(); });
+  el.addEventListener('mousedown',  function (e) { e.preventDefault(); unlockAudio(); startRecording(); });
   el.addEventListener('mouseup',    function () { stopRecording(false); });
   el.addEventListener('mouseleave', function () { if (isRecording) stopRecording(false); });
 
@@ -1877,27 +1884,53 @@ function stopVolMeter() {
 // iOS requires AudioContext to be created/resumed inside a user gesture.
 // We create it once on the first PTT press and reuse it for the session.
 function getSharedCtx(cb) {
-  if (sharedCtx && sharedCtx.state === 'running') { cb(sharedCtx); return; }
+  // Create context on first call
   if (!sharedCtx) {
     try { sharedCtx = new (window.AudioContext || window.webkitAudioContext)(); }
     catch(e) { cb(null); return; }
   }
-  if (sharedCtx.state === 'suspended') {
-    sharedCtx.resume().then(function(){ cb(sharedCtx); }).catch(function(){ cb(null); });
+  var state = sharedCtx.state;
+  if (state === 'running') {
+    cb(sharedCtx);
+  } else if (state === 'suspended' || state === 'interrupted') {
+    // Resume — this must be called inside or close to a user gesture.
+    // If it fails (policy violation), return null so callers degrade gracefully.
+    sharedCtx.resume()
+      .then(function() { cb(sharedCtx); })
+      .catch(function() {
+        // Context couldn't be resumed — likely no gesture yet.
+        // Return it anyway; playback will be silenced until next gesture unlocks it.
+        cb(sharedCtx);
+      });
+  } else if (state === 'closed') {
+    // Context was closed — create a fresh one
+    sharedCtx = null;
+    getSharedCtx(cb);
   } else {
     cb(sharedCtx);
   }
 }
 
 function unlockAudio() {
-  // Called on first user gesture (touchstart of PTT)
-  getSharedCtx(function(ctx) {
-    if (!ctx) return;
-    // Play a silent buffer to fully unlock on iOS
-    var buf = ctx.createBuffer(1, 1, 22050);
-    var src = ctx.createBufferSource();
-    src.buffer = buf; src.connect(ctx.destination); src.start(0);
-  });
+  // Must be called synchronously inside a user gesture handler.
+  // Creates the AudioContext and plays a silent buffer to fully unlock on iOS/Safari.
+  if (!sharedCtx) {
+    try { sharedCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { return; }
+  }
+  var ctx = sharedCtx;
+  function _doUnlock() {
+    try {
+      var buf = ctx.createBuffer(1, 1, 22050);
+      var src = ctx.createBufferSource();
+      src.buffer = buf; src.connect(ctx.destination); src.start(0);
+    } catch(e) {}
+  }
+  if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+    ctx.resume().then(_doUnlock).catch(_doUnlock);
+  } else {
+    _doUnlock();
+  }
 }
 
 // ── BUG 2: iOS-safe audio playback via AudioBuffer ──
