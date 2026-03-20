@@ -991,20 +991,27 @@ function geoDistance(lat1, lng1, lat2, lng2) {
 
 // ── Supabase calls routed via backend proxy (see SERVER_URL/zones) ──
 
-// Fetch all zones via backend proxy (keeps Supabase key server-side)
+// Fetch ALL zones (all devices) — every user sees every zone
 function sbFetchZones(onSuccess, onError) {
-  fetch(SERVER_URL + '/zones?device_id=' + encodeURIComponent(_deviceId), {
-    method: 'GET'
-  })
+  fetch(SERVER_URL + '/zones', { method: 'GET' })
   .then(function(r) {
     if (!r.ok) return r.text().then(function(t){ throw new Error(r.status + ': ' + t); });
     return r.json();
   })
   .then(function(rows) {
     onSuccess(rows.map(function(r) {
-      return { id:r.id, name:r.name, channel:r.channel,
-               lat:r.lat, lng:r.lng, radius:r.radius,
-               color:r.color, autoJoin:r.auto_join };
+      return {
+        id:       r.id,
+        deviceId: r.device_id,   // track ownership — only owner can delete
+        name:     r.name,
+        channel:  r.channel,
+        lat:      r.lat,
+        lng:      r.lng,
+        radius:   r.radius,
+        color:     r.color,
+        autoJoin:  r.auto_join,
+        createdBy: r.created_by || ''
+      };
     }));
   })
   .catch(function(e) { console.warn('sbFetchZones:', e); if (onError) onError(e); });
@@ -1021,7 +1028,8 @@ function sbUpsertZone(z, onError) {
     lng:       z.lng,
     radius:    z.radius,
     color:     z.color,
-    auto_join: z.autoJoin
+    auto_join:   z.autoJoin,
+    created_by:  z.createdBy || myName
   };
   console.log('[sbUpsertZone] sending:', JSON.stringify(payload));
   fetch(SERVER_URL + '/zones', {
@@ -1078,7 +1086,7 @@ function geoLoadData() {
         delete existingById[z.id];
       } else {
         newZones.push({
-          id: z.id, name: z.name || z.channel, channel: z.channel,
+          id: z.id, deviceId: z.deviceId || '', createdBy: z.createdBy || '', name: z.name || z.channel, channel: z.channel,
           lat: z.lat, lng: z.lng, radius: z.radius,
           color: z.color || GEO_COLORS[0], autoJoin: z.autoJoin !== false,
           circle: null, marker: null, bannerEl: null
@@ -1173,7 +1181,7 @@ function geoInit() {
 // ── Persist: localStorage cache only (Supabase is called directly in save/delete) ──
 function geoPersist() {
   var data = geoZones.map(function(z) {
-    return { id:z.id, name:z.name, channel:z.channel, lat:z.lat, lng:z.lng, radius:z.radius, color:z.color, autoJoin:z.autoJoin };
+    return { id:z.id, deviceId:z.deviceId, createdBy:z.createdBy||'', name:z.name, channel:z.channel, lat:z.lat, lng:z.lng, radius:z.radius, color:z.color, autoJoin:z.autoJoin };
   });
   localStorage.setItem('wt_geo_zones', JSON.stringify(data));
 }
@@ -1187,7 +1195,7 @@ function _esc(s) {
 function geoAddZoneToMap(z) {
   // Register data record first
   var zone = {
-    id: z.id, name: z.name || z.channel, channel: z.channel,
+    id: z.id, deviceId: z.deviceId || _deviceId, createdBy: z.createdBy || '', name: z.name || z.channel, channel: z.channel,
     lat: z.lat, lng: z.lng, radius: z.radius,
     color: z.color || GEO_COLORS[0], autoJoin: z.autoJoin !== false,
     circle: null, marker: null, bannerEl: null
@@ -1197,18 +1205,21 @@ function geoAddZoneToMap(z) {
   if (mapInstance) _geoDrawZone(zone);
 }
 
-// ── Delete zone ──
+// ── Delete zone — only the owner can delete ──
 function geoDeleteZone(id) {
   var idx = geoZones.findIndex(function(z){ return z.id === id; });
   if (idx === -1) return;
   var z = geoZones[idx];
+  if (z.deviceId && z.deviceId !== _deviceId) {
+    showToast('You can only delete your own zones');
+    return;
+  }
   if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
   if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
   if (z.bannerEl) { z.bannerEl.remove(); z.bannerEl = null; }
   geoZones.splice(idx, 1);
   delete geoInsideZones[id];
   geoPersist();
-  // Sync deletion to Supabase in background
   sbDeleteZone(id);
 }
 
@@ -1238,7 +1249,7 @@ function geoShowBanner(zone) {
     el.innerHTML =
       '<div class="geo-banner-accent" style="background:' + zone.color + '"></div>' +
       '<div class="geo-banner-body">' +
-        '<div class="geo-banner-title">' + _esc(zone.name) + ' · <span style="opacity:0.6;font-weight:400">#' + _esc(zone.channel) + '</span></div>' +
+        '<div class="geo-banner-title">' + _esc(zone.name) + ' · <span style="opacity:0.6;font-weight:400">#' + _esc(zone.channel) + '</span>' + (zone.deviceId === _deviceId ? ' <span style="font-size:10px;background:rgba(255,255,255,0.1);padding:1px 5px;border-radius:4px">mine</span>' : '') + '</div>' +
         '<div class="geo-banner-sub" id="gbsub_' + zone.id + '">Locating...</div>' +
         '<div class="geo-banner-prox">' +
           '<div class="geo-prox-bar"><div class="geo-prox-fill" id="gbfill_' + zone.id + '" style="background:' + zone.color + '"></div></div>' +
@@ -1411,7 +1422,7 @@ function geoSaveZone() {
   var aj  = document.getElementById('geoAutoJoin').checked;
   if (!ch) { showToast('Enter a channel name'); return; }
   var name = rawName ? rawName.toUpperCase().slice(0,24) : ch;
-  var zone = { id:'z_'+Date.now(), name:name, channel:ch, lat:geoNewZone.lat, lng:geoNewZone.lng, radius:r, color:col, autoJoin:aj };
+  var zone = { id:'z_'+Date.now(), deviceId:_deviceId, createdBy:myName, name:name, channel:ch, lat:geoNewZone.lat, lng:geoNewZone.lng, radius:r, color:col, autoJoin:aj };
   if (geoPreviewCircle) { mapInstance.removeLayer(geoPreviewCircle); geoPreviewCircle = null; }
   geoAddZoneToMap(zone);
   geoPersist();
@@ -1445,16 +1456,25 @@ function geoOpenList() {
       var mt   = document.createElement('div'); mt.className = 'geo-zone-meta';
       var dist = (userLat && userLng) ? Math.round(geoDistance(userLat, userLng, z.lat, z.lng)) : null;
       var distStr = dist !== null ? (dist >= 1000 ? (dist/1000).toFixed(1)+'km' : dist+'m') + ' away · ' : '';
-      mt.textContent = '#' + z.channel + ' · ' + z.radius + 'm radius · ' + (z.autoJoin ? 'auto-join on' : 'auto-join off');
+      var byStr = (!z.deviceId || z.deviceId === _deviceId) ? '' : (z.createdBy ? ' · by @' + z.createdBy : '');
+      mt.textContent = '#' + z.channel + ' · ' + z.radius + 'm radius' + byStr;
       info.appendChild(nm); info.appendChild(mt);
       if (inside) {
         var ins = document.createElement('div'); ins.className = 'geo-zone-inside';
         ins.style.color = z.color; ins.textContent = '● Inside now';
         info.appendChild(ins);
       }
-      var del = document.createElement('button'); del.className = 'geo-zone-del'; del.textContent = 'Delete';
-      del.addEventListener('click', (function(id){ return function(){ geoDeleteZone(id); geoOpenList(); }; })(z.id));
-      row.appendChild(sw); row.appendChild(info); row.appendChild(del);
+      var isOwner = !z.deviceId || z.deviceId === _deviceId;
+      if (isOwner) {
+        var del = document.createElement('button'); del.className = 'geo-zone-del'; del.textContent = 'Delete';
+        del.addEventListener('click', (function(id){ return function(){ geoDeleteZone(id); geoOpenList(); }; })(z.id));
+        row.appendChild(sw); row.appendChild(info); row.appendChild(del);
+      } else {
+        var shared = document.createElement('div');
+        shared.style.cssText = 'font-size:10px;color:var(--dim);white-space:nowrap;padding-left:4px';
+        shared.textContent = 'shared';
+        row.appendChild(sw); row.appendChild(info); row.appendChild(shared);
+      }
       list.appendChild(row);
     });
   }
