@@ -33,7 +33,7 @@
 html,body { width:100%; height:100%; background:var(--bg); color:var(--white); font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter',system-ui,'Helvetica Neue',sans-serif; overflow:hidden; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility; }
 
 /* ── Views ── */
-.view { position:absolute; inset:0; display:flex; flex-direction:column; height:100%; }
+.view { position:absolute; inset:0; display:flex; flex-direction:column; }
 .view.hidden { opacity:0; pointer-events:none; }
 /* Only animate if user hasn't opted out */
 @media (prefers-reduced-motion:no-preference) {
@@ -44,7 +44,6 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
    MAIN VIEW
 ════════════════════════════════════ */
 #mainView {
-  background:var(--bg);
   padding:env(safe-area-inset-top,48px) 0 env(safe-area-inset-bottom,20px);
 }
 
@@ -122,13 +121,10 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 .qd-row { display:flex; justify-content:space-between; align-items:center; gap:16px; }
 .qd-label { font-size:11px; font-weight:400; color:rgba(255,255,255,0.4); }
 .qd-value { font-size:12px; font-weight:600; color:var(--white); font-variant-numeric:tabular-nums; }
-.qd-bar-wrap { height:3px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; flex:1; }
-.qd-bar-fill { height:100%; border-radius:2px; transition:width 0.5s var(--ease-out); }
 
 /* Username */
 .username-wrap { padding:8px 20px 0; flex-shrink:0; }
-.username { font-size:32px; font-weight:400; letter-spacing:-1px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; line-height:1; }
-.username { transition:opacity 0.15s var(--ease-out); }
+.username { font-size:32px; font-weight:400; letter-spacing:-1px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; line-height:1; transition:opacity 0.15s var(--ease-out); }
 .username:active { opacity:0.6; }
 .username-edit { opacity:0.3; flex-shrink:0; }
 
@@ -330,7 +326,7 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
   background:var(--blue); border:none; border-radius:14px;
   color:var(--white); font-family:inherit; font-size:17px; font-weight:600; letter-spacing:-0.2px;
   cursor:pointer; transition:opacity 0.18s var(--ease-out), transform 0.16s var(--ease-spring), background 0.22s var(--ease-out);
-  -webkit-user-select:none; user-select:none; touch-action:none; will-change:transform;
+  -webkit-user-select:none; user-select:none; touch-action:none;
 }
 .talk-here-btn:disabled { opacity:0.35; cursor:default; }
 .talk-here-btn.pressed { opacity:0.85; transform:scale(0.97); }
@@ -350,10 +346,9 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 .sheet-handle { width:36px; height:4px; background:rgba(255,255,255,0.16); border-radius:2px; margin:0 auto 4px; }
 .sheet-title { font-size:17px; font-weight:600; text-align:center; letter-spacing:-0.2px; }
 .sheet-sub { font-size:13px; color:var(--dim); text-align:center; margin-top:-4px; line-height:1.4; letter-spacing:0.05px; }
-.sheet-input { background:rgba(255,255,255,0.07); border:1px solid var(--border); border-radius:12px; color:var(--white); font-family:inherit; font-size:18px; font-weight:500; letter-spacing:0.5px; padding:14px 16px; outline:none; width:100%; text-align:center; }
+.sheet-input { background:rgba(255,255,255,0.07); border:1px solid var(--border); border-radius:12px; color:var(--white); font-family:inherit; font-size:18px; font-weight:500; letter-spacing:0.5px; padding:14px 16px; outline:none; width:100%; text-align:center; transition:border-color 0.2s var(--ease-out); }
 .sheet-input::placeholder { color:rgba(255,255,255,0.16); }
 .sheet-input:focus { border-color:rgba(255,255,255,0.32); }
-.sheet-input { transition:border-color 0.2s var(--ease-out); }
 .sheet-btn { border:none; border-radius:12px; font-family:inherit; font-size:16px; font-weight:600; letter-spacing:-0.1px; padding:15px; cursor:pointer; transition:opacity 0.18s var(--ease-out), transform 0.14s var(--ease-spring); }
 .sheet-btn:active { opacity:0.75; transform:scale(0.97); }
 .sheet-btn.primary   { background:var(--white); color:#000; }
@@ -431,8 +426,6 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
   transition:background 0.15s var(--ease-out), transform 0.12s var(--ease-spring);
 }
 .geo-banner-dismiss:active { background:rgba(255,255,255,0.16); transform:scale(0.9); }
-/* Remove old sub-elements we replaced */
-.geo-banner-prox, .geo-prox-bar, .geo-prox-fill, .geo-prox-label { display:none; }
 
 /* Draw hint pill */
 .geo-draw-hint {
@@ -809,19 +802,6 @@ var userLat      = null;
 var userLng      = null;
 var locationStr  = '';
 
-// ── Geofence state ──
-var geoZones        = [];       // [{ id, channel, lat, lng, radius, circle, marker }]
-var geoDrawMode     = false;    // true when user is placing a new zone center
-var geoNewZone      = null;     // temp zone being created { lat, lng, radius, channel }
-var geoWatchId      = null;     // navigator.geolocation.watchPosition id
-var geoInsideZones  = {};       // id → true when user is inside that zone
-var geoPreviewCircle= null;     // Leaflet circle shown while drawing
-var _geoLastCheckLat = null;    // last lat/lng where geoCheckAll ran
-var _geoLastCheckLng = null;
-var _geoLastCodedLat = null;   // last reverse-geocoded position
-var _geoLastCodedLng = null;
-var GEO_MIN_MOVE_M   = 10;      // skip check if moved less than 10m
-
 // ── Recording state ──
 var mediaRec     = null;
 var recChunks    = [];
@@ -859,8 +839,7 @@ var limitArc     = document.getElementById('limitArc');
 var talkHereBtn  = document.getElementById('talkHereBtn');
 var mapUserText  = document.getElementById('mapUserText');
 var mapLocText   = document.getElementById('mapLocationText');
-var wBars = [];
-for (var _i = 1; _i <= 8; _i++) wBars.push(document.getElementById('wb' + _i));
+var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,b){ return a.id.localeCompare(b.id, undefined, {numeric:true}); });
 
 // ── Init ──
 (function init() {
@@ -995,23 +974,26 @@ function wirePTT(el, isMapBtn) {
 }
 
 // ── Views ──
+var _mainView = document.getElementById('mainView');
+var _mapView  = document.getElementById('mapView');
 function showMain() {
-  document.getElementById('mainView').classList.remove('hidden');
-  document.getElementById('mapView').classList.add('hidden');
+  _mainView.classList.remove('hidden');
+  _mapView.classList.add('hidden');
   setNavActive('navTalk');
 }
 function showMapView() {
-  document.getElementById('mainView').classList.add('hidden');
-  document.getElementById('mapView').classList.remove('hidden');
+  _mainView.classList.add('hidden');
+  _mapView.classList.remove('hidden');
   setNavActive('navMap');
   initMap();
-  // Re-measure container after it becomes visible
   setTimeout(function(){ if(mapInstance) mapInstance.invalidateSize(); }, 150);
 }
+var _navBtns = null;
 function setNavActive(id) {
-  ['navTalk','navMap','navChannel'].forEach(function (n) {
-    document.getElementById(n).classList.toggle('active', n === id);
-  });
+  if (!_navBtns) _navBtns = { navTalk: document.getElementById('navTalk'), navMap: document.getElementById('navMap'), navChannel: document.getElementById('navChannel') };
+  _navBtns.navTalk.classList.toggle('active', id === 'navTalk');
+  _navBtns.navMap.classList.toggle('active',  id === 'navMap');
+  _navBtns.navChannel.classList.toggle('active', id === 'navChannel');
 }
 
 // ── Geolocation ──
@@ -1043,15 +1025,20 @@ function setLocationText(s) {
   mapLocText.textContent   = s;
   _updateMapTopbar();
 }
+var _geocodeController = null;
 function reverseGeocode(lat, lng) {
-  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng)
+  // Cancel any in-flight request so stale results don't overwrite newer ones
+  if (_geocodeController) { try { _geocodeController.abort(); } catch(e){} }
+  _geocodeController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var opts = _geocodeController ? { signal: _geocodeController.signal } : {};
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng, opts)
     .then(function (r) { return r.json(); })
     .then(function (d) {
       var a = d.address || {};
       var parts = [a.city||a.town||a.village||a.county||'', a.state||'', a.country_code ? a.country_code.toUpperCase() : ''].filter(Boolean);
       setLocationText(parts.join(', ') || 'Unknown location');
     })
-    .catch(function () { setLocationText(lat.toFixed(3) + ', ' + lng.toFixed(3)); });
+    .catch(function (e) { if (e.name !== 'AbortError') setLocationText(lat.toFixed(3) + ', ' + lng.toFixed(3)); });
 }
 
 // ── Map ──
@@ -1729,6 +1716,14 @@ socket.on('disconnect', function () {
   pttHint.classList.remove('hidden');
   talkHereBtn.disabled = true;
   stopRecording(true);
+  // Reset quality indicator
+  _qualityScore = -1;
+  if (qualityBtn) {
+    qualityBtn.className = 'quality-btn q-none';
+    qualityTip.textContent = '—';
+    if (qb1) qb1.className = qb2.className = qb3.className = 'qbar';
+    _hideQualityDetail();
+  }
 });
 socket.on('connect_error', function () { document.getElementById('reconnectBar').classList.add('on'); });
 
@@ -1936,7 +1931,7 @@ async function startRecording() {
   chDot.className = 'ch-dot tx';
   setStatus('Recording... release to send', 'err');
   playBeep(500, 0.05);
-  startVolMeter(recStream, false);
+  startVolMeter(recStream);
 
   recTimerID = setInterval(function () {
     var elapsed = (Date.now() - recStartTime) / 1000;
@@ -2107,24 +2102,25 @@ function drainQueue() {
   } catch(e) { console.error('drainQueue error:', e); cleanupRx(); safeNext(); }
 }
 
+function _playTone(ctx, freq, start, end, gain) {
+  var o = ctx.createOscillator(), g = ctx.createGain();
+  o.connect(g); g.connect(ctx.destination);
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0, start);
+  g.gain.linearRampToValueAtTime(gain, start + 0.008);
+  g.gain.setValueAtTime(gain, end - 0.015);
+  g.gain.linearRampToValueAtTime(0, end);
+  o.start(start); o.stop(end);
+  return o;
+}
+
 function playIcomChirp(onDone) {
   getSharedCtx(function(ctx) {
     if (!ctx) { onDone(); return; }
     try {
       var t = ctx.currentTime;
-      function tone(freq, start, end) {
-        var o = ctx.createOscillator(), g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.frequency.value = freq;
-        g.gain.setValueAtTime(0, start);
-        g.gain.linearRampToValueAtTime(0.18, start + 0.008);
-        g.gain.setValueAtTime(0.18, end - 0.015);
-        g.gain.linearRampToValueAtTime(0, end);
-        o.start(start); o.stop(end);
-        return o;
-      }
-      tone(880, t, t+0.07);
-      var o2 = tone(1320, t+0.10, t+0.17);
+      _playTone(ctx, 880,  t,      t+0.07, 0.18);
+      var o2 = _playTone(ctx, 1320, t+0.10, t+0.17, 0.18);
       o2.onended = function() { setTimeout(onDone, 40); };
     } catch(e) { onDone(); }
   });
@@ -2135,15 +2131,8 @@ function playEndBeep() {
     if (!ctx) return;
     try {
       var t = ctx.currentTime;
-      function tone(freq, start, end) {
-        var o = ctx.createOscillator(), g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination); o.frequency.value = freq;
-        g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.13, start+0.007);
-        g.gain.setValueAtTime(0.13, end-0.015); g.gain.linearRampToValueAtTime(0, end);
-        o.start(start); o.stop(end); return o;
-      }
-      tone(1100, t, t+0.07);
-      tone(660, t+0.10, t+0.17);
+      _playTone(ctx, 1100, t,      t+0.07, 0.13);
+      _playTone(ctx, 660,  t+0.10, t+0.17, 0.13);
     } catch(e) {}
   });
 }
@@ -2154,54 +2143,43 @@ function setWaveBarsColor(cls) {
 }
 
 function b64toBlob(b64, mime) {
-  // BUG 8: chunked conversion — much faster on low-end Android for large audio
+  // Fast path: decode via fetch data-URL — browser-native, avoids per-byte JS loop
+  // Falls back to manual Uint8Array decode for environments without fetch
   try {
-    var bin   = atob(b64);
-    var len   = bin.length;
-    var chunk = 8192;
-    var parts = [];
-    for (var i = 0; i < len; i += chunk) {
-      var end  = Math.min(i + chunk, len);
-      var arr  = new Uint8Array(end - i);
-      for (var j = i; j < end; j++) arr[j - i] = bin.charCodeAt(j);
-      parts.push(arr);
-    }
-    return new Blob(parts, { type: mime });
+    var bin = atob(b64);
+    // Use Uint8Array.from with a map fn — single allocation, no chunked push
+    var arr = Uint8Array.from(bin, function(c) { return c.charCodeAt(0); });
+    return new Blob([arr], { type: mime });
   } catch(e) { return new Blob([], { type: mime }); }
 }
 
 // ── Volume meters ──
-function startVolMeter(stream, isRx) {
+function _startVizTick() {
+  // Shared RAF loop used by both TX (stream) and RX (audio buffer) meters
+  vizData = new Uint8Array(analyser.frequencyBinCount);
+  (function tick() {
+    if (!analyser) return;
+    analyser.getByteFrequencyData(vizData);
+    for (var i=0; i<8; i++) { var v=vizData[i*2]||0; wBars[i].style.height=Math.max(2,Math.min(18,v*0.18))+'px'; }
+    vizRAF = requestAnimationFrame(tick);
+  })();
+}
+
+function startVolMeter(stream) {
   stopVolMeter();
-  // Use sharedCtx so iOS doesn't block a new AudioContext creation
   getSharedCtx(function(ctx) {
     if (!ctx) return;
     analyser = ctx.createAnalyser(); analyser.fftSize = 32;
     ctx.createMediaStreamSource(stream).connect(analyser);
-    vizData = new Uint8Array(analyser.frequencyBinCount);
-    function tick() {
-      if (!analyser) return;
-      analyser.getByteFrequencyData(vizData);
-      for (var i=0;i<8;i++) { var v=vizData[i*2]||0; wBars[i].style.height=Math.max(2,Math.min(18,v*0.18))+'px'; }
-      vizRAF = requestAnimationFrame(tick);
-    }
-    vizRAF = requestAnimationFrame(tick);
+    _startVizTick();
   });
 }
 
 function startVolMeterAudio() {
-  // RX waveform — called from _setSrc (after decodeAndPlay creates the analyser)
-  // so analyser is guaranteed to exist when this runs.
-  if (vizRAF) { cancelAnimationFrame(vizRAF); vizRAF = null; }  // cancel any old RAF
-  if (!analyser) return;   // should not happen, but guard anyway
-  vizData = new Uint8Array(analyser.frequencyBinCount);
-  function tick() {
-    if (!analyser) return;
-    analyser.getByteFrequencyData(vizData);
-    for (var i=0;i<8;i++) { var v=vizData[i*2]||0; wBars[i].style.height=Math.max(2,Math.min(18,v*0.18))+'px'; }
-    vizRAF = requestAnimationFrame(tick);
-  }
-  vizRAF = requestAnimationFrame(tick);
+  // Called from _setSrc after decodeAndPlay creates the analyser
+  if (vizRAF) { cancelAnimationFrame(vizRAF); vizRAF = null; }
+  if (!analyser) return;
+  _startVizTick();
 }
 
 function stopVolMeter() {
@@ -2385,15 +2363,6 @@ socket.on('quality_update', function(data) {
 
   // Colour the score value in the panel
   qdScore.style.color = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--amber)' : 'var(--red)';
-});
-
-// Reset quality display on disconnect
-socket.on('disconnect', function() {
-  _qualityScore = -1;
-  qualityBtn.className = 'quality-btn q-none';
-  qualityTip.textContent = '—';
-  qb1.className = qb2.className = qb3.className = 'qbar';
-  _hideQualityDetail();
 });
 
 // Tap quality button — toggle detail popover
