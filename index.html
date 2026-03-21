@@ -109,7 +109,8 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 .quality-detail {
   position:fixed; top:calc(env(safe-area-inset-top,48px) + 54px);
   right:12px; z-index:210;
-  background:rgba(22,22,24,0.97);
+  background:rgba(18,18,20,0.92);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
   border:1px solid rgba(255,255,255,0.1);
   border-radius:12px; padding:12px 14px;
   display:flex; flex-direction:column; gap:6px;
@@ -151,7 +152,7 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 .ch-dot.send   { background:var(--amber); box-shadow:0 0 6px var(--amber); }
 @keyframes dotpulse { to { opacity:0.25; } }
 .ch-name { font-size:12px; font-weight:500; color:rgba(255,255,255,0.82); letter-spacing:0.15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:min(180px, 50vw); }
-.channel-pill.ph .ch-name { color:var(--dim); letter-spacing:0.3px; }
+.channel-pill.ph .ch-name { color:rgba(255,255,255,0.5); letter-spacing:0.2px; }
 .peer-ct { font-size:11px; font-weight:500; color:rgba(255,255,255,0.3); white-space:nowrap; flex-shrink:0; letter-spacing:0.1px; }
 
 /* ── Circle area ── */
@@ -184,14 +185,14 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
   display:flex; align-items:center; justify-content:center;
   position:relative; cursor:pointer;
   -webkit-user-select:none; user-select:none; touch-action:none;
-  transition:border-color 0.2s var(--ease-out), transform 0.18s var(--ease-spring), background 0.2s var(--ease-out);
+  transition:border-color 0.2s var(--ease-out), transform 0.18s var(--ease-spring), background 0.2s var(--ease-out), box-shadow 0.25s var(--ease-out);
   background:transparent;
   will-change:transform;
   transform:translateZ(0);
 }
 .ptt-circle.disabled   { border-color:rgba(255,255,255,0.18); cursor:default; }
-.ptt-circle.tx         { border-color:var(--white); transform:scale(1.02); }
-.ptt-circle.rx         { border-color:var(--blue); background:rgba(0,122,255,0.04); }
+.ptt-circle.tx         { border-color:var(--white); transform:scale(1.02); box-shadow:0 0 0 6px rgba(255,255,255,0.06), 0 0 32px rgba(255,255,255,0.08); }
+.ptt-circle.rx         { border-color:var(--blue); background:rgba(0,122,255,0.05); box-shadow:0 0 0 6px rgba(0,122,255,0.08), 0 0 32px rgba(0,122,255,0.10); }
 .ptt-circle.sending    { border-color:rgba(255,255,255,0.4); }
 .ptt-circle.cancelling { border-color:rgba(255,255,255,0.25); transform:scale(0.97); }
 
@@ -227,7 +228,7 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
   opacity:0; transition:opacity 0.28s var(--ease-out);
 }
 .wave-wrap.on { opacity:1; }
-.wbar { width:2.5px; height:3px; border-radius:2px; }
+.wbar { width:2.5px; height:3px; border-radius:2px; transition:height 0.07s var(--ease-out); }
 /* TX bars = white, RX bars = blue */
 .wbar.tx { background:var(--white); }
 .wbar.rx { background:var(--blue); }
@@ -235,7 +236,7 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 /* message log removed */
 
 /* ── Status line ── */
-.status-line { font-size:13px; font-weight:400; text-align:center; color:var(--dim); min-height:18px; padding:0 20px 2px; flex-shrink:0; transition:color 0.28s var(--ease-out); letter-spacing:0.05px; }
+.status-line { font-size:13px; font-weight:400; text-align:center; color:var(--dim); min-height:18px; padding:0 20px 2px; flex-shrink:0; transition:color 0.18s var(--ease-out); letter-spacing:0.05px; }
 .status-line.ok   { color:var(--green); }
 .status-line.err  { color:var(--red); }
 .status-line.rx   { color:var(--blue); }
@@ -246,6 +247,7 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 .nav-btn { display:flex; flex-direction:column; align-items:center; gap:4px; background:none; border:none; cursor:pointer; padding:6px 16px; color:rgba(255,255,255,0.35); transition:color 0.18s var(--ease-out), transform 0.12s var(--ease-out), background 0.15s var(--ease-out); border-radius:10px; }
 .nav-btn:active { background:rgba(255,255,255,0.08); transform:scale(0.9); }
 .nav-btn.active { color:var(--white); }
+.nav-btn.active::after { content:""; display:block; width:4px; height:4px; border-radius:50%; background:var(--white); margin:-2px auto 0; opacity:0.7; }
 .nav-label { font-size:11px; font-weight:500; letter-spacing:0.15px; }
 
 /* ════════════════════════════════════
@@ -506,12 +508,12 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 .geo-zone-name   { font-size:14px; font-weight:600; color:var(--white); letter-spacing:-0.1px; }
 .geo-zone-meta   { font-size:11px; font-weight:400; color:var(--dim); margin-top:2px; line-height:1.4; }
 .geo-zone-inside { font-size:11px; font-weight:600; letter-spacing:0.2px; margin-top:3px; }
-.geo-zone-del    {
+.geo-zone-del {
   background:rgba(255,69,58,0.1); border:1px solid rgba(255,69,58,0.18);
   border-radius:7px; color:var(--red); font-family:inherit; font-size:12px; font-weight:500; padding:5px 10px;
   cursor:pointer; flex-shrink:0;
+  transition:opacity 0.15s var(--ease-out), transform 0.12s var(--ease-spring);
 }
-.geo-zone-del { transition:opacity 0.15s var(--ease-out), transform 0.12s var(--ease-spring); }
 .geo-zone-del:active { opacity:0.7; transform:scale(0.95); }
 .geo-empty-zones { text-align:center; font-size:13px; font-weight:400; color:var(--dim); padding:20px 0; line-height:1.5; }
 
@@ -665,7 +667,7 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
           <line x1="21" y1="39" x2="21" y2="45" stroke="white" stroke-width="2" stroke-linecap="round" class="mic-path"/>
           <line x1="14" y1="45" x2="28" y2="45" stroke="white" stroke-width="2" stroke-linecap="round" class="mic-path"/>
         </svg>
-        <span class="ptt-hint" id="pttHint">Hold to record</span>
+        <span class="ptt-hint hidden" id="pttHint">Hold to record</span>
       </div>
       <span class="circ-timer" id="circTimer">0:00</span>
     </div>
@@ -909,6 +911,8 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
   }
   usernameText.textContent = '@' + myName;
   mapUserText.textContent  = '@' + myName;
+  pttHint.textContent = 'Join a channel to talk';
+  pttHint.classList.remove('hidden'); // show hint immediately — helps discoverability
 
   var urlRoom = new URLSearchParams(window.location.search).get('room');
   if (urlRoom) {
@@ -1138,13 +1142,14 @@ async function _acquireMicStream() {
 
 function _onLocSuccess(pos) {
   _locPermission = 'granted';
+  var firstFix = (userLat === null); // capture BEFORE updating coords
   userLat = pos.coords.latitude;
   userLng = pos.coords.longitude;
   if (_geoLastCodedLat === null || geoDistance(userLat, userLng, _geoLastCodedLat, _geoLastCodedLng) > 500) {
     _geoLastCodedLat = userLat; _geoLastCodedLng = userLng;
     reverseGeocode(userLat, userLng);
   }
-  if (mapInstance) updateMapMarker();
+  if (mapInstance) updateMapMarker(firstFix);
   geoCheckAll(userLat, userLng);
 }
 
@@ -1300,29 +1305,35 @@ function buildMap() {
   if (myRoom) talkHereBtn.disabled = false;
   geoInit();
 }
-function updateMapMarker() {
+function updateMapMarker(center) {
   if (!mapInstance || !userMarker) return;
   userMarker.setLatLng([userLat, userLng]);
-  mapInstance.setView([userLat, userLng], 14);
+  // Only pan if explicitly requested (first fix) — don't snap user away from where they panned
+  if (center) mapInstance.setView([userLat, userLng], 14);
 }
 
 // ── Sheets ──
 function openChannelSheet() {
+  var inp = document.getElementById('channelInput');
+  inp.value = myRoom || '';
   document.getElementById('channelOverlay').classList.add('open');
-  setTimeout(function () { document.getElementById('channelInput').focus(); }, 150);
+  setTimeout(function () { inp.focus(); inp.select(); }, 150);
 }
 function closeChannelSheet() { document.getElementById('channelOverlay').classList.remove('open'); }
 function doJoin() {
-  var r = document.getElementById('channelInput').value.trim();
+  var r = document.getElementById('channelInput').value.trim().toUpperCase().replace(/[^A-Z0-9\-_]/g,'').slice(0,40);
   if (!r) return;
-  joinChannel(r);
   closeChannelSheet();
+  if (r === myRoom) return; // already in this channel
+  joinChannel(r);
 }
 function joinChannel(room) {
   room = room.toUpperCase().replace(/[^A-Z0-9\-_]/g, '').slice(0, 40);
   if (!room) return;
   myRoom = room;
-  chNameEl.textContent = room;
+  peers = {};           // clear stale peer state immediately
+  updatePeers();
+  chNameEl.textContent = '#' + room;   // # prefix matches map topbar
   channelPill.classList.remove('ph');
   chDot.className = 'ch-dot';
   setStatus('Joining ' + room + '...', 'warn');
@@ -1343,6 +1354,8 @@ function saveName() {
   localStorage.setItem('wt_name', myName);
   usernameText.textContent = '@' + myName;
   mapUserText.textContent  = '@' + myName;
+  pttHint.textContent = 'Join a channel to talk';
+  pttHint.classList.remove('hidden'); // show hint immediately — helps discoverability
   document.getElementById('nameOverlay').classList.remove('open');
   if (myRoom) socket.emit('update_name', { name: myName });
   showToast('Name updated');
@@ -1795,6 +1808,8 @@ function geoCheckAll(lat, lng) {
         chDot.className = 'ch-dot';
         peerCt.textContent = '';
         pttCircle.classList.add('disabled');
+        pttHint.textContent = 'Join a channel to talk';
+        pttHint.classList.remove('hidden');
         talkHereBtn.disabled = true;
         setStatus('Tap grid to join a channel', '');
         peers = {};
@@ -2027,6 +2042,7 @@ socket.on('disconnect', function () {
   document.getElementById('reconnectBar').classList.add('on');
   setStatus('Connection lost...', 'err');
   pttCircle.classList.add('disabled');
+  pttHint.textContent = 'Join a channel to talk';
   pttHint.classList.remove('hidden');
   talkHereBtn.disabled = true;
   stopRecording(true);
@@ -2050,6 +2066,7 @@ socket.on('room_state', function (data) {
   var extra = numPeers() > 2 ? ' +' + (numPeers()-2) : '';
   setStatus(numPeers() > 0 ? names+extra+' online' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
   pttCircle.classList.remove('disabled');
+  pttHint.textContent = 'Hold to record';
   pttHint.classList.remove('hidden');
   talkHereBtn.disabled = false;
   playBeep(700, 0.09);
@@ -2060,6 +2077,7 @@ socket.on('peer_joined', function (data) {
   chDot.className = 'ch-dot online';
   setStatus('Hold to record, release to send', 'ok');
   pttCircle.classList.remove('disabled');
+  pttHint.textContent = 'Hold to record';
   pttHint.classList.remove('hidden');
   talkHereBtn.disabled = false;
   showToast('@'+(data.name||'someone')+' joined');
@@ -2069,7 +2087,11 @@ socket.on('peer_left', function (data) {
   var name = peers[data.sid] || 'someone';
   delete peers[data.sid];
   updatePeers();
-  if (numPeers() === 0) { chDot.className = 'ch-dot'; setStatus('Waiting for others...', 'warn'); }
+  if (numPeers() === 0) {
+    chDot.className = 'ch-dot';
+    setStatus('Waiting for others...', 'warn');
+    pttHint.textContent = 'Hold to record';  // keep PTT active — message queues when peer arrives
+  }
   showToast('@'+name+' left');
   playBeep(400, 0.14);
 });
@@ -2093,7 +2115,9 @@ socket.on('error', function (data) {
     setStatus('Channel full — try another', 'warn');
     myRoom = ''; chNameEl.textContent = 'Tap to join channel';
     channelPill.classList.add('ph'); chDot.className = 'ch-dot'; peerCt.textContent = '';
-    pttCircle.classList.add('disabled'); pttHint.classList.add('hidden');
+    pttCircle.classList.add('disabled');
+    pttHint.textContent = 'Join a channel to talk';
+    pttHint.classList.remove('hidden');
     talkHereBtn.disabled = true;
   } else if (code === 'MSG_TOO_LARGE') {
     showToast('Recording too large — keep under 60s');
