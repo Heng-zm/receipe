@@ -903,8 +903,19 @@ function wirePTT(el, isMapBtn) {
     }, { passive: false });
   }
 
-  el.addEventListener('touchend',    function (e) { e.preventDefault(); if (isMapBtn) talkHereBtn.classList.remove('pressed'); stopRecording(false); }, { passive: false });
-  el.addEventListener('touchcancel', function (e) { e.preventDefault(); if (isMapBtn) talkHereBtn.classList.remove('pressed'); stopRecording(true); },  { passive: false });
+  el.addEventListener('touchend', function (e) {
+    // Guard: only preventDefault when cancelable (prevents synthetic click double-fire)
+    if (e.cancelable) e.preventDefault();
+    if (isMapBtn) talkHereBtn.classList.remove('pressed');
+    stopRecording(false);
+  }, { passive: false });
+
+  el.addEventListener('touchcancel', function () {
+    // touchcancel is always non-cancelable — never call preventDefault() on it.
+    // The browser fires this when it takes over the touch (scroll, system gesture, etc.)
+    if (isMapBtn) talkHereBtn.classList.remove('pressed');
+    stopRecording(true);
+  });  // no passive:false — we're not calling preventDefault
 }
 
 // ── Views ──
