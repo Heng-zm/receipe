@@ -77,6 +77,54 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 .power-btn { width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.18); background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.15s var(--ease-out), transform 0.12s var(--ease-out); }
 .power-btn:active { background:rgba(255,255,255,0.1); transform:scale(0.9); }
 
+/* Connection quality indicator */
+.quality-btn {
+  background:none; border:none; cursor:pointer; padding:5px 6px;
+  display:flex; align-items:center; gap:5px;
+  border-radius:8px; opacity:0.75;
+  transition:opacity 0.15s var(--ease-out), transform 0.12s var(--ease-out);
+}
+.quality-btn:active { opacity:0.45; transform:scale(0.88); }
+.quality-bars { display:flex; align-items:flex-end; gap:2px; height:14px; }
+.qbar {
+  width:3px; border-radius:1.5px;
+  background:rgba(255,255,255,0.2);
+  transition:background 0.4s var(--ease-out), height 0.35s var(--ease-spring);
+}
+.qbar.lit  { background:var(--q-color, rgba(255,255,255,0.7)); }
+/* Score colour tokens — updated by JS */
+.quality-btn.q-good  { --q-color: var(--green); }
+.quality-btn.q-fair  { --q-color: var(--amber); }
+.quality-btn.q-poor  { --q-color: var(--red);   }
+.quality-btn.q-none  { --q-color: rgba(255,255,255,0.3); }
+.quality-score-tip {
+  font-size:11px; font-weight:500; color:rgba(255,255,255,0.35);
+  letter-spacing:0.1px; white-space:nowrap;
+  transition:color 0.4s var(--ease-out);
+}
+.quality-btn.q-good .quality-score-tip { color:var(--green); }
+.quality-btn.q-fair .quality-score-tip { color:var(--amber); }
+.quality-btn.q-poor .quality-score-tip { color:var(--red); }
+
+/* Quality detail toast — richer than normal toast */
+.quality-detail {
+  position:fixed; top:calc(env(safe-area-inset-top,48px) + 54px);
+  right:12px; z-index:210;
+  background:rgba(22,22,24,0.97);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:12px; padding:12px 14px;
+  display:flex; flex-direction:column; gap:6px;
+  opacity:0; transform:translateY(-6px) scale(0.97);
+  transition:opacity 0.22s var(--ease-out), transform 0.24s var(--ease-spring);
+  pointer-events:none; min-width:160px;
+}
+.quality-detail.on { opacity:1; transform:translateY(0) scale(1); pointer-events:all; }
+.qd-row { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.qd-label { font-size:11px; font-weight:400; color:rgba(255,255,255,0.4); }
+.qd-value { font-size:12px; font-weight:600; color:var(--white); font-variant-numeric:tabular-nums; }
+.qd-bar-wrap { height:3px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; flex:1; }
+.qd-bar-fill { height:100%; border-radius:2px; transition:width 0.5s var(--ease-out); }
+
 /* Username */
 .username-wrap { padding:8px 20px 0; flex-shrink:0; }
 .username { font-size:32px; font-weight:400; letter-spacing:-1px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; line-height:1; }
@@ -492,6 +540,34 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
         <path d="M7 1v5M4.4 2.5A6 6 0 1 0 9.6 2.5"/>
       </svg>
     </button>
+    <button class="quality-btn q-none" id="qualityBtn" title="Connection quality">
+      <div class="quality-bars" id="qualityBars">
+        <div class="qbar" id="qb1" style="height:5px"></div>
+        <div class="qbar" id="qb2" style="height:9px"></div>
+        <div class="qbar" id="qb3" style="height:14px"></div>
+      </div>
+      <span class="quality-score-tip" id="qualityTip">—</span>
+    </button>
+  </div>
+
+  <!-- Quality detail popover -->
+  <div class="quality-detail" id="qualityDetail">
+    <div class="qd-row">
+      <span class="qd-label">Score</span>
+      <span class="qd-value" id="qdScore">—</span>
+    </div>
+    <div class="qd-row">
+      <span class="qd-label">Latency</span>
+      <span class="qd-value" id="qdLatency">—</span>
+    </div>
+    <div class="qd-row">
+      <span class="qd-label">Jitter</span>
+      <span class="qd-value" id="qdJitter">—</span>
+    </div>
+    <div class="qd-row">
+      <span class="qd-label">Drop</span>
+      <span class="qd-value" id="qdDrop">—</span>
+    </div>
   </div>
 
   <div class="username-wrap">
@@ -2260,6 +2336,88 @@ function playBeep(freq, dur) {
       o.start(); o.stop(ctx.currentTime+dur);
     } catch(e){}
   });
+}
+
+// ── Connection quality ────────────────────────────────────────────────────────
+var _qualityScore   = -1;   // -1 = no data yet
+var _qualityDetail  = false; // popover open?
+var _qualityPopTimer = null;
+
+var qualityBtn    = document.getElementById('qualityBtn');
+var qualityDetail = document.getElementById('qualityDetail');
+var qdScore       = document.getElementById('qdScore');
+var qdLatency     = document.getElementById('qdLatency');
+var qdJitter      = document.getElementById('qdJitter');
+var qdDrop        = document.getElementById('qdDrop');
+var qualityTip    = document.getElementById('qualityTip');
+var qb1 = document.getElementById('qb1');
+var qb2 = document.getElementById('qb2');
+var qb3 = document.getElementById('qb3');
+
+// Echo quality_ping back immediately — RTT measured server-side
+socket.on('quality_ping', function(data) {
+  socket.emit('quality_pong', { nonce: data.nonce });
+});
+
+// Receive quality_update — update bars, tip, and detail panel
+socket.on('quality_update', function(data) {
+  var score   = data.score      || 0;
+  var latency = data.latency_ms || 0;
+  var jitter  = data.jitter_ms  || 0;
+  var drop    = data.drop_pct   || 0;
+  _qualityScore = score;
+
+  // Choose colour class
+  var cls = score >= 70 ? 'q-good' : score >= 40 ? 'q-fair' : 'q-poor';
+  qualityBtn.className = 'quality-btn ' + cls;
+  qualityTip.textContent = score;
+
+  // Bars: 3 levels — light bar 1 at >0, bar 2 at >35, bar 3 at >70
+  qb1.className = 'qbar' + (score > 0  ? ' lit' : '');
+  qb2.className = 'qbar' + (score > 35 ? ' lit' : '');
+  qb3.className = 'qbar' + (score > 70 ? ' lit' : '');
+
+  // Detail panel values
+  qdScore.textContent   = score + ' / 100';
+  qdLatency.textContent = latency + ' ms';
+  qdJitter.textContent  = jitter  + ' ms';
+  qdDrop.textContent    = drop    + '%';
+
+  // Colour the score value in the panel
+  qdScore.style.color = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--amber)' : 'var(--red)';
+});
+
+// Reset quality display on disconnect
+socket.on('disconnect', function() {
+  _qualityScore = -1;
+  qualityBtn.className = 'quality-btn q-none';
+  qualityTip.textContent = '—';
+  qb1.className = qb2.className = qb3.className = 'qbar';
+  _hideQualityDetail();
+});
+
+// Tap quality button — toggle detail popover
+qualityBtn.addEventListener('click', function(e) {
+  e.stopPropagation();
+  if (_qualityScore < 0) return; // no data yet — nothing to show
+  _qualityDetail ? _hideQualityDetail() : _showQualityDetail();
+});
+
+// Tap anywhere else — close detail
+document.addEventListener('click', function() { _hideQualityDetail(); });
+document.addEventListener('touchstart', function() { _hideQualityDetail(); }, { passive: true });
+
+function _showQualityDetail() {
+  _qualityDetail = true;
+  qualityDetail.classList.add('on');
+  clearTimeout(_qualityPopTimer);
+  // Auto-close after 6s
+  _qualityPopTimer = setTimeout(_hideQualityDetail, 6000);
+}
+function _hideQualityDetail() {
+  _qualityDetail = false;
+  qualityDetail.classList.remove('on');
+  clearTimeout(_qualityPopTimer);
 }
 </script>
 </body>
