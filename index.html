@@ -1059,6 +1059,10 @@ function setNavActive(id) {
 }
 
 // ── Geolocation ──
+// getLocation() is called exactly ONCE at startup. watchPosition handles all
+// subsequent updates. Never call getCurrentPosition more than once — on
+// "Allow Once" browsers each extra call triggers a new permission prompt.
+
 function _onLocSuccess(pos) {
   _locPermission = 'granted';
   userLat = pos.coords.latitude;
@@ -1072,13 +1076,14 @@ function _onLocSuccess(pos) {
 }
 
 function _onLocError(err) {
-  // PERMISSION_DENIED = 1, POSITION_UNAVAILABLE = 2, TIMEOUT = 3
+  // PERMISSION_DENIED=1, POSITION_UNAVAILABLE=2, TIMEOUT=3
   if (err && err.code === 1) {
     _locPermission = 'denied';
     setLocationText('Location access denied');
   } else {
-    _locPermission = _locPermission === 'granted' ? 'granted' : 'unavailable';
-    setLocationText('Location unavailable');
+    // Don't downgrade from 'granted' — transient error, watch will recover
+    if (_locPermission !== 'granted') _locPermission = 'unavailable';
+    if (!userLat) setLocationText('Location unavailable');
   }
 }
 
@@ -1089,27 +1094,55 @@ function getLocation() {
     return;
   }
 
-  // Query permission API where available — lets us know state without prompting
+  // If watch is already running, do nothing — positions arrive via _onLocSuccess
+  if (geoWatchId != null) return;
+
+  // Use Permissions API (no prompt, no position cost) to pre-check state
   if (navigator.permissions) {
     navigator.permissions.query({ name: 'geolocation' }).then(function(result) {
-      if (result.state === 'denied') { _locPermission = 'denied'; setLocationText('Location access denied'); }
+      if (result.state === 'denied') {
+        _locPermission = 'denied';
+        setLocationText('Location access denied');
+        return; // don't start watch if already denied
+      }
+      // Listen for user changing permission in browser settings
       result.onchange = function() {
-        if (result.state === 'denied') { _locPermission = 'denied'; setLocationText('Location access denied'); }
-        else if (result.state === 'granted') { _locPermission = 'granted'; getLocation(); }
+        if (result.state === 'denied') {
+          _locPermission = 'denied';
+          setLocationText('Location access denied');
+          if (geoWatchId != null) {
+            navigator.geolocation.clearWatch(geoWatchId);
+            geoWatchId = null;
+          }
+        }
+        // If granted after being denied, restart the watch (one prompt needed)
+        else if (result.state === 'granted' && geoWatchId == null) {
+          _startLocationWatch();
+        }
       };
-    }).catch(function() {});
+      _startLocationWatch();
+    }).catch(function() {
+      // Permissions API not supported — start watch directly (one prompt)
+      _startLocationWatch();
+    });
+  } else {
+    _startLocationWatch();
   }
+}
 
-  navigator.geolocation.getCurrentPosition(_onLocSuccess, _onLocError, { timeout: 10000 });
+function _startLocationWatch() {
+  // Guard: never start two watches — would double-prompt on "Allow Once"
+  if (geoWatchId != null) return;
 
-  // Continuous watch for geofence enter/exit
-  if (geoWatchId == null) {
-    geoWatchId = navigator.geolocation.watchPosition(
-      _onLocSuccess,
-      _onLocError,          // was silent no-op — now tracks state
-      { enableHighAccuracy: true, maximumAge: 10000 }
-    );
-  }
+  // Single watchPosition call serves both the initial fix and all updates.
+  // maximumAge:0 forces a fresh fix immediately (acts like getCurrentPosition
+  // for the first callback), then delivers live updates. No separate
+  // getCurrentPosition needed — that's the extra prompt.
+  geoWatchId = navigator.geolocation.watchPosition(
+    _onLocSuccess,
+    _onLocError,
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+  );
 }
 function setLocationText(s) {
   locationStr = s;
@@ -1712,9 +1745,9 @@ function geoStartDraw() {
     return;
   }
   if (!userLat || !userLng) {
-    showToast('Waiting for GPS fix...');
-    // Try to get location now — if user taps + again after fix it will work
-    getLocation();
+    // Watch is already running — a fix will arrive soon without re-prompting.
+    // Just tell the user to wait; tapping + again once the fix arrives will work.
+    showToast('Waiting for GPS fix — try again in a moment');
     return;
   }
 
