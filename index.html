@@ -1436,7 +1436,6 @@ function sbUpsertZone(z, onDone, onError) {
     auto_join:   z.autoJoin,
     created_by:  z.createdBy || myName
   };
-  console.log('[sbUpsertZone] sending:', JSON.stringify(payload));
   fetch(SERVER_URL + '/zones', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1444,9 +1443,12 @@ function sbUpsertZone(z, onDone, onError) {
   })
   .then(function(r) {
     if (!r.ok) return r.text().then(function(t){ throw new Error(r.status + ': ' + t); });
+    return r.json();
+  })
+  .then(function(data) {
+    if (onDone) onDone(data);
   })
   .catch(function(e) {
-    console.error('sbUpsertZone failed:', e);
     if (onError) onError(e);
   });
 }
@@ -1470,7 +1472,7 @@ function sbDeleteZone(id, onError) {
 // ── geoLoadData: fetch from Supabase, fall back to localStorage if offline ──
 function geoLoadData() {
   if (_geoInitDone) return;
-  _geoInitDone = true;
+  _geoInitDone = true; // prevent concurrent calls — reset on failure so reconnect can retry
 
   function _applyZones(zones) {
     // Merge: keep existing drawn zones, add/update from server data
@@ -1482,18 +1484,21 @@ function geoLoadData() {
       var existing = existingById[z.id];
       if (existing) {
         // Update data fields, preserve live Leaflet objects
-        existing.name     = z.name || z.channel;
-        existing.channel  = z.channel;
-        existing.radius   = z.radius;
-        existing.color    = z.color || GEO_COLORS[0];
-        existing.autoJoin = z.autoJoin !== false;
+        existing.name      = z.name || z.channel;
+        existing.channel   = z.channel;
+        existing.radius    = z.radius;
+        existing.color     = z.color || GEO_COLORS[0];
+        existing.autoJoin  = z.autoJoin !== false;
+        existing.expiresAt = z.expiresAt || existing.expiresAt || null;
         newZones.push(existing);
         delete existingById[z.id];
       } else {
         newZones.push({
-          id: z.id, deviceId: z.deviceId || '', createdBy: z.createdBy || '', name: z.name || z.channel, channel: z.channel,
+          id: z.id, deviceId: z.deviceId || '', createdBy: z.createdBy || '',
+          name: z.name || z.channel, channel: z.channel,
           lat: z.lat, lng: z.lng, radius: z.radius,
           color: z.color || GEO_COLORS[0], autoJoin: z.autoJoin !== false,
+          expiresAt: z.expiresAt || null,
           circle: null, marker: null, bannerEl: null
         });
       }
@@ -1522,6 +1527,8 @@ function geoLoadData() {
   sbFetchZones(
     function(zones) { _applyZones(zones); },
     function() {
+      // Network failure — reset flag so next connect attempt retries the fetch
+      _geoInitDone = false;
       // Offline fallback — load from localStorage
       try {
         var saved = JSON.parse(localStorage.getItem('wt_geo_zones') || '[]');
@@ -1587,7 +1594,7 @@ function geoInit() {
 // ── Persist: localStorage cache only (Supabase is called directly in save/delete) ──
 function geoPersist() {
   var data = geoZones.map(function(z) {
-    return { id:z.id, deviceId:z.deviceId, createdBy:z.createdBy||'', name:z.name, channel:z.channel, lat:z.lat, lng:z.lng, radius:z.radius, color:z.color, autoJoin:z.autoJoin };
+    return { id:z.id, deviceId:z.deviceId, createdBy:z.createdBy||'', name:z.name, channel:z.channel, lat:z.lat, lng:z.lng, radius:z.radius, color:z.color, autoJoin:z.autoJoin, expiresAt:z.expiresAt||null };
   });
   localStorage.setItem('wt_geo_zones', JSON.stringify(data));
 }
@@ -1601,9 +1608,11 @@ function _esc(s) {
 function geoAddZoneToMap(z) {
   // Register data record first
   var zone = {
-    id: z.id, deviceId: z.deviceId || _deviceId, createdBy: z.createdBy || '', name: z.name || z.channel, channel: z.channel,
+    id: z.id, deviceId: z.deviceId || _deviceId, createdBy: z.createdBy || '',
+    name: z.name || z.channel, channel: z.channel,
     lat: z.lat, lng: z.lng, radius: z.radius,
     color: z.color || GEO_COLORS[0], autoJoin: z.autoJoin !== false,
+    expiresAt: z.expiresAt || null,
     circle: null, marker: null, bannerEl: null
   };
   geoZones.push(zone);
@@ -2037,6 +2046,8 @@ socket.on('connect', function () {
   document.getElementById('reconnectBar').classList.remove('on');
   if (!myRoom) setStatus('Tap grid to join a channel', '');
   else { setStatus('Reconnected', 'ok'); joinChannel(myRoom); }
+  // Re-fetch zones on reconnect — may have missed realtime events while offline
+  geoLoadData();
 });
 socket.on('disconnect', function () {
   document.getElementById('reconnectBar').classList.add('on');
@@ -2186,26 +2197,28 @@ socket.on('zone_upserted', function(data) {
 });
 
 socket.on('zone_deleted', function(data) {
-  var isOwn = data.device_id === _deviceId;
-  if (isOwn && !data.expired) return;
-  if (data.expired) {
-    // Zone expired — notify user if it was theirs
-    var expiredZone = geoZones.find(function(z){ return z.id === data.id; });
-    if (expiredZone && expiredZone.deviceId === _deviceId) {
-      showToast('Zone "' + (expiredZone.name || '#'+expiredZone.channel) + '" expired');
-    }
-  } // already removed locally
-
   var idx = geoZones.findIndex(function(x){ return x.id === data.id; });
-  if (idx === -1) return;
+  if (idx === -1) return; // already removed locally
+
   var z = geoZones[idx];
+  var isOwn = z.deviceId === _deviceId;
+
+  // Remove from map
   if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
   if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
   if (z.bannerEl) { z.bannerEl.remove(); z.bannerEl = null; }
   geoZones.splice(idx, 1);
   delete geoInsideZones[data.id];
   geoPersist();
-  showToast('Zone removed');
+  _updateMapZoneBadge();
+
+  // Toast: different messages for expired vs deleted by peer
+  if (data.expired && isOwn) {
+    showToast('Your zone "' + (z.name || '#' + z.channel) + '" expired');
+  } else if (!isOwn) {
+    showToast('Zone "' + (z.name || '#' + z.channel) + '" removed');
+  }
+  // Own manual delete: no toast — user already knows
 });
 
 // ── Periodic full sync fallback (every 60s) — catches missed realtime events ──
@@ -2223,15 +2236,16 @@ setInterval(function() {
         geoAddZoneToMap(z);
       }
     });
-    // Remove zones that disappeared from server
-    geoZones.slice().forEach(function(z) {
-      if (!seen[z.id]) {
-        if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
-        if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
-        if (z.bannerEl) { z.bannerEl.remove(); z.bannerEl = null; }
-        geoZones.splice(geoZones.indexOf(z), 1);
-        delete geoInsideZones[z.id];
-      }
+    // Remove zones that disappeared from server — iterate by id to avoid splice-during-forEach
+    var toRemove = geoZones.filter(function(z){ return !seen[z.id]; });
+    toRemove.forEach(function(z) {
+      var i = geoZones.findIndex(function(x){ return x.id === z.id; });
+      if (i === -1) return;
+      if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
+      if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
+      if (z.bannerEl) { z.bannerEl.remove(); z.bannerEl = null; }
+      geoZones.splice(i, 1);
+      delete geoInsideZones[z.id];
     });
     geoPersist();
   }, function(){});
