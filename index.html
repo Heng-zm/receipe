@@ -338,9 +338,9 @@ html,body { width:100%; height:100%; background:var(--bg); color:var(--white); f
 .talk-here-btn:disabled { opacity:0.45; cursor:default; background:rgba(0,122,255,0.5); }
 .talk-here-btn.pressed { opacity:0.85; transform:scale(0.97); }
 .talk-here-btn.transmitting { background:#0058d4; }
+@keyframes btnpulse { from{box-shadow:0 0 0 0 rgba(0,122,255,0.35);} to{box-shadow:0 0 0 14px rgba(0,122,255,0);} }
 @media (prefers-reduced-motion:no-preference) {
   .talk-here-btn.transmitting { animation:btnpulse 0.75s ease-in-out infinite alternate; }
-  @keyframes btnpulse { from{box-shadow:0 0 0 0 rgba(0,122,255,0.35);} to{box-shadow:0 0 0 14px rgba(0,122,255,0);} }
 }
 
 /* ════════════════════════════════════
@@ -2364,8 +2364,18 @@ function sendVoice(blob, duration, mime) {
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
     setStatus('Hold to record, release to send', 'ok');
   }
-  // Use arrayBuffer + chunked btoa — avoids the data: URL prefix split and is faster
-  if (blob.arrayBuffer) {
+  // Encode blob to base64 — use FileReader.readAsDataURL (browser-native, fastest path)
+  // then strip the data: prefix. Falls back to manual chunked btoa on older browsers.
+  if (typeof FileReader !== 'undefined') {
+    var reader = new FileReader();
+    reader.onload = function() {
+      var result = reader.result;
+      var comma  = result.indexOf(',');
+      onB64(comma !== -1 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = onErr;
+    reader.readAsDataURL(blob);
+  } else if (blob.arrayBuffer) {
     blob.arrayBuffer().then(function(buf) {
       var bytes = new Uint8Array(buf);
       var b64 = ''; var chunk = 8192;
@@ -2375,11 +2385,7 @@ function sendVoice(blob, duration, mime) {
       onB64(btoa(b64));
     }).catch(onErr);
   } else {
-    // Fallback for older browsers
-    var reader = new FileReader();
-    reader.onload = function() { onB64(reader.result.split(',')[1]); };
-    reader.onerror = onErr;
-    reader.readAsDataURL(blob);
+    onErr();
   }
 }
 
@@ -2512,7 +2518,9 @@ function b64toBlob(b64, mime) {
 // ── Volume meters ──
 function _startVizTick() {
   // Shared RAF loop used by both TX (stream) and RX (audio buffer) meters
-  vizData = new Uint8Array(analyser.frequencyBinCount);
+  // Reuse vizData if already the right size — avoids allocation on every start
+  var binCount = analyser.frequencyBinCount;
+  if (!vizData || vizData.length !== binCount) vizData = new Uint8Array(binCount);
   (function tick() {
     if (!analyser) return;
     analyser.getByteFrequencyData(vizData);
@@ -2690,6 +2698,7 @@ var qb3 = document.getElementById('qb3');
 
 // Echo quality_ping back immediately — RTT measured server-side
 socket.on('quality_ping', function(data) {
+  if (!data || !data.nonce) return;
   socket.emit('quality_pong', { nonce: data.nonce });
 });
 
