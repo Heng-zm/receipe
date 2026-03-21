@@ -856,6 +856,7 @@ var userMarker   = null;
 var userLat      = null;
 var userLng      = null;
 var locationStr  = '';
+var _locPermission = 'unknown'; // 'unknown' | 'granted' | 'denied' | 'unavailable'
 
 // ── Recording state ──
 var mediaRec     = null;
@@ -1058,26 +1059,56 @@ function setNavActive(id) {
 }
 
 // ── Geolocation ──
+function _onLocSuccess(pos) {
+  _locPermission = 'granted';
+  userLat = pos.coords.latitude;
+  userLng = pos.coords.longitude;
+  if (_geoLastCodedLat === null || geoDistance(userLat, userLng, _geoLastCodedLat, _geoLastCodedLng) > 500) {
+    _geoLastCodedLat = userLat; _geoLastCodedLng = userLng;
+    reverseGeocode(userLat, userLng);
+  }
+  if (mapInstance) updateMapMarker();
+  geoCheckAll(userLat, userLng);
+}
+
+function _onLocError(err) {
+  // PERMISSION_DENIED = 1, POSITION_UNAVAILABLE = 2, TIMEOUT = 3
+  if (err && err.code === 1) {
+    _locPermission = 'denied';
+    setLocationText('Location access denied');
+  } else {
+    _locPermission = _locPermission === 'granted' ? 'granted' : 'unavailable';
+    setLocationText('Location unavailable');
+  }
+}
+
 function getLocation() {
-  if (!navigator.geolocation) { setLocationText('Location unavailable'); return; }
-  navigator.geolocation.getCurrentPosition(function (pos) {
-    userLat = pos.coords.latitude;
-    userLng = pos.coords.longitude;
-    if (_geoLastCodedLat === null || geoDistance(userLat, userLng, _geoLastCodedLat, _geoLastCodedLng) > 500) {
-      _geoLastCodedLat = userLat; _geoLastCodedLng = userLng;
-      reverseGeocode(userLat, userLng);
-    }
-    if (mapInstance) updateMapMarker();
-    geoCheckAll(userLat, userLng);
-  }, function () { setLocationText('Location unavailable'); }, { timeout: 10000 });
-  // Continuous watch for geofence enter/exit detection
-  if (geoWatchId == null && navigator.geolocation) {  // == catches both null and undefined
-    geoWatchId = navigator.geolocation.watchPosition(function(pos) {
-      userLat = pos.coords.latitude;
-      userLng = pos.coords.longitude;
-      if (mapInstance) userMarker && userMarker.setLatLng([userLat, userLng]); // move marker, don't pan
-      geoCheckAll(userLat, userLng);
-    }, function(){}, { enableHighAccuracy: true, maximumAge: 10000 });
+  if (!navigator.geolocation) {
+    _locPermission = 'unavailable';
+    setLocationText('Location unavailable');
+    return;
+  }
+
+  // Query permission API where available — lets us know state without prompting
+  if (navigator.permissions) {
+    navigator.permissions.query({ name: 'geolocation' }).then(function(result) {
+      if (result.state === 'denied') { _locPermission = 'denied'; setLocationText('Location access denied'); }
+      result.onchange = function() {
+        if (result.state === 'denied') { _locPermission = 'denied'; setLocationText('Location access denied'); }
+        else if (result.state === 'granted') { _locPermission = 'granted'; getLocation(); }
+      };
+    }).catch(function() {});
+  }
+
+  navigator.geolocation.getCurrentPosition(_onLocSuccess, _onLocError, { timeout: 10000 });
+
+  // Continuous watch for geofence enter/exit
+  if (geoWatchId == null) {
+    geoWatchId = navigator.geolocation.watchPosition(
+      _onLocSuccess,
+      _onLocError,          // was silent no-op — now tracks state
+      { enableHighAccuracy: true, maximumAge: 10000 }
+    );
   }
 }
 function setLocationText(s) {
@@ -1670,6 +1701,23 @@ function geoCheckAll(lat, lng) {
 // ── Draw mode ──
 function geoStartDraw() {
   if (!mapInstance) { showMain(); setTimeout(function(){ showMapView(); showToast('Open map first'); }, 100); return; }
+
+  // Require location permission before allowing zone creation
+  if (_locPermission === 'denied') {
+    showToast('Enable location in browser settings to create zones');
+    return;
+  }
+  if (_locPermission === 'unavailable') {
+    showToast('Location unavailable — cannot create a zone');
+    return;
+  }
+  if (!userLat || !userLng) {
+    showToast('Waiting for GPS fix...');
+    // Try to get location now — if user taps + again after fix it will work
+    getLocation();
+    return;
+  }
+
   geoDrawMode   = true;
   geoNewZone    = { lat: null, lng: null, radius: 300, color: geoSelectedColor, autoJoin: true };
   document.getElementById('geoDrawHint').classList.add('on');
@@ -1716,22 +1764,46 @@ function geoSaveZone() {
   var aj  = document.getElementById('geoAutoJoin').checked;
   if (!ch) { showToast('Enter a channel name'); return; }
   var name = rawName ? rawName.toUpperCase().slice(0,24) : ch;
+  // Guard: location must be available to create a meaningful zone
+  if (!userLat || !userLng) {
+    showToast('GPS fix required to save a zone');
+    return;
+  }
+
   var zone = { id:'z_'+Date.now(), deviceId:_deviceId, createdBy:myName, name:name, channel:ch, lat:geoNewZone.lat, lng:geoNewZone.lng, radius:r, color:col, autoJoin:aj };
+
+  // Disable save button while request is in flight
+  var saveBtn = document.getElementById('geoSaveBtn');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+
   if (geoPreviewCircle) { mapInstance.removeLayer(geoPreviewCircle); geoPreviewCircle = null; }
-  geoAddZoneToMap(zone);
-  geoPersist();
-  // Sync to Supabase in background — optimistic, UI already updated
-  sbUpsertZone(zone, function() { showToast('Saved locally (sync failed)'); });
   document.getElementById('geoOverlay').classList.remove('open');
   geoNewZone = null;
-  showToast('Zone saved — ' + name);
-  // Reset color picker to default
-  geoSelectedColor = GEO_COLORS[0];
-  var row = document.getElementById('geoColorRow');
-  if (row) row.querySelectorAll('.geo-color-swatch').forEach(function(s,i){ s.classList.toggle('selected', i===0); });
-  // Force check immediately
-  _geoLastCheckLat = null; _geoLastCheckLng = null;
-  if (userLat && userLng) geoCheckAll(userLat, userLng);
+
+  // Save only AFTER server confirms — no optimistic local-only state
+  sbUpsertZone(zone,
+    function() {
+      // Success — now add to map and persist
+      geoAddZoneToMap(zone);
+      geoPersist();
+      showToast('Zone saved — ' + name);
+      // Reset color picker
+      geoSelectedColor = GEO_COLORS[0];
+      var row = document.getElementById('geoColorRow');
+      if (row) row.querySelectorAll('.geo-color-swatch').forEach(function(s,i){ s.classList.toggle('selected', i===0); });
+      // Trigger immediate geofence check
+      _geoLastCheckLat = null; _geoLastCheckLng = null;
+      if (userLat && userLng) geoCheckAll(userLat, userLng);
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Zone'; }
+    },
+    function() {
+      // Failed — do NOT save locally, inform user
+      showToast('Save failed — check connection');
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Zone'; }
+      // Re-open sheet so user can retry
+      setTimeout(function() { document.getElementById('geoOverlay').classList.add('open'); }, 300);
+    }
+  );
 }
 
 // ── Zone list ──
