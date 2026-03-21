@@ -861,7 +861,9 @@ var _locPermission = 'unknown'; // 'unknown' | 'granted' | 'denied' | 'unavailab
 // ── Recording state ──
 var mediaRec     = null;
 var recChunks    = [];
-var recStream    = null;
+var recStream    = null;   // active MediaStream passed to MediaRecorder
+var _micStream   = null;   // persistent shared mic stream — kept alive across recordings
+var _micPermission = 'unknown'; // 'unknown'|'granted'|'denied'
 var recStartTime = 0;
 var recDuration  = 0;
 var recTimerID   = null;
@@ -917,9 +919,10 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
     socket.on('connect', _urlRoomHandler);
   }
 
-  geoLoadData();   // load zone data from localStorage immediately — no map needed
+  geoLoadData();
   getLocation();
   wireUI();
+  _checkMicPermission(); // pre-check without prompting — updates _micPermission
 })();
 
 // ── UI wiring ──
@@ -970,6 +973,7 @@ function wireUI() {
   document.addEventListener('keydown', function (e) { if (e.code === 'Space' && !e.repeat) startRecording(); });
   document.addEventListener('keyup',   function (e) { if (e.code === 'Space') stopRecording(false); });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) channelPill.classList.remove('has-unread'); });
+  window.addEventListener('pagehide', _releaseMicStream);  // release mic on tab close / navigate away
   // Unlock AudioContext on first interaction with any interactive element.
   // We use capture:true so it fires before any other handler, guaranteeing
   // we're still inside the user gesture call stack when AudioContext is created.
@@ -1056,6 +1060,75 @@ function setNavActive(id) {
   _navBtns.navTalk.classList.toggle('active', id === 'navTalk');
   _navBtns.navMap.classList.toggle('active',  id === 'navMap');
   _navBtns.navChannel.classList.toggle('active', id === 'navChannel');
+}
+
+// ── Microphone permission ──
+// _micStream is acquired once and kept alive across recordings so the browser
+// never re-prompts on "Allow Once". Tracks are only stopped on channel leave
+// or page unload.
+
+function _checkMicPermission() {
+  if (!navigator.permissions) return; // API not available — will learn on first use
+  navigator.permissions.query({ name: 'microphone' }).then(function(result) {
+    _micPermission = result.state === 'granted' ? 'granted'
+                   : result.state === 'denied'  ? 'denied'
+                   : 'unknown';
+    result.onchange = function() {
+      _micPermission = result.state === 'granted' ? 'granted'
+                     : result.state === 'denied'  ? 'denied'
+                     : 'unknown';
+      // If permission revoked mid-session, tear down the shared stream
+      if (result.state === 'denied') _releaseMicStream();
+    };
+  }).catch(function() {});
+}
+
+function _releaseMicStream() {
+  if (_micStream) {
+    _micStream.getTracks().forEach(function(t) { t.stop(); });
+    _micStream = null;
+  }
+}
+
+// Acquire the shared mic stream — called once per session (or after revocation).
+// Returns a Promise<MediaStream> or rejects on denial.
+async function _acquireMicStream() {
+  // Return existing live stream if all tracks are still active
+  if (_micStream && _micStream.getTracks().every(function(t) { return t.readyState === 'live'; })) {
+    return _micStream;
+  }
+  // Release any dead stream before re-acquiring
+  _releaseMicStream();
+
+  var stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl:  true,
+        channelCount:     1,
+        sampleRate:       16000
+      },
+      video: false
+    });
+  } catch (_) {
+    // Fallback: plain constraints (older Android/iOS)
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  }
+
+  _micPermission = 'granted';
+  _micStream = stream;
+
+  // If the OS kills our stream tracks (device revoked, iOS backgrounding),
+  // clear _micStream so next PTT re-acquires cleanly instead of failing silently
+  stream.getTracks().forEach(function(t) {
+    t.onended = function() {
+      if (_micStream === stream) _micStream = null;
+    };
+  });
+
+  return stream;
 }
 
 // ── Geolocation ──
@@ -1715,6 +1788,7 @@ function geoCheckAll(lat, lng) {
       if (entry.wasAutoJoined && myRoom === z.channel) {
         showToast('Left zone · auto-leaving #' + z.channel);
         socket.emit('leave_room_event', {});
+        _releaseMicStream(); // free mic — user has left, no recording expected
         myRoom = '';
         chNameEl.textContent = 'Tap to join channel';
         channelPill.classList.add('ph');
@@ -2142,22 +2216,15 @@ setInterval(function() {
 // ── Recording ──
 async function startRecording() {
   if (!myRoom || isRecording) return;
-  unlockAudio(); // ensure AudioContext is running before we need it
+  unlockAudio();
+
+  // Reuse the persistent mic stream — getUserMedia called only once per session
   try {
-    recStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl:  true,
-        channelCount:     1,
-        sampleRate:       16000
-      },
-      video: false
-    });
-  } catch (_) {
-    // Fallback: plain constraints (older Android/iOS)
-    try { recStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); }
-    catch (err) { showToast('Mic: ' + err.message); return; }
+    recStream = await _acquireMicStream();
+  } catch (err) {
+    _micPermission = 'denied';
+    showToast('Microphone access denied');
+    return;
   }
 
   recChunks=[]; isRecording=true; isCancelling=false; recStartTime=Date.now(); _recStopFired=false;
@@ -2207,7 +2274,10 @@ function stopRecording(cancel) {
   talkHereBtn.textContent = 'Talk Here';
   stopVolMeter();
 
-  if (recStream) { recStream.getTracks().forEach(function(t){t.stop();}); recStream=null; }
+  // Keep _micStream alive — do NOT stop tracks here.
+  // Stopping tracks forces a re-prompt on the next recording ("Allow Once").
+  // Tracks are only released on channel leave or page unload.
+  recStream = null;
   recDuration = elapsed / 1000;
   var shouldCancel = cancel || isCancelling || (elapsed < MIN_REC_MS);
 
