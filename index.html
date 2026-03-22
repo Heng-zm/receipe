@@ -1215,11 +1215,27 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
   pttHint.textContent = 'Select a channel';
   pttHint.classList.remove('hidden'); // show hint immediately — helps discoverability
 
-  var urlRoom = new URLSearchParams(window.location.search).get('room');
+  var _urlParams = new URLSearchParams(window.location.search);
+  var urlRoom = _urlParams.get('room');
+  var urlMode = _urlParams.get('mode'); // 'live' or null
   if (urlRoom) {
     var _urlRoomHandler = function() {
       socket.off('connect', _urlRoomHandler); // fire once only
       joinChannel(urlRoom);
+      // Apply mode from URL after room join — wait for room_state
+      // room_state handler will call startLive() if _talkMode === 'live'
+      if (urlMode === 'live') {
+        // Set mode state and update UI immediately
+        // (room_state will trigger startLive once server confirms join)
+        _talkMode = 'live';
+        isLiveMode = true;
+        var _hb = document.getElementById('modeHoldBtn');
+        var _lb = document.getElementById('modeLiveBtn');
+        if (_hb) { _hb.classList.remove('active'); _hb.setAttribute('aria-pressed','false'); }
+        if (_lb) { _lb.classList.add('active');    _lb.setAttribute('aria-pressed','true'); }
+        pttCircle.classList.add('live-mode');
+        showToast('Live mode enabled from link');
+      }
     };
     socket.on('connect', _urlRoomHandler);
   }
@@ -1228,6 +1244,8 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
   getLocation();
   wireUI();
   _checkMicPermission(); // pre-check without prompting — updates _micPermission
+  // Init share button state — grey until channel joined
+  setTimeout(_updateShareBtn, 0);
 })();
 
 // ── UI wiring ──
@@ -2371,10 +2389,16 @@ function updatePeers() {
 }
 function copyChannelLink() {
   if (!myRoom) { showToast('Join a channel first'); return; }
-  var url = location.origin + location.pathname + '?room=' + encodeURIComponent(myRoom);
+  var url = location.origin + location.pathname +
+    '?room=' + encodeURIComponent(myRoom) +
+    (_talkMode === 'live' ? '&mode=live' : '');
+  var modeLabel = _talkMode === 'live' ? ' (Live mode)' : '';
   if (navigator.share) {
-    navigator.share({ title:'WalkieTalk · ' + myRoom, text:'Join me on WalkieTalk, channel #' + myRoom, url:url })
-      .catch(function(err) { if (err.name !== 'AbortError') fallbackCopy(url); });
+    navigator.share({
+      title: 'WalkieTalk · ' + myRoom,
+      text:  'Join me on WalkieTalk, channel #' + myRoom + modeLabel,
+      url:   url
+    }).catch(function(err) { if (err.name !== 'AbortError') fallbackCopy(url); });
   } else { fallbackCopy(url); }
 }
 function _updateShareBtn() {
@@ -2447,24 +2471,35 @@ socket.on('room_state', function (data) {
   chDot.className = 'ch-dot' + (numPeers() > 0 ? ' online' : '');
   var names = Object.values(peers).slice(0,2).map(function(n){return '@'+n;}).join(', ');
   var extra = numPeers() > 2 ? ' +' + (numPeers()-2) : '';
-  setStatus(numPeers() > 0 ? names+extra+' online' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
   pttCircle.classList.remove('disabled');
-  pttHint.textContent = 'Hold to transmit';
   pttHint.classList.remove('hidden');
   talkHereBtn.disabled = false;
   playBeep(700, 0.09);
+  if (_talkMode === 'live') {
+    // Restore live mode after join/reconnect
+    setStatus(numPeers() > 0 ? names+extra+' online' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
+    if (!isLive) startLive().catch(function() { setTalkMode('hold'); });
+  } else {
+    setStatus(numPeers() > 0 ? names+extra+' online' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
+    pttHint.textContent = 'Hold to transmit';
+  }
 });
 socket.on('peer_joined', function (data) {
   peers[data.sid] = data.name || data.sid.slice(0,6);
   updatePeers();
   chDot.className = 'ch-dot online';
-  setStatus('Hold to record, release to send', 'ok');
   pttCircle.classList.remove('disabled');
-  pttHint.textContent = 'Hold to transmit';
   pttHint.classList.remove('hidden');
   talkHereBtn.disabled = false;
   showToast('@'+(data.name||'someone')+' joined');
   playBeep(660, 0.08);
+  if (_talkMode === 'live') {
+    setStatus('Live — peer joined', 'ok');
+    if (!isLive) startLive().catch(function() { setTalkMode('hold'); });
+  } else {
+    setStatus('Hold to record, release to send', 'ok');
+    pttHint.textContent = 'Hold to transmit';
+  }
 });
 socket.on('peer_left', function (data) {
   var name = peers[data.sid] || 'someone';
@@ -2482,7 +2517,7 @@ socket.on('peer_left', function (data) {
   if (numPeers() === 0) {
     chDot.className = 'ch-dot';
     setStatus('Waiting for others...', 'warn');
-    pttHint.textContent = 'Hold to transmit';  // keep PTT active — message queues when peer arrives
+    pttHint.textContent = _talkMode === 'live' ? 'Tap to speak' : 'Hold to transmit';
   }
   showToast('@'+name+' left');
   playBeep(400, 0.14);
@@ -2683,9 +2718,21 @@ function setTalkMode(mode) {
     liveBtn.classList.add('active');    liveBtn.setAttribute('aria-pressed', 'true');
     holdBtn.classList.remove('active'); holdBtn.setAttribute('aria-pressed', 'false');
     pttCircle.classList.add('live-mode');
-    if (!myRoom) { showToast('Join a channel first'); _talkMode = 'hold'; holdBtn.classList.add('active'); liveBtn.classList.remove('active'); pttCircle.classList.remove('live-mode'); return; }
+    if (!myRoom) {
+      showToast('Join a channel first');
+      _talkMode = 'hold';
+      holdBtn.classList.add('active');   holdBtn.setAttribute('aria-pressed', 'true');
+      liveBtn.classList.remove('active'); liveBtn.setAttribute('aria-pressed', 'false');
+      pttCircle.classList.remove('live-mode');
+      return;
+    }
     isLiveMode = true;
-    startLive();
+    // startLive is async — call it and catch any top-level rejection
+    startLive().catch(function(e) {
+      console.warn('startLive failed:', e);
+      // Reset to hold mode if stream couldn't start
+      setTalkMode('hold');
+    });
   }
 }
 
@@ -2883,7 +2930,12 @@ socket.on('voice_stream_end', function(data) {
 // In live mode, tap on the circle toggles stream on/off
 function _handleLiveCircleTap() {
   if (!isLiveMode) return false;
-  if (isLive) { stopLive(); } else { startLive(); }
+  if (pttCircle.classList.contains('disabled')) return true; // absorb tap, do nothing
+  if (isLive) {
+    stopLive();
+  } else {
+    startLive().catch(function() { setTalkMode('hold'); });
+  }
   return true;
 }
 
