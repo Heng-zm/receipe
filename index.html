@@ -120,8 +120,24 @@ body::after {
   transition:opacity 0.12s var(--ease-out), transform 0.1s var(--ease-out);
 }
 .top-icon-btn:active { opacity:0.5; transform:scale(0.9); }
-/* Share + Map icon btns in topbar — hidden, moved to nav / topbar collapsed */
+/* Map btn still hidden — accessible via bottom nav */
 .top-icon-btn.aux { display:none; }
+/* Share button — visible, compact, in topbar-right */
+#btnShare {
+  display:flex; opacity:1;
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.09);
+  border-radius:100px; padding:5px 12px 5px 9px;
+  gap:5px; align-items:center;
+  transition:background 0.15s var(--ease-out), transform 0.12s var(--ease-spring),
+             opacity 0.15s var(--ease-out);
+}
+#btnShare:active { background:rgba(255,255,255,0.12); transform:scale(0.94); }
+#btnShare.no-channel { opacity:0.32; pointer-events:none; }
+.share-label {
+  font-size:11px; font-weight:500; color:rgba(255,255,255,0.7);
+  letter-spacing:0.2px; white-space:nowrap;
+}
 /* Power button — connection dot only, no ring */
 .power-btn {
   width:30px; height:30px; border-radius:50%;
@@ -358,50 +374,75 @@ body::after {
 .ptt-circle.tx .circ-timer { color:var(--amber); }
 .ptt-circle.rx .circ-timer { color:var(--blue); }
 
-/* ── Live mode toggle ── */
-.live-mode-wrap {
+/* ── Mode switcher — Hold / Live segmented control ── */
+.mode-switcher {
   display:flex; justify-content:center; align-items:center;
   flex-shrink:0; padding:0 16px 2px; position:relative; z-index:1;
 }
-.live-toggle-btn {
-  display:inline-flex; align-items:center; gap:7px;
+.mode-seg {
+  display:inline-flex; align-items:center;
   background:rgba(255,255,255,0.04);
   border:1px solid rgba(255,255,255,0.07);
-  border-radius:100px; padding:6px 14px 6px 10px;
-  cursor:pointer; font-family:inherit;
-  transition:background 0.2s var(--ease-out), border-color 0.2s var(--ease-out),
-             box-shadow 0.2s var(--ease-out), transform 0.12s var(--ease-spring);
+  border-radius:100px; padding:3px;
+  gap:0;
+}
+.mode-btn {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 18px;
+  border:none; border-radius:100px;
+  background:none; cursor:pointer; font-family:inherit;
+  transition:background 0.18s var(--ease-out), color 0.18s var(--ease-out),
+             box-shadow 0.18s var(--ease-out), transform 0.12s var(--ease-spring);
   -webkit-user-select:none; user-select:none;
+  position:relative;
 }
-.live-toggle-btn:active { transform:scale(0.96); }
-.live-toggle-btn.live-on {
-  background:rgba(255,69,58,0.12);
-  border-color:rgba(255,69,58,0.3);
-  box-shadow:0 0 18px rgba(255,69,58,0.08);
+.mode-btn:active { transform:scale(0.94); }
+/* Mode label */
+.mode-btn-label {
+  font-size:11px; font-weight:500; letter-spacing:0.5px;
+  text-transform:uppercase; font-family:var(--mono);
+  color:rgba(255,255,255,0.3);
+  transition:color 0.18s var(--ease-out);
 }
-/* Animated live indicator dot */
-.live-dot {
-  width:7px; height:7px; border-radius:50%;
-  background:rgba(255,255,255,0.25); flex-shrink:0;
-  transition:background 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+/* Mode icon — mic for hold, wave for live */
+.mode-btn-icon {
+  width:12px; height:12px; flex-shrink:0; opacity:0.35;
+  transition:opacity 0.18s var(--ease-out);
 }
-.live-toggle-btn.live-on .live-dot {
+/* Active states */
+.mode-btn.m-hold.active {
+  background:rgba(255,159,10,0.14);
+  box-shadow:0 0 0 1px rgba(255,159,10,0.2) inset;
+}
+.mode-btn.m-hold.active .mode-btn-label { color:var(--amber); }
+.mode-btn.m-hold.active .mode-btn-icon  { opacity:1; color:var(--amber); }
+
+.mode-btn.m-live.active {
+  background:rgba(255,69,58,0.14);
+  box-shadow:0 0 0 1px rgba(255,69,58,0.2) inset;
+}
+.mode-btn.m-live.active .mode-btn-label { color:var(--red); }
+.mode-btn.m-live.active .mode-btn-icon  { opacity:1; color:var(--red); }
+
+/* Live pulse dot on active live button */
+.mode-btn.m-live .live-dot {
+  width:6px; height:6px; border-radius:50%;
+  background:rgba(255,255,255,0.2); flex-shrink:0;
+  transition:background 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
+}
+.mode-btn.m-live.active .live-dot {
   background:var(--red);
-  box-shadow:0 0 6px var(--red);
+  box-shadow:0 0 5px var(--red);
 }
 @media (prefers-reduced-motion:no-preference) {
-  .live-toggle-btn.live-on .live-dot {
+  .mode-btn.m-live.active .live-dot {
     animation:livepulse 1s ease-in-out infinite alternate;
   }
 }
-@keyframes livepulse { to { opacity:0.35; } }
-.live-toggle-label {
-  font-size:11px; font-weight:500; letter-spacing:0.3px;
-  color:rgba(255,255,255,0.35);
-  transition:color 0.2s var(--ease-out);
-  text-transform:uppercase; font-family:var(--mono);
-}
-.live-toggle-btn.live-on .live-toggle-label { color:var(--red); }
+@keyframes livepulse { to { opacity:0.3; } }
+
+/* PTT circle hint text updates per mode */
+.ptt-circle.live-mode:not(.live) .ptt-hint { color:var(--red); opacity:0.6; }
 
 /* PTT circle — live state: continuous red glow */
 .ptt-circle.live {
@@ -796,15 +837,6 @@ body::after {
           <text x="0" y="15" font-family="SF Mono,Fira Code,monospace" font-size="16" font-weight="700" fill="white" letter-spacing="-1">WT</text>
         </svg>
       </button>
-      <button class="top-icon-btn aux" id="btnShare" title="Share channel">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <circle cx="15" cy="3" r="2" stroke="white" stroke-width="1.4" fill="none" opacity="0.85"/>
-          <circle cx="15" cy="17" r="2" stroke="white" stroke-width="1.4" fill="none" opacity="0.85"/>
-          <circle cx="3" cy="10" r="2" stroke="white" stroke-width="1.4" fill="none" opacity="0.85"/>
-          <line x1="5" y1="10" x2="13" y2="4.5" stroke="white" stroke-width="1.3" opacity="0.7"/>
-          <line x1="5" y1="10" x2="13" y2="15.5" stroke="white" stroke-width="1.3" opacity="0.7"/>
-        </svg>
-      </button>
       <button class="top-icon-btn aux" id="btnMap" title="Map">
         <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
           <path d="M1 5l6-3 8 4 6-3v14l-6 3-8-4-6 3V5z" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none" opacity="0.85"/>
@@ -814,6 +846,16 @@ body::after {
       </button>
     </div>
     <div class="topbar-right">
+    <button class="top-icon-btn" id="btnShare" title="Share channel link" aria-label="Share channel">
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <circle cx="15" cy="3" r="2" stroke="white" stroke-width="1.6" fill="none"/>
+        <circle cx="15" cy="17" r="2" stroke="white" stroke-width="1.6" fill="none"/>
+        <circle cx="3" cy="10" r="2" stroke="white" stroke-width="1.6" fill="none"/>
+        <line x1="5" y1="10" x2="13" y2="4.5" stroke="white" stroke-width="1.4"/>
+        <line x1="5" y1="10" x2="13" y2="15.5" stroke="white" stroke-width="1.4"/>
+      </svg>
+      <span class="share-label">Share</span>
+    </button>
     <button class="power-btn disconnected" id="btnPower">
       <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round">
         <path d="M7 1v5M4.4 2.5A6 6 0 1 0 9.6 2.5"/>
@@ -872,12 +914,23 @@ body::after {
     </div>
   </div>
 
-  <!-- Live mode toggle -->
-  <div class="live-mode-wrap">
-    <button class="live-toggle-btn" id="liveToggleBtn" aria-pressed="false" title="Toggle live voice mode">
-      <span class="live-dot"></span>
-      <span class="live-toggle-label" id="liveToggleLabel">Live</span>
-    </button>
+  <!-- Mode switcher: Hold / Live -->
+  <div class="mode-switcher">
+    <div class="mode-seg" role="group" aria-label="Talk mode">
+      <button class="mode-btn m-hold active" id="modeHoldBtn" aria-pressed="true" title="Hold to talk — press and hold the circle">
+        <!-- Mic icon -->
+        <svg class="mode-btn-icon" viewBox="0 0 14 16" fill="none" aria-hidden="true">
+          <rect x="4" y="0.5" width="6" height="8.5" rx="3" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M2 8c0 2.8 2.2 5 5 5s5-2.2 5-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          <line x1="7" y1="13" x2="7" y2="15.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+        <span class="mode-btn-label">Hold</span>
+      </button>
+      <button class="mode-btn m-live" id="modeLiveBtn" aria-pressed="false" title="Live voice — always on, no holding needed">
+        <span class="live-dot"></span>
+        <span class="mode-btn-label">Live</span>
+      </button>
+    </div>
   </div>
 
   <div class="circle-wrap">
@@ -1180,7 +1233,8 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
 // ── UI wiring ──
 function wireUI() {
   document.getElementById('btnGrid').addEventListener('click', openChannelSheet);
-  document.getElementById('liveToggleBtn').addEventListener('click', toggleLiveMode);
+  document.getElementById('modeHoldBtn').addEventListener('click', function(){ setTalkMode('hold'); });
+  document.getElementById('modeLiveBtn').addEventListener('click', function(){ setTalkMode('live'); });
   document.getElementById('btnShare').addEventListener('click', copyChannelLink);
   document.getElementById('btnMap').addEventListener('click', showMapView);
   document.getElementById('btnPower').addEventListener('click', openChannelSheet);
@@ -1241,15 +1295,15 @@ function wireUI() {
 
 // ── PTT wiring ──
 function wirePTT(el, isMapBtn) {
-  el.addEventListener('mousedown',  function (e) { e.preventDefault(); unlockAudio(); startRecording(); });
-  el.addEventListener('mouseup',    function () { stopRecording(false); });
-  el.addEventListener('mouseleave', function () { if (isRecording) stopRecording(false); });
+  el.addEventListener('mousedown',  function (e) { e.preventDefault(); unlockAudio(); if (!_handleLiveCircleTap()) startRecording(); });
+  el.addEventListener('mouseup',    function () { if (!isLiveMode) stopRecording(false); });
+  el.addEventListener('mouseleave', function () { if (!isLiveMode && isRecording) stopRecording(false); });
 
   el.addEventListener('touchstart', function (e) {
     e.preventDefault();
     touchStartY = e.touches[0].clientY;
     if (isMapBtn) talkHereBtn.classList.add('pressed');
-    startRecording();
+    if (!_handleLiveCircleTap()) startRecording();
   }, { passive: false });
 
   if (!isMapBtn) {
@@ -1313,6 +1367,7 @@ function setNavActive(id) {
   _navBtns.navTalk.classList.toggle('active', id === 'navTalk');
   _navBtns.navMap.classList.toggle('active',  id === 'navMap');
   _navBtns.navChannel.classList.toggle('active', id === 'navChannel');
+  // When returning to talk tab, switch nav active but keep talk mode unchanged
 }
 
 // ── Microphone permission ──
@@ -1584,6 +1639,7 @@ function joinChannel(room) {
   updatePeers();
   chNameEl.textContent = '#' + room;   // # prefix matches map topbar
   channelPill.classList.remove('ph');
+  _updateShareBtn();
   chDot.className = 'ch-dot';
   setStatus('Joining ' + room + '...', 'warn');
   socket.emit('join_room', { room: room, name: myName });
@@ -2281,12 +2337,16 @@ function showToast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2400);
 }
+var _statusPending = null; // track pending status to fix stale comparison bug
 function setStatus(msg, cls) {
-  if (statusLine.textContent === msg && statusLine.dataset.cls === (cls||'')
-) return; // no-op if same
-  statusLine.dataset.cls = cls || '';
+  cls = cls || '';
+  // Compare against pending (what will be shown), not current DOM text
+  if (_statusPending && _statusPending.msg === msg && _statusPending.cls === cls) return;
+  _statusPending = { msg: msg, cls: cls };
   statusLine.classList.add('changing');
   setTimeout(function() {
+    // Only apply if this is still the most recent call
+    if (!_statusPending || _statusPending.msg !== msg) return;
     var scanning = !cls && (
       msg.indexOf('Waiting') !== -1 ||
       msg.indexOf('Tap') !== -1 ||
@@ -2294,6 +2354,7 @@ function setStatus(msg, cls) {
       msg.indexOf('Locating') !== -1
     );
     statusLine.textContent = msg;
+    statusLine.dataset.cls = cls;
     statusLine.className = 'status-line changed' + (cls ? ' ' + cls : '') + (scanning ? ' scan' : '');
     setTimeout(function() { statusLine.classList.remove('changed'); }, 250);
   }, 80);
@@ -2312,8 +2373,14 @@ function copyChannelLink() {
   if (!myRoom) { showToast('Join a channel first'); return; }
   var url = location.origin + location.pathname + '?room=' + encodeURIComponent(myRoom);
   if (navigator.share) {
-    navigator.share({ title:'WalkieTalk', text:'Join channel '+myRoom, url:url }).catch(function () { fallbackCopy(url); });
+    navigator.share({ title:'WalkieTalk · ' + myRoom, text:'Join me on WalkieTalk, channel #' + myRoom, url:url })
+      .catch(function(err) { if (err.name !== 'AbortError') fallbackCopy(url); });
   } else { fallbackCopy(url); }
+}
+function _updateShareBtn() {
+  var btn = document.getElementById('btnShare');
+  if (!btn) return;
+  btn.classList.toggle('no-channel', !myRoom);
 }
 function fallbackCopy(url) {
   if (navigator.clipboard) { navigator.clipboard.writeText(url).then(function () { showToast('Link copied!'); }); return; }
@@ -2349,9 +2416,13 @@ socket.on('disconnect', function () {
   document.getElementById('btnPower').classList.add('disconnected');
   setStatus('Connection lost...', 'err');
   if (isLive) stopLive();
-  if (isLiveMode) {
-    isLiveMode = false;
-    document.getElementById('liveToggleBtn').classList.remove('live-on');
+  if (_talkMode === 'live') {
+    isLiveMode = false; _talkMode = 'hold';
+    var _hb = document.getElementById('modeHoldBtn');
+    var _lb = document.getElementById('modeLiveBtn');
+    if (_hb) { _hb.classList.add('active'); _hb.setAttribute('aria-pressed','true'); }
+    if (_lb) { _lb.classList.remove('active'); _lb.setAttribute('aria-pressed','false'); }
+    pttCircle.classList.remove('live-mode');
   }
   pttCircle.classList.add('disabled');
   pttHint.textContent = 'Select a channel';
@@ -2398,6 +2469,15 @@ socket.on('peer_joined', function (data) {
 socket.on('peer_left', function (data) {
   var name = peers[data.sid] || 'someone';
   delete peers[data.sid];
+  // Clean up live RX queue if this peer was streaming
+  if (_liveRxQueues[data.sid]) {
+    delete _liveRxQueues[data.sid];
+    var anyLive = Object.keys(_liveRxQueues).some(function(k){ return _liveRxQueues[k].playing; });
+    if (!anyLive && !isLive) {
+      waveWrap.classList.remove('on');
+      stopVolMeter();
+    }
+  }
   updatePeers();
   if (numPeers() === 0) {
     chDot.className = 'ch-dot';
@@ -2426,9 +2506,17 @@ socket.on('error', function (data) {
     showToast('Channel full (max 20)');
     setStatus('Channel full — try another', 'warn');
     if (isLive) stopLive();
-    if (isLiveMode) { isLiveMode = false; document.getElementById('liveToggleBtn').classList.remove('live-on'); }
+    if (_talkMode === 'live') {
+      isLiveMode = false; _talkMode = 'hold';
+      var _hb2 = document.getElementById('modeHoldBtn');
+      var _lb2 = document.getElementById('modeLiveBtn');
+      if (_hb2) { _hb2.classList.add('active'); _hb2.setAttribute('aria-pressed','true'); }
+      if (_lb2) { _lb2.classList.remove('active'); _lb2.setAttribute('aria-pressed','false'); }
+      pttCircle.classList.remove('live-mode');
+    }
     myRoom = ''; chNameEl.textContent = 'Tap to join channel';
     channelPill.classList.add('ph'); chDot.className = 'ch-dot'; peerCt.textContent = '';
+    _updateShareBtn();
     pttCircle.classList.add('disabled');
     pttHint.textContent = 'Select a channel';
     pttHint.classList.remove('hidden');
@@ -2564,24 +2652,46 @@ setInterval(function() {
 // LIVE VOICE MODE — continuous streaming, no hold required
 // ══════════════════════════════════════════════════════════
 
-function toggleLiveMode() {
-  if (!myRoom) { showToast('Join a channel first'); return; }
-  if (isLiveMode) {
-    // Turn off live mode
+// ── Mode switcher: 'hold' | 'live' ──
+var _talkMode = 'hold'; // current mode
+
+function setTalkMode(mode) {
+  if (_talkMode === mode) return; // already in this mode
+  var holdBtn = document.getElementById('modeHoldBtn');
+  var liveBtn = document.getElementById('modeLiveBtn');
+
+  // Stop whatever is currently active
+  if (_talkMode === 'hold' && isRecording) stopRecording(true);
+  if (_talkMode === 'live') {
     stopLive();
     isLiveMode = false;
-    document.getElementById('liveToggleBtn').classList.remove('live-on');
-    document.getElementById('liveToggleBtn').setAttribute('aria-pressed', 'false');
-    pttHint.textContent = 'Hold to transmit';
-    setStatus('Hold to record, release to send', numPeers() > 0 ? 'ok' : 'warn');
+  }
+
+  _talkMode = mode;
+
+  if (mode === 'hold') {
+    // Activate hold mode
+    holdBtn.classList.add('active');    holdBtn.setAttribute('aria-pressed', 'true');
+    liveBtn.classList.remove('active'); liveBtn.setAttribute('aria-pressed', 'false');
+    pttCircle.classList.remove('live-mode');
+    if (!pttCircle.classList.contains('disabled')) {
+      pttHint.textContent = 'Hold to transmit';
+      setStatus('Hold to record, release to send', numPeers() > 0 ? 'ok' : 'warn');
+    }
   } else {
-    // Turn on live mode — PTT hold is disabled
-    if (isRecording) stopRecording(true);
+    // Activate live mode
+    liveBtn.classList.add('active');    liveBtn.setAttribute('aria-pressed', 'true');
+    holdBtn.classList.remove('active'); holdBtn.setAttribute('aria-pressed', 'false');
+    pttCircle.classList.add('live-mode');
+    if (!myRoom) { showToast('Join a channel first'); _talkMode = 'hold'; holdBtn.classList.add('active'); liveBtn.classList.remove('active'); pttCircle.classList.remove('live-mode'); return; }
     isLiveMode = true;
-    document.getElementById('liveToggleBtn').classList.add('live-on');
-    document.getElementById('liveToggleBtn').setAttribute('aria-pressed', 'true');
     startLive();
   }
+}
+
+// Keep toggleLiveMode as alias for back-compat (disconnect handler calls this pattern)
+function toggleLiveMode() {
+  setTalkMode(_talkMode === 'live' ? 'hold' : 'live');
 }
 
 async function startLive() {
@@ -2593,8 +2703,13 @@ async function startLive() {
   } catch(err) {
     _micPermission = 'denied';
     showToast('Microphone access denied');
-    isLiveMode = false;
-    document.getElementById('liveToggleBtn').classList.remove('live-on');
+    // Reset mode switcher back to Hold on mic denial
+    isLiveMode = false; _talkMode = 'hold';
+    var _hb3 = document.getElementById('modeHoldBtn');
+    var _lb3 = document.getElementById('modeLiveBtn');
+    if (_hb3) { _hb3.classList.add('active'); _hb3.setAttribute('aria-pressed','true'); }
+    if (_lb3) { _lb3.classList.remove('active'); _lb3.setAttribute('aria-pressed','false'); }
+    pttCircle.classList.remove('live-mode');
     return;
   }
 
@@ -2638,7 +2753,7 @@ async function startLive() {
   channelPill.classList.add('tx-glow');
   pttHint.textContent = 'Live';
   pttHint.classList.remove('hidden');
-  setStatus('Live — speaking now', 'err');
+  setStatus('Live — tap circle to mute / stop', 'err');
   try { if (navigator.vibrate) navigator.vibrate(15); } catch(e) {}
   startVolMeter(recStream);
 
@@ -2648,27 +2763,32 @@ async function startLive() {
     var elapsed = (Date.now() - recStartTime) / 1000;
     var m = Math.floor(elapsed / 60), s = Math.floor(elapsed % 60);
     circTimer.textContent = m + ':' + (s < 10 ? '0' : '') + s;
-    // Auto-stop after MAX_REC_SEC to avoid runaway streams
-    if (elapsed >= MAX_REC_SEC) { stopLive(); setTimeout(startLive, 400); }
+    // Auto-stop after MAX_REC_SEC — restart with safe gap after cleanup finishes
+    if (elapsed >= MAX_REC_SEC && isLive) {
+      stopLive();
+      if (isLiveMode) setTimeout(function(){ if (isLiveMode && !isLive) startLive(); }, 500);
+    }
   }, 200);
 }
 
 function stopLive() {
   if (!isLive) return;
   isLive = false;
+  var endedStreamId = _liveStreamId; // capture before null — FileReader callbacks check this
+  _liveStreamId = null;
 
-  clearInterval(recTimerID);
+  clearInterval(recTimerID); recTimerID = null;
   circTimer.textContent = '0:00';
 
   if (mediaRec && mediaRec.state !== 'inactive') {
     try { mediaRec.stop(); } catch(e) {}
   }
+  mediaRec = null;
 
-  // Signal end to peers
-  if (_liveStreamId) {
-    socket.emit('voice_stream_end', { stream_id: _liveStreamId });
+  // Signal end to peers only if we had an active stream
+  if (endedStreamId) {
+    socket.emit('voice_stream_end', { stream_id: endedStreamId });
   }
-  _liveStreamId = null;
   recStream = null;
 
   // UI — back to idle
@@ -2682,8 +2802,8 @@ function stopLive() {
 
   if (isLiveMode) {
     // Mode still on — update hint but don't reset circle
-    pttHint.textContent = 'Tap Live to speak';
-    setStatus('Live mode on — tap to speak again', 'warn');
+    pttHint.textContent = 'Tap to speak';
+    setStatus('Live — tap circle to start speaking', 'warn');
   } else {
     pttHint.textContent = 'Hold to transmit';
     setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
@@ -2728,9 +2848,12 @@ socket.on('voice_chunk', function(data) {
         var source = ctx.createBufferSource();
         source.buffer = buffer;
         source.connect(analyser);
-        if (!waveWrap.classList.contains('on')) {
-          waveWrap.classList.add('on');
-          setWaveBarsColor('rx');
+        // Only start viz once per stream session, not per chunk
+        if (!vizRAF) {
+          if (!waveWrap.classList.contains('on')) {
+            waveWrap.classList.add('on');
+            setWaveBarsColor('rx');
+          }
           startVolMeterAudio();
         }
         source.start(0);
@@ -2757,10 +2880,16 @@ socket.on('voice_stream_end', function(data) {
   }
 });
 
-// Disable PTT hold when live mode is on
+// In live mode, tap on the circle toggles stream on/off
+function _handleLiveCircleTap() {
+  if (!isLiveMode) return false;
+  if (isLive) { stopLive(); } else { startLive(); }
+  return true;
+}
+
 // ── Recording ──
 async function startRecording() {
-  if (isLiveMode) return; // live mode handles its own recording
+  if (isLiveMode) return; // live mode: circle tap handled by _handleLiveCircleTap
   if (!myRoom || isRecording) return;
   unlockAudio();
 
@@ -2856,6 +2985,7 @@ var _recStopFired = false; // guard against double-fire on Android
 function onRecorderStop() {
   if (_recStopFired) return;
   _recStopFired = true;
+  if (isLive || isLiveMode) return; // live mode handles its own stop
   if (recChunks.length === 0) {
     pttCircle.classList.remove('sending');
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
