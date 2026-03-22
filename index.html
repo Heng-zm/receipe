@@ -316,8 +316,7 @@ body::after {
              background 0.25s var(--ease-out), box-shadow 0.3s var(--ease-out);
   background:radial-gradient(ellipse at 38% 30%, rgba(255,255,255,0.025) 0%, transparent 58%);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,0.035), inset 0 -3px 18px rgba(0,0,0,0.35);
-  will-change:transform;
-  transform:translateZ(0);
+  /* will-change added by JS only during tx/rx — avoids permanent GPU layer */
 }
 .ptt-circle.disabled   { border-color:rgba(255,255,255,0.08); outline-color:rgba(255,255,255,0.025); cursor:default; opacity:0.7; }
 .ptt-circle.tx         { border-color:var(--amber); outline-color:rgba(255,159,10,0.18); outline-offset:10px;
@@ -432,6 +431,7 @@ body::after {
   display:flex;
   flex-direction:column;
   height:100%;
+  content-visibility:auto; /* skip paint when hidden */
 }
 .map-topbar {
   position:relative; z-index:20; flex-shrink:0;
@@ -2248,6 +2248,16 @@ socket.on('connect', function () {
   document.getElementById('reconnectBar').classList.remove('on');
   document.getElementById('btnPower').classList.remove('disconnected');
   document.getElementById('btnPower').classList.add('connected');
+  // Prefetch Leaflet in idle time so map opens instantly on first tap
+  if (!mapReady && typeof requestIdleCallback !== 'undefined') {
+    requestIdleCallback(function() {
+      if (!mapReady && !document.querySelector('link[href*="leaflet"]')) {
+        var lnk = document.createElement('link');
+        lnk.rel = 'prefetch'; lnk.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+        document.head.appendChild(lnk);
+      }
+    }, { timeout: 3000 });
+  }
   if (!myRoom) setStatus('Tap grid to join a channel', '');
   else { setStatus('Reconnected', 'ok'); joinChannel(myRoom); }
   // Re-fetch zones on reconnect — may have missed realtime events while offline
@@ -2480,12 +2490,16 @@ async function startRecording() {
   recChunks=[]; isRecording=true; isCancelling=false; recStartTime=Date.now(); _recStopFired=false;
 
   var mime = ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg'].find(function(m){return MediaRecorder.isTypeSupported(m);}) || 'audio/webm';
-  mediaRec = new MediaRecorder(recStream, {mimeType:mime});
+  // 16kbps is ample for voice — cuts payload size 4-6× vs browser default
+  var recOpts = { mimeType: mime };
+  try { if (MediaRecorder.isTypeSupported(mime)) recOpts.audioBitsPerSecond = 16000; } catch(e) {}
+  mediaRec = new MediaRecorder(recStream, recOpts);
   mediaRec.ondataavailable = function(e) { if (e.data && e.data.size > 0) recChunks.push(e.data); };
   mediaRec.onstop = onRecorderStop;
   mediaRec.start(250);
 
   // UI — TX state
+  pttCircle.style.willChange = 'transform';
   pttCircle.classList.add('tx');
   ripples.classList.add('tx');
   waveWrap.classList.add('on');
@@ -2497,6 +2511,7 @@ async function startRecording() {
   channelPill.classList.add('tx-glow');
   setStatus('Recording... release to send', 'err');
   playBeep(500, 0.05);
+  try { if (navigator.vibrate) navigator.vibrate(20); } catch(e) {}
   startVolMeter(recStream);
 
   recTimerID = setInterval(function () {
@@ -2517,6 +2532,7 @@ function stopRecording(cancel) {
   circTimer.textContent = '0:00';
   limitArc.setAttribute('stroke-dashoffset', String(CIRC));
 
+  pttCircle.style.willChange = '';
   pttCircle.classList.remove('tx', 'sending', 'cancelling');
   ripples.classList.remove('tx');
   waveWrap.classList.remove('on');
@@ -2534,6 +2550,7 @@ function stopRecording(cancel) {
   var shouldCancel = cancel || isCancelling || (elapsed < MIN_REC_MS);
 
   if (shouldCancel) {
+    try { if (navigator.vibrate && !cancel) navigator.vibrate(60); } catch(e) {}
     if (elapsed < MIN_REC_MS && !cancel) showToast('Hold longer to record');
     else { chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot'; setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn'); }
     isCancelling = false;
@@ -2542,6 +2559,7 @@ function stopRecording(cancel) {
   }
 
   isCancelling = false;
+  try { if (navigator.vibrate) navigator.vibrate([12, 40, 12]); } catch(e) {}
   pttCircle.classList.add('sending');
   chDot.className = 'ch-dot send';
   setStatus('Sending...', '');
@@ -2636,6 +2654,7 @@ function drainQueue() {
     itemPlaying = false;
     if (timerRAF) { cancelAnimationFrame(timerRAF); timerRAF = null; }
     circTimer.textContent = '0:00';
+    pttCircle.style.willChange = '';
     pttCircle.classList.remove('rx');
     ripples.classList.remove('rx');
     waveWrap.classList.remove('on');
@@ -2663,6 +2682,7 @@ function drainQueue() {
 
   try {
     playIcomChirp(function() {
+      pttCircle.style.willChange = 'transform';
       pttCircle.classList.add('rx');
       ripples.classList.add('rx');
       waveWrap.classList.add('on');
@@ -2733,17 +2753,21 @@ function b64toBlob(b64, mime) {
 }
 
 // ── Volume meters ──
+var _vizLastFrame = 0; // throttle timestamp
 function _startVizTick() {
-  // Shared RAF loop used by both TX (stream) and RX (audio buffer) meters
-  // Reuse vizData if already the right size — avoids allocation on every start
+  // Shared RAF loop — throttled to ~24fps (42ms) to save CPU
+  // Reuse vizData buffer to avoid allocation on every start
   var binCount = analyser.frequencyBinCount;
   if (!vizData || vizData.length !== binCount) vizData = new Uint8Array(binCount);
-  (function tick() {
+  (function tick(ts) {
     if (!analyser) return;
-    analyser.getByteFrequencyData(vizData);
-    for (var i=0; i<8; i++) { var v=vizData[i*2]||0; wBars[i].style.height=Math.max(2,Math.min(18,v*0.18))+'px'; }
+    if (ts - _vizLastFrame >= 42) { // ~24fps
+      _vizLastFrame = ts;
+      analyser.getByteFrequencyData(vizData);
+      for (var i=0; i<8; i++) { var v=vizData[i*2]||0; wBars[i].style.height=Math.max(2,Math.min(18,v*0.18))+'px'; }
+    }
     vizRAF = requestAnimationFrame(tick);
-  })();
+  })(0);
 }
 
 function startVolMeter(stream) {
