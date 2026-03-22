@@ -358,6 +358,69 @@ body::after {
 .ptt-circle.tx .circ-timer { color:var(--amber); }
 .ptt-circle.rx .circ-timer { color:var(--blue); }
 
+/* ── Live mode toggle ── */
+.live-mode-wrap {
+  display:flex; justify-content:center; align-items:center;
+  flex-shrink:0; padding:0 16px 2px; position:relative; z-index:1;
+}
+.live-toggle-btn {
+  display:inline-flex; align-items:center; gap:7px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:100px; padding:6px 14px 6px 10px;
+  cursor:pointer; font-family:inherit;
+  transition:background 0.2s var(--ease-out), border-color 0.2s var(--ease-out),
+             box-shadow 0.2s var(--ease-out), transform 0.12s var(--ease-spring);
+  -webkit-user-select:none; user-select:none;
+}
+.live-toggle-btn:active { transform:scale(0.96); }
+.live-toggle-btn.live-on {
+  background:rgba(255,69,58,0.12);
+  border-color:rgba(255,69,58,0.3);
+  box-shadow:0 0 18px rgba(255,69,58,0.08);
+}
+/* Animated live indicator dot */
+.live-dot {
+  width:7px; height:7px; border-radius:50%;
+  background:rgba(255,255,255,0.25); flex-shrink:0;
+  transition:background 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+}
+.live-toggle-btn.live-on .live-dot {
+  background:var(--red);
+  box-shadow:0 0 6px var(--red);
+}
+@media (prefers-reduced-motion:no-preference) {
+  .live-toggle-btn.live-on .live-dot {
+    animation:livepulse 1s ease-in-out infinite alternate;
+  }
+}
+@keyframes livepulse { to { opacity:0.35; } }
+.live-toggle-label {
+  font-size:11px; font-weight:500; letter-spacing:0.3px;
+  color:rgba(255,255,255,0.35);
+  transition:color 0.2s var(--ease-out);
+  text-transform:uppercase; font-family:var(--mono);
+}
+.live-toggle-btn.live-on .live-toggle-label { color:var(--red); }
+
+/* PTT circle — live state: continuous red glow */
+.ptt-circle.live {
+  border-color:var(--red);
+  outline-color:rgba(255,69,58,0.15); outline-offset:10px;
+  transform:scale(1.018);
+  background:radial-gradient(ellipse at 38% 30%, rgba(255,69,58,0.07) 0%, transparent 58%);
+  box-shadow:0 0 0 10px rgba(255,69,58,0.04), 0 0 50px rgba(255,69,58,0.06),
+             inset 0 0 0 1px rgba(255,69,58,0.1), inset 0 -2px 16px rgba(0,0,0,0.2);
+}
+.ptt-circle.live .mic-path { stroke:var(--red); }
+.ptt-circle.live .ptt-hint { color:var(--red); opacity:0.9; }
+.ripples.live .ripple { border-color:rgba(255,69,58,0.18); }
+@media (prefers-reduced-motion:no-preference) {
+  .ripples.live .ripple:nth-child(1) { animation:ripout 2.2s ease-out infinite 0s; }
+  .ripples.live .ripple:nth-child(2) { animation:ripout 2.2s ease-out infinite 0.73s; }
+  .ripples.live .ripple:nth-child(3) { animation:ripout 2.2s ease-out infinite 1.46s; }
+}
+
 /* ── Waveform ── */
 .wave-wrap {
   position:relative; z-index:1;
@@ -809,6 +872,14 @@ body::after {
     </div>
   </div>
 
+  <!-- Live mode toggle -->
+  <div class="live-mode-wrap">
+    <button class="live-toggle-btn" id="liveToggleBtn" aria-pressed="false" title="Toggle live voice mode">
+      <span class="live-dot"></span>
+      <span class="live-toggle-label" id="liveToggleLabel">Live</span>
+    </button>
+  </div>
+
   <div class="circle-wrap">
     <div class="cancel-hint" id="cancelHint">Slide up to cancel</div>
 
@@ -1041,6 +1112,14 @@ var isRecording  = false;
 var isCancelling = false;
 var touchStartY  = 0;
 
+// ── Live mode state ──
+var isLiveMode   = false;  // live voice enabled
+var isLive       = false;  // currently streaming live
+var _liveStreamId = null;  // unique ID for this live session
+var _liveChunkSeq = 0;     // chunk sequence number for receiver ordering
+// Receiver: per-sender chunk queues for smooth playback
+var _liveRxQueues = {};    // sid → { chunks:[], playing:bool, ctx:AudioContext }
+
 // ── Audio viz (rAF-based) ──
 var analyser  = null;
 var vizRAF    = null;
@@ -1101,6 +1180,7 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
 // ── UI wiring ──
 function wireUI() {
   document.getElementById('btnGrid').addEventListener('click', openChannelSheet);
+  document.getElementById('liveToggleBtn').addEventListener('click', toggleLiveMode);
   document.getElementById('btnShare').addEventListener('click', copyChannelLink);
   document.getElementById('btnMap').addEventListener('click', showMapView);
   document.getElementById('btnPower').addEventListener('click', openChannelSheet);
@@ -2268,6 +2348,11 @@ socket.on('disconnect', function () {
   document.getElementById('btnPower').classList.remove('connected');
   document.getElementById('btnPower').classList.add('disconnected');
   setStatus('Connection lost...', 'err');
+  if (isLive) stopLive();
+  if (isLiveMode) {
+    isLiveMode = false;
+    document.getElementById('liveToggleBtn').classList.remove('live-on');
+  }
   pttCircle.classList.add('disabled');
   pttHint.textContent = 'Select a channel';
   pttHint.classList.remove('hidden');
@@ -2340,6 +2425,8 @@ socket.on('error', function (data) {
   if (code === 'ROOM_FULL') {
     showToast('Channel full (max 20)');
     setStatus('Channel full — try another', 'warn');
+    if (isLive) stopLive();
+    if (isLiveMode) { isLiveMode = false; document.getElementById('liveToggleBtn').classList.remove('live-on'); }
     myRoom = ''; chNameEl.textContent = 'Tap to join channel';
     channelPill.classList.add('ph'); chDot.className = 'ch-dot'; peerCt.textContent = '';
     pttCircle.classList.add('disabled');
@@ -2473,8 +2560,207 @@ setInterval(function() {
   }, function(){});
 }, 60000);
 
+// ══════════════════════════════════════════════════════════
+// LIVE VOICE MODE — continuous streaming, no hold required
+// ══════════════════════════════════════════════════════════
+
+function toggleLiveMode() {
+  if (!myRoom) { showToast('Join a channel first'); return; }
+  if (isLiveMode) {
+    // Turn off live mode
+    stopLive();
+    isLiveMode = false;
+    document.getElementById('liveToggleBtn').classList.remove('live-on');
+    document.getElementById('liveToggleBtn').setAttribute('aria-pressed', 'false');
+    pttHint.textContent = 'Hold to transmit';
+    setStatus('Hold to record, release to send', numPeers() > 0 ? 'ok' : 'warn');
+  } else {
+    // Turn on live mode — PTT hold is disabled
+    if (isRecording) stopRecording(true);
+    isLiveMode = true;
+    document.getElementById('liveToggleBtn').classList.add('live-on');
+    document.getElementById('liveToggleBtn').setAttribute('aria-pressed', 'true');
+    startLive();
+  }
+}
+
+async function startLive() {
+  if (isLive || !isLiveMode || !myRoom) return;
+  unlockAudio();
+
+  try {
+    recStream = await _acquireMicStream();
+  } catch(err) {
+    _micPermission = 'denied';
+    showToast('Microphone access denied');
+    isLiveMode = false;
+    document.getElementById('liveToggleBtn').classList.remove('live-on');
+    return;
+  }
+
+  isLive = true;
+  _liveStreamId = Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+  _liveChunkSeq = 0;
+
+  var mime = ['audio/webm;codecs=opus','audio/webm','audio/ogg'].find(function(m){ return MediaRecorder.isTypeSupported(m); }) || 'audio/webm';
+  var recOpts = { mimeType: mime };
+  try { if (MediaRecorder.isTypeSupported(mime)) recOpts.audioBitsPerSecond = 24000; } catch(e) {}
+
+  mediaRec = new MediaRecorder(recStream, recOpts);
+
+  mediaRec.ondataavailable = function(e) {
+    if (!e.data || e.data.size < 50 || !isLive) return; // skip tiny/empty chunks
+    var seq = _liveChunkSeq++;
+    var streamId = _liveStreamId;
+    // Encode chunk and emit immediately
+    var reader = new FileReader();
+    reader.onload = function() {
+      if (!isLive || _liveStreamId !== streamId) return; // mode exited while encoding
+      var result = reader.result;
+      var comma  = result.indexOf(',');
+      var b64    = comma !== -1 ? result.slice(comma + 1) : result;
+      socket.emit('voice_chunk', { audio: b64, mime: mime, stream_id: streamId, seq: seq });
+    };
+    reader.readAsDataURL(e.data);
+  };
+
+  mediaRec.onerror = function() { stopLive(); };
+  mediaRec.start(300); // 300ms chunks — low latency, low overhead
+
+  // UI — live state
+  pttCircle.style.willChange = 'transform';
+  pttCircle.classList.add('live');
+  pttCircle.classList.remove('disabled');
+  ripples.classList.add('live');
+  waveWrap.classList.add('on');
+  setWaveBarsColor('tx');
+  chDot.className = 'ch-dot tx';
+  channelPill.classList.add('tx-glow');
+  pttHint.textContent = 'Live';
+  pttHint.classList.remove('hidden');
+  setStatus('Live — speaking now', 'err');
+  try { if (navigator.vibrate) navigator.vibrate(15); } catch(e) {}
+  startVolMeter(recStream);
+
+  // Timer
+  recStartTime = Date.now();
+  recTimerID = setInterval(function() {
+    var elapsed = (Date.now() - recStartTime) / 1000;
+    var m = Math.floor(elapsed / 60), s = Math.floor(elapsed % 60);
+    circTimer.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+    // Auto-stop after MAX_REC_SEC to avoid runaway streams
+    if (elapsed >= MAX_REC_SEC) { stopLive(); setTimeout(startLive, 400); }
+  }, 200);
+}
+
+function stopLive() {
+  if (!isLive) return;
+  isLive = false;
+
+  clearInterval(recTimerID);
+  circTimer.textContent = '0:00';
+
+  if (mediaRec && mediaRec.state !== 'inactive') {
+    try { mediaRec.stop(); } catch(e) {}
+  }
+
+  // Signal end to peers
+  if (_liveStreamId) {
+    socket.emit('voice_stream_end', { stream_id: _liveStreamId });
+  }
+  _liveStreamId = null;
+  recStream = null;
+
+  // UI — back to idle
+  pttCircle.style.willChange = '';
+  pttCircle.classList.remove('live', 'tx');
+  ripples.classList.remove('live', 'tx');
+  waveWrap.classList.remove('on');
+  channelPill.classList.remove('tx-glow');
+  chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
+  stopVolMeter();
+
+  if (isLiveMode) {
+    // Mode still on — update hint but don't reset circle
+    pttHint.textContent = 'Tap Live to speak';
+    setStatus('Live mode on — tap to speak again', 'warn');
+  } else {
+    pttHint.textContent = 'Hold to transmit';
+    setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
+  }
+}
+
+// ── Receive live voice chunks ──
+socket.on('voice_chunk', function(data) {
+  if (!data || !data.audio || !data.stream_id) return;
+  var sid = data.sender_sid;
+  var sender = data.sender_name || peers[sid] || 'someone';
+
+  // Init queue for this sender if needed
+  if (!_liveRxQueues[sid]) {
+    _liveRxQueues[sid] = { chunks: [], playing: false, lastSeq: -1 };
+  }
+  var q = _liveRxQueues[sid];
+
+  // Show receiving UI (first chunk of a stream)
+  if (!q.playing) {
+    q.playing = true;
+    chDot.className = 'ch-dot rx';
+    setStatus('Live from @' + sender + '...', 'rx');
+    channelPill.classList.add('has-unread');
+  }
+
+  // Decode and play chunk immediately — real-time playback
+  var blob = b64toBlob(data.audio, data.mime || 'audio/webm');
+  if (!blob || blob.size < 10) return;
+
+  getSharedCtx(function(ctx) {
+    if (!ctx) return;
+    var reader = new FileReader();
+    reader.onload = function() {
+      ctx.decodeAudioData(reader.result, function(buffer) {
+        // Ensure analyser exists
+        if (!analyser) {
+          analyser = ctx.createAnalyser();
+          analyser.fftSize = 32;
+          analyser.connect(ctx.destination);
+        }
+        var source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(analyser);
+        if (!waveWrap.classList.contains('on')) {
+          waveWrap.classList.add('on');
+          setWaveBarsColor('rx');
+          startVolMeterAudio();
+        }
+        source.start(0);
+      }, function() { /* decode error — skip chunk */ });
+    };
+    reader.readAsArrayBuffer(blob);
+  });
+});
+
+socket.on('voice_stream_end', function(data) {
+  if (!data || !data.sender_sid) return;
+  var sid = data.sender_sid;
+  if (_liveRxQueues[sid]) {
+    _liveRxQueues[sid].playing = false;
+    delete _liveRxQueues[sid];
+  }
+  // Only reset RX UI if nobody else is streaming to us
+  var anyLive = Object.keys(_liveRxQueues).some(function(k){ return _liveRxQueues[k].playing; });
+  if (!anyLive && !isLive) {
+    chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
+    waveWrap.classList.remove('on');
+    stopVolMeter();
+    setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
+  }
+});
+
+// Disable PTT hold when live mode is on
 // ── Recording ──
 async function startRecording() {
+  if (isLiveMode) return; // live mode handles its own recording
   if (!myRoom || isRecording) return;
   unlockAudio();
 
