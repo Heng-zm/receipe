@@ -3045,31 +3045,33 @@ socket.on('voice_chunk', function(data) {
   getSharedCtx(function(ctx) {
     if (!ctx) return;
     var reader = new FileReader();
-        reader.onload = function() {
-          var p = ctx.decodeAudioData(reader.result, function(buffer) {
-            // Ensure analyser exists
-            if (!analyser) {
-              analyser = ctx.createAnalyser();
-              analyser.fftSize = 32;
-              analyser.connect(ctx.destination);
-            }
-            var source = ctx.createBufferSource();
-            source.buffer = buffer;
-            source.connect(analyser);
-            // Only start viz once per stream session, not per chunk
-            if (!vizRAF) {
-              if (!waveWrap.classList.contains('on')) {
-                waveWrap.classList.add('on');
-                setWaveBarsColor('rx');
-              }
-              startVolMeterAudio();
-            }
-            source.start(0);
-          }, function() { /* decode error — skip chunk */ });
-          
-          // FIX: Catch the unhandled promise rejection to clear the console error
-          if (p && p.catch) p.catch(function() { /* ignore promise rejection */ });
-        };
+    reader.onload = function() {
+      var p = ctx.decodeAudioData(reader.result, function(buffer) {
+        // Ensure analyser exists
+        if (!analyser) {
+          analyser = ctx.createAnalyser();
+          analyser.fftSize = 32;
+          analyser.connect(ctx.destination);
+        }
+        var source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(analyser);
+        // Only start viz once per stream session, not per chunk
+        if (!vizRAF) {
+          if (!waveWrap.classList.contains('on')) {
+            waveWrap.classList.add('on');
+            setWaveBarsColor('rx');
+          }
+          startVolMeterAudio();
+        }
+        source.start(0);
+      }, function() { /* decode error — skip chunk */ });
+      
+      // FIX: Catch unhandled promise rejection to silence console error
+      if (p && typeof p.catch === 'function') {
+        p.catch(function() { /* ignore promise rejection */ });
+      }
+    };
     reader.readAsArrayBuffer(blob);
   });
 });
@@ -3520,6 +3522,7 @@ function decodeAndPlay(blob, onEnded, onError) {
       if (!blob || blob.size === 0) { safeError(); return; }
 
       var reader = new FileReader();
+      var reader = new FileReader();
       reader.onload = function() {
         var p = ctx.decodeAudioData(
           reader.result,
@@ -3547,6 +3550,13 @@ function decodeAndPlay(blob, onEnded, onError) {
           },
           function() { safeError(); }        // decode failed (corrupt/unsupported codec)
         );
+        
+        // FIX: Catch unhandled promise rejection to silence console error
+        if (p && typeof p.catch === 'function') {
+          p.catch(function() { safeError(); });
+        }
+      };
+      reader.onerror = function() { safeError(); };
         
         // FIX: Catch the unhandled promise rejection to clear the console error
         if (p && p.catch) p.catch(function() { safeError(); });
