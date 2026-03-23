@@ -1179,6 +1179,7 @@ var vizRAF    = null;
 var vizData   = null;
 // Shared AudioContext — created once on first user gesture, reused for session
 var sharedCtx = null;
+var _mediaStreamSrc = null; // saved to allow explicit disconnect in stopVolMeter
 
 // ── DOM refs ──
 var pttCircle    = document.getElementById('pttCircle');
@@ -2560,7 +2561,7 @@ socket.on('error', function (data) {
     showToast('Recording too large — keep under 60s');
     pttCircle.classList.remove('sending');
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
-    setStatus('Hold to record, release to send', 'ok');
+    setStatus(_idleStatus(), _idleCls());
   } else if (code === 'RATE_LIMITED') {
     showToast('Slow down — too many messages');
   } else { showToast(data.msg || 'Server error'); }
@@ -2923,7 +2924,7 @@ socket.on('voice_stream_end', function(data) {
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
     waveWrap.classList.remove('on');
     stopVolMeter();
-    setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
+    setStatus(_idleStatus(), _idleCls());
   }
 });
 
@@ -3044,7 +3045,7 @@ function onRecorderStop() {
     setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
     return;
   }
-  var mime = mediaRec.mimeType;
+  var mime = mediaRec ? mediaRec.mimeType : 'audio/webm';
   var blob = new Blob(recChunks, {type:mime}); recChunks=[];
   sendVoice(blob, recDuration, mime);
 }
@@ -3056,7 +3057,7 @@ function sendVoice(blob, duration, mime) {
     pttCircle.classList.remove('sending');
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
     setStatus('Sent', 'ok');
-    setTimeout(function () { if (!isRecording) setStatus('Hold to record, release to send', 'ok'); }, 1200);
+    setTimeout(function () { if (!isRecording) setStatus(_idleStatus(), _idleCls()); }, 1200);
   }
   function onErr() {
     showToast('Send failed');
@@ -3087,6 +3088,23 @@ function sendVoice(blob, duration, mime) {
   } else {
     onErr();
   }
+}
+
+// ── Mode-aware idle status helper ──
+// Returns the correct status text + class for the current talk mode and peer state.
+// _talkMode is declared later (var hoisting makes it visible here as undefined until
+// the assignment runs, but drainQueue is only called after full init).
+function _idleStatus() {
+  if (typeof _talkMode !== 'undefined' && _talkMode === 'live') {
+    return isLive ? 'Live \u2014 tap circle to mute / stop' : 'Live \u2014 tap circle to start speaking';
+  }
+  return numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...';
+}
+function _idleCls() {
+  if (typeof _talkMode !== 'undefined' && _talkMode === 'live') {
+    return isLive ? 'err' : 'warn';
+  }
+  return numPeers() > 0 ? 'ok' : 'warn';
 }
 
 // ── Play queue ──
@@ -3129,7 +3147,7 @@ function drainQueue() {
     stopVolMeter();
     setWaveBarsColor('tx');
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
-    setStatus('Hold to record, release to send', 'ok');
+    setStatus(_idleStatus(), _idleCls());
   }
 
   // FIX 2: small gap between end-beep and next item's chirp
@@ -3227,7 +3245,8 @@ function _startVizTick() {
   // Reuse vizData buffer to avoid allocation on every start
   var binCount = analyser.frequencyBinCount;
   if (!vizData || vizData.length !== binCount) vizData = new Uint8Array(binCount);
-  (function tick(ts) {
+  _vizLastFrame = 0; // reset so first real RAF frame always renders
+  vizRAF = requestAnimationFrame(function tick(ts) {
     if (!analyser) return;
     if (ts - _vizLastFrame >= 42) { // ~24fps
       _vizLastFrame = ts;
@@ -3235,7 +3254,7 @@ function _startVizTick() {
       for (var i=0; i<8; i++) { var v=vizData[i*2]||0; wBars[i].style.height=Math.max(2,Math.min(18,v*0.18))+'px'; }
     }
     vizRAF = requestAnimationFrame(tick);
-  })(0);
+  });
 }
 
 function startVolMeter(stream) {
@@ -3243,7 +3262,8 @@ function startVolMeter(stream) {
   getSharedCtx(function(ctx) {
     if (!ctx) return;
     analyser = ctx.createAnalyser(); analyser.fftSize = 32;
-    ctx.createMediaStreamSource(stream).connect(analyser);
+    _mediaStreamSrc = ctx.createMediaStreamSource(stream);
+    _mediaStreamSrc.connect(analyser);
     _startVizTick();
   });
 }
@@ -3257,14 +3277,16 @@ function startVolMeterAudio() {
 
 function stopVolMeter() {
   if (vizRAF) { cancelAnimationFrame(vizRAF); vizRAF=null; }
-  // Do NOT close sharedCtx — it stays alive for the session
+  // Disconnect MediaStreamSource first — prevents node accumulation across recordings
+  if (_mediaStreamSrc) {
+    try { _mediaStreamSrc.disconnect(); } catch(e){}
+    _mediaStreamSrc = null;
+  }
   if (analyser) {
     try { analyser.disconnect(); } catch(e){}
-    // Don't null analyser if decodeAndPlay is about to reuse it —
-    // only null after disconnecting
     analyser = null;
   }
-  vizData=null;
+  // Keep vizData buffer alive — avoids reallocation on next startVolMeter
   wBars.forEach(function(b){b.style.height='3px';});
 }
 
@@ -3419,9 +3441,10 @@ socket.on('quality_update', function(data) {
   var drop    = data.drop_pct   || 0;
   _qualityScore = score;
 
-  // Choose colour class
+  // Choose colour class — skip DOM write if unchanged
   var cls = score >= 70 ? 'q-good' : score >= 40 ? 'q-fair' : 'q-poor';
-  qualityBtn.className = 'quality-btn ' + cls;
+  var newQCls = 'quality-btn ' + cls;
+  if (qualityBtn.className !== newQCls) qualityBtn.className = newQCls;
   qualityTip.textContent = score;
 
   // Bars: 3 levels — light bar 1 at >0, bar 2 at >35, bar 3 at >70
