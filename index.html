@@ -3018,63 +3018,69 @@ function stopLive() {
   }
 }
 
-// ── Receive live voice chunks ──
-socket.on('voice_chunk', function(data) {
-  if (!data || !data.audio || !data.stream_id) return;
-  var sid = data.sender_sid;
-  var sender = data.sender_name || peers[sid] || 'someone';
-
-  // Init queue for this sender if needed
-  if (!_liveRxQueues[sid]) {
-    _liveRxQueues[sid] = { chunks: [], playing: false, lastSeq: -1 };
-  }
-  var q = _liveRxQueues[sid];
-
-  // Show receiving UI (first chunk of a stream)
-  if (!q.playing) {
-    q.playing = true;
-    chDot.className = 'ch-dot rx';
-    setStatus('Live from @' + sender + '...', 'rx');
-    channelPill.classList.add('has-unread');
-  }
-
-  // Decode and play chunk immediately — real-time playback
-  var blob = b64toBlob(data.audio, data.mime || 'audio/webm');
-  if (!blob || blob.size < 10) return;
+// ── iOS/Android-safe audio playback via AudioBuffer ──
+function decodeAndPlay(blob, onEnded, onError) {
+  var fired = false;                         // FIX 4: guard — onEnded/onError fire exactly once
+  function safeEnded() { if (!fired) { fired = true; onEnded(); } }
+  function safeError() { if (!fired) { fired = true; if (onError) onError(); } }
 
   getSharedCtx(function(ctx) {
-    if (!ctx) return;
-    var reader = new FileReader();
-    reader.onload = function() {
-      var p = ctx.decodeAudioData(reader.result, function(buffer) {
-        // Ensure analyser exists
-        if (!analyser) {
-          analyser = ctx.createAnalyser();
-          analyser.fftSize = 32;
-          analyser.connect(ctx.destination);
-        }
-        var source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(analyser);
-        // Only start viz once per stream session, not per chunk
-        if (!vizRAF) {
-          if (!waveWrap.classList.contains('on')) {
-            waveWrap.classList.add('on');
-            setWaveBarsColor('rx');
+    if (!ctx) { safeError(); return; }
+
+    function doDecode() {
+      // FIX 7: reject empty blobs before decoding — avoids silent decode error
+      if (!blob || blob.size === 0) { safeError(); return; }
+
+      var reader = new FileReader();
+      reader.onload = function() {
+        try {
+          var p = ctx.decodeAudioData(
+            reader.result,
+            function(buffer) {
+              // Ensure analyser exists (created here so startVolMeterAudio can reuse it)
+              if (!analyser) {
+                analyser = ctx.createAnalyser();
+                analyser.fftSize = 32;
+                analyser.connect(ctx.destination);
+              }
+              var source = ctx.createBufferSource();
+              source.buffer = buffer;
+              source.connect(analyser);
+
+              // Notify caller that source exists (starts timer + vol meter)
+              if (typeof onEnded._setSrc === 'function') onEnded._setSrc(source);
+
+              source.onended = safeEnded;
+              source.start(0);
+
+              // FIX 4: watchdog — if onended never fires (Android short-clip bug),
+              //         force-complete after duration + 3s grace period
+              var watchdogMs = Math.max(3000, (buffer.duration * 1000) + 3000);
+              setTimeout(safeEnded, watchdogMs);
+            },
+            function() { safeError(); }        // decode failed (corrupt/unsupported codec)
+          );
+          
+          // FIX: Catch the unhandled promise rejection to clear the console error
+          if (p && typeof p.catch === 'function') {
+            p.catch(function() { safeError(); });
           }
-          startVolMeterAudio();
+        } catch (err) {
+          safeError();
         }
-        source.start(0);
-      }, function() { /* decode error — skip chunk */ });
-      
-      // FIX: Catch unhandled promise rejection to silence console error
-      if (p && typeof p.catch === 'function') {
-        p.catch(function() { /* ignore promise rejection */ });
-      }
-    };
-    reader.readAsArrayBuffer(blob);
+      };
+      reader.onerror = function() { safeError(); };
+      reader.readAsArrayBuffer(blob);
+    }
+
+    // FIX 3: resume on BOTH 'suspended' and 'interrupted' (Safari-specific state)
+    if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+      ctx.resume().then(doDecode).catch(safeError);
+    } else {
+      doDecode();
+    }
   });
-});
+}
 
 socket.on('voice_stream_end', function(data) {
   if (!data || !data.sender_sid) return;
