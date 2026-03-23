@@ -3390,6 +3390,18 @@ function playEndBeep() {
   });
 }
 
+function playBeep(freq, dur) {
+  getSharedCtx(function(ctx) {
+    if (!ctx) return;
+    try {
+      var o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination); o.frequency.value=freq;
+      g.gain.setValueAtTime(0.1,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);
+      o.start(); o.stop(ctx.currentTime+dur);
+    } catch(e){}
+  });
+}
 
 function setWaveBarsColor(cls) {
   wBars.forEach(function(b) { b.className = 'wbar ' + cls; });
@@ -3512,85 +3524,6 @@ function unlockAudio() {
   } else {
     _doUnlock();
   }
-}
-
-// ── iOS/Android-safe audio playback via AudioBuffer ──
-function decodeAndPlay(blob, onEnded, onError) {
-  var fired = false;                         // FIX 4: guard — onEnded/onError fire exactly once
-  function safeEnded() { if (!fired) { fired = true; onEnded(); } }
-  function safeError() { if (!fired) { fired = true; if (onError) onError(); } }
-
-  getSharedCtx(function(ctx) {
-    if (!ctx) { safeError(); return; }
-
-    function doDecode() {
-      // FIX 7: reject empty blobs before decoding — avoids silent decode error
-      if (!blob || blob.size === 0) { safeError(); return; }
-
-      var reader = new FileReader();
-      var reader = new FileReader();
-      reader.onload = function() {
-        var p = ctx.decodeAudioData(
-          reader.result,
-          function(buffer) {
-            // Ensure analyser exists (created here so startVolMeterAudio can reuse it)
-            if (!analyser) {
-              analyser = ctx.createAnalyser();
-              analyser.fftSize = 32;
-              analyser.connect(ctx.destination);
-            }
-            var source = ctx.createBufferSource();
-            source.buffer = buffer;
-            source.connect(analyser);
-
-            // Notify caller that source exists (starts timer + vol meter)
-            if (typeof onEnded._setSrc === 'function') onEnded._setSrc(source);
-
-            source.onended = safeEnded;
-            source.start(0);
-
-            // FIX 4: watchdog — if onended never fires (Android short-clip bug),
-            //         force-complete after duration + 3s grace period
-            var watchdogMs = Math.max(3000, (buffer.duration * 1000) + 3000);
-            setTimeout(safeEnded, watchdogMs);
-          },
-          function() { safeError(); }        // decode failed (corrupt/unsupported codec)
-        );
-        
-        // FIX: Catch unhandled promise rejection to silence console error
-        if (p && typeof p.catch === 'function') {
-          p.catch(function() { safeError(); });
-        }
-      };
-      reader.onerror = function() { safeError(); };
-        
-        // FIX: Catch the unhandled promise rejection to clear the console error
-        if (p && p.catch) p.catch(function() { safeError(); });
-      };
-      reader.onerror = function() { safeError(); };
-      reader.readAsArrayBuffer(blob);
-    }
-
-    // FIX 3: resume on BOTH 'suspended' and 'interrupted' (Safari-specific state)
-    if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
-      ctx.resume().then(doDecode).catch(safeError);
-    } else {
-      doDecode();
-    }
-  });
-}
-
-function playBeep(freq, dur) {
-  getSharedCtx(function(ctx) {
-    if (!ctx) return;
-    try {
-      var o=ctx.createOscillator(), g=ctx.createGain();
-      o.connect(g); g.connect(ctx.destination); o.frequency.value=freq;
-      g.gain.setValueAtTime(0.1,ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);
-      o.start(); o.stop(ctx.currentTime+dur);
-    } catch(e){}
-  });
 }
 
 // ── Connection quality ────────────────────────────────────────────────────────
