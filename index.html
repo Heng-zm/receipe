@@ -6,6 +6,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WalkieTalk">
+<meta name="description" content="Push-to-talk walkie-talkie for groups">
+<meta name="theme-color" content="#060608">
+<link rel="manifest" href="manifest.json">
+<!-- Apple touch icon — inline SVG data URI, no external file needed -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23060608'/%3E%3Crect x='200' y='80' width='112' height='180' rx='56' fill='none' stroke='%23ff9f0a' stroke-width='28'/%3E%3Cpath d='M128 240c0 70.7 57.3 128 128 128s128-57.3 128-128' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round' fill='none'/%3E%3Cline x1='256' y1='368' x2='256' y2='430' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round'/%3E%3Cline x1='196' y1='430' x2='316' y2='430' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round'/%3E%3C/svg%3E">
 <title>WalkieTalk</title>
 <style>
 /* ── Design tokens ── */
@@ -82,6 +88,45 @@ body::after {
   background:
     radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, rgba(0,0,0,0.55) 100%);
 }
+
+/* PWA install prompt */
+.install-bar {
+  position:absolute; bottom:calc(env(safe-area-inset-bottom,0px) + 76px);
+  left:12px; right:12px; z-index:30;
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px 10px 12px;
+  background:rgba(14,14,16,0.97);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:16px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.5);
+  transform:translateY(16px) scale(0.97); opacity:0;
+  transition:transform 0.32s var(--ease-expo), opacity 0.26s var(--ease-out);
+  pointer-events:none;
+}
+.install-bar.on { transform:translateY(0) scale(1); opacity:1; pointer-events:all; }
+.install-bar-icon {
+  width:36px; height:36px; border-radius:9px; flex-shrink:0;
+  background:rgba(255,159,10,0.15); border:1px solid rgba(255,159,10,0.25);
+  display:flex; align-items:center; justify-content:center;
+}
+.install-bar-text { flex:1; min-width:0; }
+.install-bar-title { font-size:13px; font-weight:600; color:var(--white); letter-spacing:-0.1px; }
+.install-bar-sub   { font-size:11px; font-weight:400; color:rgba(255,255,255,0.4); margin-top:1px; }
+.install-bar-btn {
+  flex-shrink:0; border:none; border-radius:100px; cursor:pointer;
+  font-family:inherit; font-size:12px; font-weight:600; letter-spacing:0.1px;
+  padding:6px 14px; background:var(--amber); color:#000;
+  transition:opacity 0.15s var(--ease-out), transform 0.12s var(--ease-spring);
+}
+.install-bar-btn:active { opacity:0.75; transform:scale(0.94); }
+.install-bar-dismiss {
+  flex-shrink:0; background:none; border:none; cursor:pointer;
+  width:28px; height:28px; display:flex; align-items:center; justify-content:center;
+  color:rgba(255,255,255,0.25); font-size:14px; border-radius:50%;
+  transition:color 0.15s var(--ease-out);
+}
+.install-bar-dismiss:active { color:rgba(255,255,255,0.7); }
 
 /* Reconnect banner — absolute so it never shifts layout */
 .reconnect-bar {
@@ -830,6 +875,24 @@ body::after {
     <span>Reconnecting...</span>
   </div>
 
+  <!-- PWA install prompt -->
+  <div class="install-bar" id="installBar" role="banner" aria-label="Install app">
+    <div class="install-bar-icon">
+      <svg width="20" height="20" viewBox="0 0 42 48" fill="none" aria-hidden="true">
+        <rect x="13.5" y="1.5" width="15" height="23" rx="7.5" stroke="#ff9f0a" stroke-width="2.2" fill="none"/>
+        <path d="M6 23c0 8.3 6.7 15 15 15s15-6.7 15-15" stroke="#ff9f0a" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+        <line x1="21" y1="38" x2="21" y2="44" stroke="#ff9f0a" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="15" y1="44" x2="27" y2="44" stroke="#ff9f0a" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="install-bar-text">
+      <div class="install-bar-title">Add to home screen</div>
+      <div class="install-bar-sub">Works offline · instant launch</div>
+    </div>
+    <button class="install-bar-btn" id="installBtn">Install</button>
+    <button class="install-bar-dismiss" id="installDismiss" aria-label="Dismiss">✕</button>
+  </div>
+
   <div class="topbar">
     <div class="topbar-left">
       <button class="top-icon-btn" id="btnGrid" title="Channels" style="opacity:0.85">
@@ -1247,7 +1310,104 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
   _checkMicPermission(); // pre-check without prompting — updates _micPermission
   // Init share button state — grey until channel joined
   setTimeout(_updateShareBtn, 0);
+  // Register service worker for PWA / offline support
+  _registerSW();
 })();
+
+// ── PWA: Service Worker + Install Prompt ─────────────────────────────────
+var _deferredInstallPrompt = null;  // holds the beforeinstallprompt event
+
+function _registerSW() {
+  if (!('serviceWorker' in navigator)) return; // not supported
+  navigator.serviceWorker.register('sw.js', { scope: '/' })
+    .then(function(reg) {
+      console.log('[PWA] SW registered, scope:', reg.scope);
+      // Check for waiting worker — new version available
+      if (reg.waiting) { _onNewSWReady(reg.waiting); }
+      reg.addEventListener('updatefound', function() {
+        var newWorker = reg.installing;
+        newWorker.addEventListener('statechange', function() {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            _onNewSWReady(newWorker);
+          }
+        });
+      });
+    })
+    .catch(function(err) {
+      console.warn('[PWA] SW registration failed:', err);
+    });
+}
+
+// New SW waiting — show update toast so user can refresh
+function _onNewSWReady(worker) {
+  showToast('Update available — refresh to apply');
+  // Auto-apply after 8s if user is not in an active session
+  setTimeout(function() {
+    if (!isRecording && !isLive && !queuePlaying) {
+      worker.postMessage({ type: 'SKIP_WAITING' });
+      window.location.reload();
+    }
+  }, 8000);
+}
+
+// Browser fires this before showing the native install prompt —
+// capture it so we can show it ourselves at a better moment.
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault(); // suppress automatic browser mini-infobar
+  _deferredInstallPrompt = e;
+  _maybeShowInstallBar();
+});
+
+window.addEventListener('appinstalled', function() {
+  _deferredInstallPrompt = null;
+  _hideInstallBar();
+  showToast('WalkieTalk installed!');
+  localStorage.setItem('wt_pwa_installed', '1');
+});
+
+function _maybeShowInstallBar() {
+  if (!_deferredInstallPrompt) return;              // no prompt available
+  if (localStorage.getItem('wt_pwa_dismissed')) return;  // user dismissed
+  if (localStorage.getItem('wt_pwa_installed'))   return;  // already installed
+  // Show after a short delay so the app has loaded first
+  setTimeout(function() {
+    var bar = document.getElementById('installBar');
+    if (bar) bar.classList.add('on');
+  }, 2500);
+}
+
+function _hideInstallBar() {
+  var bar = document.getElementById('installBar');
+  if (bar) bar.classList.remove('on');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var installBtn     = document.getElementById('installBtn');
+  var installDismiss = document.getElementById('installDismiss');
+
+  if (installBtn) {
+    installBtn.addEventListener('click', function() {
+      if (!_deferredInstallPrompt) return;
+      _deferredInstallPrompt.prompt();
+      _deferredInstallPrompt.userChoice.then(function(choice) {
+        if (choice.outcome === 'accepted') {
+          localStorage.setItem('wt_pwa_installed', '1');
+        }
+        _deferredInstallPrompt = null;
+        _hideInstallBar();
+      });
+    });
+  }
+
+  if (installDismiss) {
+    installDismiss.addEventListener('click', function() {
+      localStorage.setItem('wt_pwa_dismissed', '1');
+      _hideInstallBar();
+    });
+  }
+});
+
+socket.on('connect', function() {
 
 // ── UI wiring ──
 function wireUI() {
@@ -2420,6 +2580,8 @@ socket.on('connect', function () {
   document.getElementById('reconnectBar').classList.remove('on');
   document.getElementById('btnPower').classList.remove('disconnected');
   document.getElementById('btnPower').classList.add('connected');
+  // Good moment to show install prompt — user is clearly engaged
+  _maybeShowInstallBar();
   // Prefetch Leaflet in idle time so map opens instantly on first tap
   if (!mapReady && typeof requestIdleCallback !== 'undefined') {
     requestIdleCallback(function() {
