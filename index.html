@@ -1233,8 +1233,9 @@ var isLiveMode   = false;  // live voice enabled
 var isLive       = false;  // currently streaming live
 var _liveStreamId = null;  // unique ID for this live session
 var _liveChunkSeq = 0;     // chunk sequence number for receiver ordering
+var _liveInitData = null;  // WebM init segment (chunk 0) — prepended to all chunks so each is decodable
 // Receiver: per-sender chunk queues for smooth playback
-var _liveRxQueues = {};    // sid → { chunks:[], playing:bool, ctx:AudioContext }
+var _liveRxQueues = {};    // sid → { chunks:[], playing:bool, initBlob:null }
 
 // ── Audio viz (rAF-based) ──
 var analyser  = null;
@@ -2942,7 +2943,18 @@ async function startLive() {
     if (!e.data || e.data.size < 50 || !isLive) return; // skip tiny/empty chunks
     var seq = _liveChunkSeq++;
     var streamId = _liveStreamId;
-    // Encode chunk and emit immediately
+
+    // WebM streaming: chunk 0 contains the EBML init segment (codec params + header).
+    // Chunks 1–N are bare cluster data — decodeAudioData rejects them as invalid.
+    // Fix: save chunk 0 as the init segment and prepend it to every subsequent chunk
+    // so each emitted payload is a complete, independently decodable WebM file.
+    if (seq === 0) {
+      _liveInitData = e.data; // save init segment for this stream session
+    }
+    var chunkToSend = (seq === 0 || !_liveInitData)
+      ? e.data
+      : new Blob([_liveInitData, e.data], { type: mime });
+
     var reader = new FileReader();
     reader.onload = function() {
       if (!isLive || _liveStreamId !== streamId) return; // mode exited while encoding
@@ -2951,7 +2963,7 @@ async function startLive() {
       var b64    = comma !== -1 ? result.slice(comma + 1) : result;
       socket.emit('voice_chunk', { audio: b64, mime: mime, stream_id: streamId, seq: seq });
     };
-    reader.readAsDataURL(e.data);
+    reader.readAsDataURL(chunkToSend);
   };
 
   mediaRec.onerror = function() { stopLive(); };
@@ -2991,6 +3003,7 @@ function stopLive() {
   isLive = false;
   var endedStreamId = _liveStreamId; // capture before null — FileReader callbacks check this
   _liveStreamId = null;
+  _liveInitData = null;   // reset init segment — next stream session will save a new one
 
   clearInterval(recTimerID); recTimerID = null;
   circTimer.textContent = '0:00';
@@ -3051,30 +3064,41 @@ socket.on('voice_chunk', function(data) {
 
   getSharedCtx(function(ctx) {
     if (!ctx) return;
-    var reader = new FileReader();
-    reader.onload = function() {
-      ctx.decodeAudioData(reader.result, function(buffer) {
-        // Ensure analyser exists
-        if (!analyser) {
-          analyser = ctx.createAnalyser();
-          analyser.fftSize = 32;
-          analyser.connect(ctx.destination);
-        }
-        var source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(analyser);
-        // Only start viz once per stream session, not per chunk
-        if (!vizRAF) {
-          if (!waveWrap.classList.contains('on')) {
-            waveWrap.classList.add('on');
-            setWaveBarsColor('rx');
-          }
-          startVolMeterAudio();
-        }
-        source.start(0);
-      }, function() { /* decode error — skip chunk */ });
+    // Ensure context is running before decode — suspended ctx causes synchronous throw
+    var doDecodeChunk = function() {
+      var reader = new FileReader();
+      reader.onload = function() {
+        // Always use Promise form — callback form still rejects the Promise on error,
+        // causing "Uncaught (in promise) EncodingError" if not caught.
+        ctx.decodeAudioData(reader.result)
+          .then(function(buffer) {
+            if (!analyser) {
+              analyser = ctx.createAnalyser();
+              analyser.fftSize = 32;
+              analyser.connect(ctx.destination);
+            }
+            var source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(analyser);
+            if (!vizRAF) {
+              if (!waveWrap.classList.contains('on')) {
+                waveWrap.classList.add('on');
+                setWaveBarsColor('rx');
+              }
+              startVolMeterAudio();
+            }
+            source.start(0);
+          })
+          .catch(function() { /* chunk decode failed — skip silently */ });
+      };
+      reader.readAsArrayBuffer(blob);
     };
-    reader.readAsArrayBuffer(blob);
+    // Resume suspended context first (e.g. iOS background/locked screen)
+    if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+      ctx.resume().then(doDecodeChunk).catch(function() {});
+    } else {
+      doDecodeChunk();
+    }
   });
 });
 
@@ -3525,9 +3549,11 @@ function decodeAndPlay(blob, onEnded, onError) {
 
       var reader = new FileReader();
       reader.onload = function() {
-        ctx.decodeAudioData(
-          reader.result,
-          function(buffer) {
+        // Use Promise form of decodeAudioData — the callback form ALSO rejects the
+        // returned Promise on error, causing "Uncaught (in promise) EncodingError"
+        // if the Promise isn't caught. Always .catch() the return value.
+        ctx.decodeAudioData(reader.result)
+          .then(function(buffer) {
             // Ensure analyser exists (created here so startVolMeterAudio can reuse it)
             if (!analyser) {
               analyser = ctx.createAnalyser();
@@ -3544,13 +3570,12 @@ function decodeAndPlay(blob, onEnded, onError) {
             source.onended = safeEnded;
             source.start(0);
 
-            // FIX 4: watchdog — if onended never fires (Android short-clip bug),
-            //         force-complete after duration + 3s grace period
+            // Watchdog — if onended never fires (Android short-clip bug),
+            // force-complete after duration + 3s grace period
             var watchdogMs = Math.max(3000, (buffer.duration * 1000) + 3000);
             setTimeout(safeEnded, watchdogMs);
-          },
-          function() { safeError(); }        // decode failed (corrupt/unsupported codec)
-        );
+          })
+          .catch(function() { safeError(); }); // catches both decode errors AND Promise rejections
       };
       reader.onerror = function() { safeError(); };
       reader.readAsArrayBuffer(blob);
