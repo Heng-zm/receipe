@@ -1324,6 +1324,8 @@ function _registerSW() {
       console.log('[PWA] SW registered, scope:', reg.scope);
       // Check for waiting worker — new version available
       if (reg.waiting) { _onNewSWReady(reg.waiting); }
+      // Poll for updates every 30 min — catches updates in long-running sessions
+      setInterval(function() { reg.update().catch(function(){}); }, 30 * 60 * 1000);
       reg.addEventListener('updatefound', function() {
         var newWorker = reg.installing;
         newWorker.addEventListener('statechange', function() {
@@ -1715,9 +1717,15 @@ function reverseGeocode(lat, lng) {
   if (_geocodeController) { try { _geocodeController.abort(); } catch(e){} }
   _geocodeController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   var opts = _geocodeController ? { signal: _geocodeController.signal } : {};
-  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng, opts)
-    .then(function (r) { return r.json(); })
+  var geoUrl = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' +
+               encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng);
+  fetch(geoUrl, opts)
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
     .then(function (d) {
+      if (!d || typeof d !== 'object') throw new Error('bad json');
       var a = d.address || {};
       var parts = [a.city||a.town||a.village||a.county||'', a.state||'', a.country_code ? a.country_code.toUpperCase() : ''].filter(Boolean);
       setLocationText(parts.join(', ') || 'Unknown location');
@@ -2048,6 +2056,18 @@ function _geoBuildColorPicker() {
   });
 }
 
+// ── Shared zone label HTML builder ──
+function _geoLabelHtml(color, name, channel) {
+  return '<div style="display:flex;align-items:center;gap:5px;pointer-events:none;' +
+    'filter:drop-shadow(0 1px 6px rgba(0,0,0,0.8))">' +
+    '<div style="width:6px;height:6px;border-radius:50%;flex-shrink:0;' +
+      'background:' + color + ';box-shadow:0 0 0 2px rgba(0,0,0,0.5)"></div>' +
+    '<span style="font-size:11px;font-weight:600;color:#fff;letter-spacing:0.4px;' +
+      'text-transform:uppercase;text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0 12px rgba(0,0,0,0.6)">' +
+      _esc(name || channel) + '</span>' +
+    '</div>';
+}
+
 // ── _geoDrawZone: draw a single zone's circle+marker onto the map ──
 function _geoDrawZone(z) {
   if (!mapInstance || z.circle) return;
@@ -2065,20 +2085,8 @@ function _geoDrawZone(z) {
     opacity:     inside ? 0.9   : 0.55
   }).addTo(mapInstance);
 
-  // Label: small colored dot + name, no border box
-  var labelHtml =
-    '<div style="display:flex;align-items:center;gap:5px;pointer-events:none;' +
-      'filter:drop-shadow(0 1px 6px rgba(0,0,0,0.8))">' +
-      '<div style="width:6px;height:6px;border-radius:50%;flex-shrink:0;' +
-        'background:' + color + ';' +
-        'box-shadow:0 0 0 2px rgba(0,0,0,0.5)">' +
-      '</div>' +
-      '<span style="font-size:11px;font-weight:600;color:#fff;' +
-        'letter-spacing:0.4px;text-transform:uppercase;' +
-        'text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0 12px rgba(0,0,0,0.6)">' +
-        _esc(z.name || z.channel) +
-      '</span>' +
-    '</div>';
+  // Label: shared builder keeps _geoDrawZone and zone_upserted in sync
+  var labelHtml = _geoLabelHtml(color, z.name, z.channel);
 
   var labelIcon = L.divIcon({
     className: '',
@@ -2222,7 +2230,8 @@ function geoShowBanner(zone) {
 }
 
 // ── Update banner distance + status + button ──
-function geoUpdateBanner(zone) {
+// precomputedDist: optional metres already calculated by geoCheckAll — avoids second haversine
+function geoUpdateBanner(zone, precomputedDist) {
   var el = zone.bannerEl;
   if (!el) return;
   var distEl   = document.getElementById('gbdist_'   + zone.id);
@@ -2230,7 +2239,9 @@ function geoUpdateBanner(zone) {
   var actionEl = document.getElementById('gbaction_' + zone.id);
   if (!actionEl) return;
 
-  var dist   = (userLat && userLng) ? Math.round(geoDistance(userLat, userLng, zone.lat, zone.lng)) : null;
+  // Use pre-computed distance if provided — avoids a second haversine per zone
+  var dist = (precomputedDist !== undefined) ? Math.round(precomputedDist)
+           : (userLat && userLng) ? Math.round(geoDistance(userLat, userLng, zone.lat, zone.lng)) : null;
   var inside = !!geoInsideZones[zone.id];
 
   // Distance / inside indicator
@@ -2283,8 +2294,8 @@ function geoCheckAll(lat, lng) {
     var dist    = geoDistance(lat, lng, z.lat, z.lng);
     var inside  = dist <= z.radius;
     var wasIn   = !!geoInsideZones[z.id];
-    // Update proximity bar on visible banners even if no state change
-    if (z.bannerEl) geoUpdateBanner(z);
+    // Update proximity bar on visible banners — pass pre-computed distance
+    if (z.bannerEl) geoUpdateBanner(z, dist);
 
     if (inside && !wasIn) {
       // ── Entered ──
@@ -2312,6 +2323,9 @@ function geoCheckAll(lat, lng) {
         showToast('Left zone · auto-leaving #' + z.channel);
         socket.emit('leave_room_event', {});
         _releaseMicStream(); // free mic — user has left, no recording expected
+        // Reset live mode if active — can't stream to a room we just left
+        if (isLive) stopLive();
+        if (_talkMode === 'live') setTalkMode('hold');
         myRoom = '';
         chNameEl.textContent = 'Tap to join channel';
         channelPill.classList.add('ph');
@@ -2322,6 +2336,7 @@ function geoCheckAll(lat, lng) {
         pttHint.classList.remove('hidden');
         talkHereBtn.disabled = true;
         setStatus('Tap grid to join a channel', '');
+        _updateShareBtn();
         peers = {};
       } else if (myRoom === z.channel) {
         showToast('Left zone · staying on #' + z.channel);
@@ -2768,15 +2783,7 @@ socket.on('zone_upserted', function(data) {
     }
     if (existing.marker && mapInstance) {
       mapInstance.removeLayer(existing.marker);
-      var labelHtml =
-        '<div style="display:flex;align-items:center;gap:5px;pointer-events:none;' +
-          'filter:drop-shadow(0 1px 6px rgba(0,0,0,0.8))">' +
-          '<div style="width:6px;height:6px;border-radius:50%;flex-shrink:0;' +
-            'background:' + z.color + ';box-shadow:0 0 0 2px rgba(0,0,0,0.5)"></div>' +
-          '<span style="font-size:11px;font-weight:600;color:#fff;letter-spacing:0.4px;text-transform:uppercase;' +
-            'text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0 12px rgba(0,0,0,0.6)">' +
-            _esc(z.name || z.channel) + '</span>' +
-        '</div>';
+      var labelHtml = _geoLabelHtml(z.color, z.name, z.channel);
       var icon = L.divIcon({ className:'', html: labelHtml, iconAnchor:[0,6], iconSize:null });
       existing.marker = L.marker([existing.lat, existing.lng], { icon: icon, interactive: false }).addTo(mapInstance);
     }
@@ -3018,69 +3025,58 @@ function stopLive() {
   }
 }
 
-// ── iOS/Android-safe audio playback via AudioBuffer ──
-function decodeAndPlay(blob, onEnded, onError) {
-  var fired = false;                         // FIX 4: guard — onEnded/onError fire exactly once
-  function safeEnded() { if (!fired) { fired = true; onEnded(); } }
-  function safeError() { if (!fired) { fired = true; if (onError) onError(); } }
+// ── Receive live voice chunks ──
+socket.on('voice_chunk', function(data) {
+  if (!data || !data.audio || !data.stream_id) return;
+  var sid = data.sender_sid;
+  var sender = data.sender_name || peers[sid] || 'someone';
+
+  // Init queue for this sender if needed
+  if (!_liveRxQueues[sid]) {
+    _liveRxQueues[sid] = { chunks: [], playing: false, lastSeq: -1 };
+  }
+  var q = _liveRxQueues[sid];
+
+  // Show receiving UI (first chunk of a stream)
+  if (!q.playing) {
+    q.playing = true;
+    chDot.className = 'ch-dot rx';
+    setStatus('Live from @' + sender + '...', 'rx');
+    channelPill.classList.add('has-unread');
+  }
+
+  // Decode and play chunk immediately — real-time playback
+  var blob = b64toBlob(data.audio, data.mime || 'audio/webm');
+  if (!blob || blob.size < 10) return;
 
   getSharedCtx(function(ctx) {
-    if (!ctx) { safeError(); return; }
-
-    function doDecode() {
-      // FIX 7: reject empty blobs before decoding — avoids silent decode error
-      if (!blob || blob.size === 0) { safeError(); return; }
-
-      var reader = new FileReader();
-      reader.onload = function() {
-        try {
-          var p = ctx.decodeAudioData(
-            reader.result,
-            function(buffer) {
-              // Ensure analyser exists (created here so startVolMeterAudio can reuse it)
-              if (!analyser) {
-                analyser = ctx.createAnalyser();
-                analyser.fftSize = 32;
-                analyser.connect(ctx.destination);
-              }
-              var source = ctx.createBufferSource();
-              source.buffer = buffer;
-              source.connect(analyser);
-
-              // Notify caller that source exists (starts timer + vol meter)
-              if (typeof onEnded._setSrc === 'function') onEnded._setSrc(source);
-
-              source.onended = safeEnded;
-              source.start(0);
-
-              // FIX 4: watchdog — if onended never fires (Android short-clip bug),
-              //         force-complete after duration + 3s grace period
-              var watchdogMs = Math.max(3000, (buffer.duration * 1000) + 3000);
-              setTimeout(safeEnded, watchdogMs);
-            },
-            function() { safeError(); }        // decode failed (corrupt/unsupported codec)
-          );
-          
-          // FIX: Catch the unhandled promise rejection to clear the console error
-          if (p && typeof p.catch === 'function') {
-            p.catch(function() { safeError(); });
-          }
-        } catch (err) {
-          safeError();
+    if (!ctx) return;
+    var reader = new FileReader();
+    reader.onload = function() {
+      ctx.decodeAudioData(reader.result, function(buffer) {
+        // Ensure analyser exists
+        if (!analyser) {
+          analyser = ctx.createAnalyser();
+          analyser.fftSize = 32;
+          analyser.connect(ctx.destination);
         }
-      };
-      reader.onerror = function() { safeError(); };
-      reader.readAsArrayBuffer(blob);
-    }
-
-    // FIX 3: resume on BOTH 'suspended' and 'interrupted' (Safari-specific state)
-    if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
-      ctx.resume().then(doDecode).catch(safeError);
-    } else {
-      doDecode();
-    }
+        var source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(analyser);
+        // Only start viz once per stream session, not per chunk
+        if (!vizRAF) {
+          if (!waveWrap.classList.contains('on')) {
+            waveWrap.classList.add('on');
+            setWaveBarsColor('rx');
+          }
+          startVolMeterAudio();
+        }
+        source.start(0);
+      }, function() { /* decode error — skip chunk */ });
+    };
+    reader.readAsArrayBuffer(blob);
   });
-}
+});
 
 socket.on('voice_stream_end', function(data) {
   if (!data || !data.sender_sid) return;
@@ -3390,18 +3386,6 @@ function playEndBeep() {
   });
 }
 
-function playBeep(freq, dur) {
-  getSharedCtx(function(ctx) {
-    if (!ctx) return;
-    try {
-      var o=ctx.createOscillator(), g=ctx.createGain();
-      o.connect(g); g.connect(ctx.destination); o.frequency.value=freq;
-      g.gain.setValueAtTime(0.1,ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);
-      o.start(); o.stop(ctx.currentTime+dur);
-    } catch(e){}
-  });
-}
 
 function setWaveBarsColor(cls) {
   wBars.forEach(function(b) { b.className = 'wbar ' + cls; });
@@ -3524,6 +3508,74 @@ function unlockAudio() {
   } else {
     _doUnlock();
   }
+}
+
+// ── iOS/Android-safe audio playback via AudioBuffer ──
+function decodeAndPlay(blob, onEnded, onError) {
+  var fired = false;                         // FIX 4: guard — onEnded/onError fire exactly once
+  function safeEnded() { if (!fired) { fired = true; onEnded(); } }
+  function safeError() { if (!fired) { fired = true; if (onError) onError(); } }
+
+  getSharedCtx(function(ctx) {
+    if (!ctx) { safeError(); return; }
+
+    function doDecode() {
+      // FIX 7: reject empty blobs before decoding — avoids silent decode error
+      if (!blob || blob.size === 0) { safeError(); return; }
+
+      var reader = new FileReader();
+      reader.onload = function() {
+        ctx.decodeAudioData(
+          reader.result,
+          function(buffer) {
+            // Ensure analyser exists (created here so startVolMeterAudio can reuse it)
+            if (!analyser) {
+              analyser = ctx.createAnalyser();
+              analyser.fftSize = 32;
+              analyser.connect(ctx.destination);
+            }
+            var source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(analyser);
+
+            // Notify caller that source exists (starts timer + vol meter)
+            if (typeof onEnded._setSrc === 'function') onEnded._setSrc(source);
+
+            source.onended = safeEnded;
+            source.start(0);
+
+            // FIX 4: watchdog — if onended never fires (Android short-clip bug),
+            //         force-complete after duration + 3s grace period
+            var watchdogMs = Math.max(3000, (buffer.duration * 1000) + 3000);
+            setTimeout(safeEnded, watchdogMs);
+          },
+          function() { safeError(); }        // decode failed (corrupt/unsupported codec)
+        );
+      };
+      reader.onerror = function() { safeError(); };
+      reader.readAsArrayBuffer(blob);
+    }
+
+    // FIX 3: resume on BOTH 'suspended' and 'interrupted' (Safari-specific state)
+    if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+      ctx.resume().then(doDecode).catch(safeError);
+    } else {
+      doDecode();
+    }
+  });
+}
+
+function playBeep(freq, dur) {
+  getSharedCtx(function(ctx) {
+    if (!ctx) return;
+    try {
+      var o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination); o.frequency.value=freq;
+      g.gain.setValueAtTime(0.1,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);
+      o.start(); o.stop(ctx.currentTime+dur);
+    } catch(e){}
+  });
 }
 
 // ── Connection quality ────────────────────────────────────────────────────────
