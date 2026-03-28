@@ -3068,28 +3068,36 @@ socket.on('voice_chunk', function(data) {
     var doDecodeChunk = function() {
       var reader = new FileReader();
       reader.onload = function() {
-        // Always use Promise form — callback form still rejects the Promise on error,
-        // causing "Uncaught (in promise) EncodingError" if not caught.
-        ctx.decodeAudioData(reader.result)
-          .then(function(buffer) {
-            if (!analyser) {
-              analyser = ctx.createAnalyser();
-              analyser.fftSize = 32;
-              analyser.connect(ctx.destination);
-            }
-            var source = ctx.createBufferSource();
-            source.buffer = buffer;
-            source.connect(analyser);
-            if (!vizRAF) {
-              if (!waveWrap.classList.contains('on')) {
-                waveWrap.classList.add('on');
-                setWaveBarsColor('rx');
+        // Hybrid callback+Promise — same reasoning as decodeAndPlay above.
+        var p;
+        try {
+          p = ctx.decodeAudioData(
+            reader.result,
+            function(buffer) {
+              if (!analyser) {
+                analyser = ctx.createAnalyser();
+                analyser.fftSize = 32;
+                analyser.connect(ctx.destination);
               }
-              startVolMeterAudio();
-            }
-            source.start(0);
-          })
-          .catch(function() { /* chunk decode failed — skip silently */ });
+              var source = ctx.createBufferSource();
+              source.buffer = buffer;
+              source.connect(analyser);
+              if (!vizRAF) {
+                if (!waveWrap.classList.contains('on')) {
+                  waveWrap.classList.add('on');
+                  setWaveBarsColor('rx');
+                }
+                startVolMeterAudio();
+              }
+              source.start(0);
+            },
+            function() { /* chunk decode failed — skip silently */ }
+          );
+        } catch(e) {
+          return; // decode threw synchronously — skip this chunk
+        }
+        // Silence unhandled Promise rejection in modern browsers.
+        if (p && typeof p.then === 'function') { p.catch(function() {}); }
       };
       reader.readAsArrayBuffer(blob);
     };
@@ -3549,33 +3557,44 @@ function decodeAndPlay(blob, onEnded, onError) {
 
       var reader = new FileReader();
       reader.onload = function() {
-        // Use Promise form of decodeAudioData — the callback form ALSO rejects the
-        // returned Promise on error, causing "Uncaught (in promise) EncodingError"
-        // if the Promise isn't caught. Always .catch() the return value.
-        ctx.decodeAudioData(reader.result)
-          .then(function(buffer) {
-            // Ensure analyser exists (created here so startVolMeterAudio can reuse it)
-            if (!analyser) {
-              analyser = ctx.createAnalyser();
-              analyser.fftSize = 32;
-              analyser.connect(ctx.destination);
-            }
-            var source = ctx.createBufferSource();
-            source.buffer = buffer;
-            source.connect(analyser);
+        // Hybrid: pass callbacks (Safari < 14.1, old Android — no Promise support)
+        // AND catch the returned value if it is a Promise (Chrome/Firefox — callback
+        // form still rejects the Promise, causing "Uncaught (in promise)" if uncaught).
+        // Both code paths fire from the same underlying operation — no double-fire.
+        var p;
+        try {
+          p = ctx.decodeAudioData(
+            reader.result,
+            function(buffer) {
+              // Ensure analyser exists (created here so startVolMeterAudio can reuse it)
+              if (!analyser) {
+                analyser = ctx.createAnalyser();
+                analyser.fftSize = 32;
+                analyser.connect(ctx.destination);
+              }
+              var source = ctx.createBufferSource();
+              source.buffer = buffer;
+              source.connect(analyser);
 
-            // Notify caller that source exists (starts timer + vol meter)
-            if (typeof onEnded._setSrc === 'function') onEnded._setSrc(source);
+              // Notify caller that source exists (starts timer + vol meter)
+              if (typeof onEnded._setSrc === 'function') onEnded._setSrc(source);
 
-            source.onended = safeEnded;
-            source.start(0);
+              source.onended = safeEnded;
+              source.start(0);
 
-            // Watchdog — if onended never fires (Android short-clip bug),
-            // force-complete after duration + 3s grace period
-            var watchdogMs = Math.max(3000, (buffer.duration * 1000) + 3000);
-            setTimeout(safeEnded, watchdogMs);
-          })
-          .catch(function() { safeError(); }); // catches both decode errors AND Promise rejections
+              // Watchdog — if onended never fires (Android short-clip bug),
+              // force-complete after duration + 3s grace period
+              var watchdogMs = Math.max(3000, (buffer.duration * 1000) + 3000);
+              setTimeout(safeEnded, watchdogMs);
+            },
+            function() { safeError(); }
+          );
+        } catch(e) {
+          safeError(); return;
+        }
+        // Silence unhandled Promise rejection in modern browsers —
+        // callbacks above already handle success/error.
+        if (p && typeof p.then === 'function') { p.catch(function() {}); }
       };
       reader.onerror = function() { safeError(); };
       reader.readAsArrayBuffer(blob);
