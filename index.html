@@ -11,53 +11,48 @@
 <meta name="theme-color" content="#060608">
 <link rel="manifest" href="manifest.json">
 <!-- Apple touch icon — inline SVG data URI, no external file needed -->
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23060608'/%3E%3Crect x='200' y='80' width='112' height='180' rx='56' fill='none' stroke='%23ff9f0a' stroke-width='28'/%3E%3Cpath d='M128 240c0 70.7 57.3 128 128 128s128-57.3 128-128' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round' fill='none'/%3E%3Cline x1='256' y1='368' x2='256' y2='430' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round'/%3E%3Cline x1='196' y1='430' x2='316' y2='430' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round'/%3E%3C/svg%3E">
+<link class="apple-touch-icon" rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23060608'/%3E%3Crect x='200' y='80' width='112' height='180' rx='56' fill='none' stroke='%23ff9f0a' stroke-width='28'/%3E%3Cpath d='M128 240c0 70.7 57.3 128 128 128s128-57.3 128-128' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round' fill='none'/%3E%3Cline x1='256' y1='368' x2='256' y2='430' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round'/%3E%3Cline x1='196' y1='430' x2='316' y2='430' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round'/%3E%3C/svg%3E">
 <title>WalkieTalk</title>
 <style>
 /* ── Design tokens ── */
 :root {
-  --bg:        #06060a;
-  --bg-card:   #0d0d12;
-  --surface:   rgba(255,255,255,0.055);
-  --surface-hi:rgba(255,255,255,0.10);
-  --border:    rgba(255,255,255,0.075);
-  --border-hi: rgba(255,255,255,0.14);
-  --white:     #f2f2f5;
-  --dim:       rgba(242,242,245,0.38);
-  --dimmer:    rgba(242,242,245,0.09);
+  --bg:        #040407;
+  --bg-card:   #09090f;
+  --surface:   rgba(255,255,255,0.04);
+  --surface-hi:rgba(255,255,255,0.08);
+  --border:    rgba(255,255,255,0.05);
+  --border-hi: rgba(255,255,255,0.1);
+  --white:     #f4f4f9;
+  --dim:       rgba(244,244,249,0.45);
+  --dimmer:    rgba(244,244,249,0.12);
   --green:     #30d158;
   --red:       #ff453a;
   --amber:     #ff9f0a;
-  --amber-dim: rgba(255,159,10,0.16);
+  --amber-dim: rgba(255,159,10,0.12);
   --blue:      #0a84ff;
-  --blue-dim:  rgba(10,132,255,0.14);
+  --blue-dim:  rgba(10,132,255,0.1);
   --purple:    #bf5af2;
   --teal:      #5ac8f5;
-  --circ: clamp(234px, 66vmin, 282px);
+  --circ: clamp(230px, 62vmin, 276px);
   --radius-card: 20px;
   --radius-btn:  14px;
   --mono: 'SF Mono','Fira Code','Fira Mono','Roboto Mono',ui-monospace,monospace;
   /* ── Easing curves ── */
-  --ease-out:    cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-sheet:  cubic-bezier(0.32, 0.72, 0, 1);
   --ease-std:    cubic-bezier(0.4, 0, 0.2, 1);
   --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
   --ease-expo:   cubic-bezier(0.16, 1, 0.3, 1);
-  /* ── Glow ── */
-  --glow-tx:    rgba(255,159,10,0.10);
-  --glow-rx:    rgba(10,132,255,0.10);
-  --glow-amber: rgba(255,159,10,0.14);
-  --glow-live:  rgba(255,69,58,0.12);
 }
 
 /* ── Reset ── */
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-html,body { width:100%; height:100%; background:var(--bg); color:var(--white); font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter',system-ui,'Helvetica Neue',sans-serif; overflow:hidden; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility; }
-/* Grain overlay — purely decorative */
+html,body { width:100%; height:100%; background:var(--bg); color:var(--white); font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter',system-ui,sans-serif; overflow:hidden; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility; }
+/* Decorative subtle grain overlay */
 body::after {
   content:''; position:fixed; inset:0; z-index:999;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
   background-repeat:repeat; background-size:128px;
   pointer-events:none; opacity:1; mix-blend-mode:overlay;
 }
@@ -65,10 +60,9 @@ body::after {
 /* ── Views ── */
 .view { position:absolute; inset:0; display:flex; flex-direction:column; overflow:hidden; }
 .view.hidden { opacity:0; pointer-events:none; }
-/* Only animate if user hasn't opted out */
 @media (prefers-reduced-motion:no-preference) {
-  .view { transition:opacity 0.24s var(--ease-std), transform 0.26s var(--ease-expo); }
-  .view.hidden { transform:translateY(6px) scale(0.99); }
+  .view { transition:opacity 0.2s var(--ease-std), transform 0.22s var(--ease-expo); }
+  .view.hidden { transform:translateY(4px) scale(0.995); }
   .view:not(.hidden) { transform:translateY(0) scale(1); }
 }
 
@@ -81,368 +75,341 @@ body::after {
   isolation:isolate;
   overflow:hidden;
 }
-/* Ambient background — two slow-drifting orbs */
+/* Ambient background — deep drifting color fields */
 #mainView::after {
   content:"";
   position:absolute; inset:0; z-index:0; pointer-events:none;
   background:
-    radial-gradient(ellipse 70% 40% at 22% 88%, rgba(255,159,10,0.055) 0%, transparent 70%),
-    radial-gradient(ellipse 80% 42% at 78% 90%, rgba(10,132,255,0.06) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 25% at 50% 108%, rgba(10,132,255,0.04) 0%, transparent 100%);
-  animation:bgshift 18s ease-in-out infinite alternate;
+    radial-gradient(ellipse 65% 35% at 20% 85%, rgba(255,159,10,0.035) 0%, transparent 80%),
+    radial-gradient(ellipse 70% 38% at 80% 85%, rgba(10,132,255,0.04) 0%, transparent 80%),
+    radial-gradient(ellipse 45% 22% at 50% 105%, rgba(10,132,255,0.025) 0%, transparent 100%);
+  animation:bgshift 20s ease-in-out infinite alternate;
 }
 @keyframes bgshift {
-  0%   { opacity:1; }
-  50%  { opacity:0.7; }
-  100% { opacity:1; }
+  0%   { opacity:1; transform: scale(1); }
+  100% { opacity:0.85; transform: scale(1.02); }
 }
-/* Edge vignette — draws eye to center */
 #mainView::before {
   content:"";
   position:absolute; inset:0; z-index:0; pointer-events:none;
-  background:radial-gradient(ellipse 110% 110% at 50% 50%, transparent 48%, rgba(0,0,0,0.65) 100%);
+  background:radial-gradient(ellipse 100% 100% at 50% 50%, transparent 50%, rgba(0,0,0,0.7) 100%);
 }
 
 /* PWA install prompt */
 .install-bar {
   position:absolute; bottom:calc(env(safe-area-inset-bottom,0px) + 76px);
-  left:12px; right:12px; z-index:30;
-  display:flex; align-items:center; gap:10px;
-  padding:10px 14px 10px 12px;
-  background:rgba(14,14,16,0.97);
-  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:16px;
-  box-shadow:0 4px 24px rgba(0,0,0,0.5);
-  transform:translateY(16px) scale(0.97); opacity:0;
-  transition:transform 0.32s var(--ease-expo), opacity 0.26s var(--ease-out);
+  left:16px; right:16px; z-index:30;
+  display:flex; align-items:center; gap:12px;
+  padding:12px 16px;
+  background:rgba(10,10,14,0.92);
+  backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+  border:1px solid var(--border);
+  border-radius:18px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.6);
+  transform:translateY(12px) scale(0.98); opacity:0;
+  transition:transform 0.3s var(--ease-expo), opacity 0.22s var(--ease-out);
   pointer-events:none;
 }
 .install-bar.on { transform:translateY(0) scale(1); opacity:1; pointer-events:all; }
 .install-bar-icon {
-  width:36px; height:36px; border-radius:9px; flex-shrink:0;
-  background:rgba(255,159,10,0.15); border:1px solid rgba(255,159,10,0.25);
+  width:36px; height:36px; border-radius:10px; flex-shrink:0;
+  background:rgba(255,159,10,0.1); border:1px solid rgba(255,159,10,0.2);
   display:flex; align-items:center; justify-content:center;
 }
 .install-bar-text { flex:1; min-width:0; }
 .install-bar-title { font-size:13px; font-weight:600; color:var(--white); letter-spacing:-0.1px; }
-.install-bar-sub   { font-size:11px; font-weight:400; color:rgba(255,255,255,0.4); margin-top:1px; }
+.install-bar-sub   { font-size:11px; color:var(--dim); margin-top:1px; }
 .install-bar-btn {
   flex-shrink:0; border:none; border-radius:100px; cursor:pointer;
-  font-family:inherit; font-size:12px; font-weight:600; letter-spacing:0.1px;
+  font-family:inherit; font-size:12px; font-weight:600;
   padding:6px 14px; background:var(--amber); color:#000;
-  transition:opacity 0.15s var(--ease-out), transform 0.12s var(--ease-spring);
+  transition:opacity 0.1s var(--ease-out), transform 0.1s var(--ease-spring);
 }
-.install-bar-btn:active { opacity:0.75; transform:scale(0.94); }
+.install-bar-btn:active { opacity:0.85; transform:scale(0.95); }
 .install-bar-dismiss {
   flex-shrink:0; background:none; border:none; cursor:pointer;
-  width:28px; height:28px; display:flex; align-items:center; justify-content:center;
-  color:rgba(255,255,255,0.25); font-size:14px; border-radius:50%;
-  transition:color 0.15s var(--ease-out);
+  width:24px; height:24px; display:flex; align-items:center; justify-content:center;
+  color:rgba(255,255,255,0.3); font-size:12px; border-radius:50%;
+  transition:color 0.1s var(--ease-out);
 }
-.install-bar-dismiss:active { color:rgba(255,255,255,0.7); }
+.install-bar-dismiss:active { color:var(--white); }
 
-/* Reconnect banner — absolute so it never shifts layout */
+/* Reconnect banner */
 .reconnect-bar {
   position:absolute; top:0; left:0; right:0; z-index:20;
   display:flex; align-items:center; justify-content:center; gap:8px;
-  padding:8px 16px; font-size:12px; font-weight:500; letter-spacing:0.1px; color:var(--red);
-  background:rgba(8,8,8,0.92);
+  padding:8px 16px; font-size:12px; font-weight:500; color:var(--red);
+  background:rgba(6,6,8,0.94);
   backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
-  border-bottom:1px solid rgba(255,69,58,0.2);
+  border-bottom:1px solid rgba(255,69,58,0.15);
   transform:translateY(-100%);
-  transition:transform 0.3s var(--ease-out);
+  transition:transform 0.24s var(--ease-out);
 }
 .reconnect-bar.on { transform:translateY(0); }
-.spinner {
-  width:10px; height:10px; border-radius:50%;
-  border:1.5px solid rgba(255,69,58,0.2);
-  border-top-color:var(--red);
-}
-@media (prefers-reduced-motion:no-preference) {
-  .spinner { animation:spin 0.75s linear infinite; }
-}
-@keyframes spin { to { transform:rotate(360deg); } }
 
 /* Top bar */
 .topbar {
   display:flex; align-items:center; justify-content:space-between;
-  padding:0 16px; flex-shrink:0; height:54px; position:relative; z-index:1;
-  border-bottom:1px solid rgba(255,255,255,0.04);
+  padding:0 20px; flex-shrink:0; height:54px; position:relative; z-index:1;
+  border-bottom:1px solid rgba(255,255,255,0.03);
 }
 .topbar-left { display:flex; align-items:center; }
-.topbar-right { display:flex; gap:6px; align-items:center; }
-/* WT wordmark button */
+.topbar-right { display:flex; gap:8px; align-items:center; }
 .top-icon-btn {
   background:none; border:none; cursor:pointer; padding:6px 4px;
   display:flex; align-items:center; justify-content:center;
-  border-radius:8px; opacity:0.85;
-  transition:opacity 0.14s var(--ease-out), transform 0.12s var(--ease-spring);
+  border-radius:8px; opacity:0.8;
+  transition:opacity 0.1s var(--ease-out), transform 0.1s var(--ease-spring);
 }
-.top-icon-btn:active { opacity:0.4; transform:scale(0.88); }
-/* WT wordmark glows amber when server connected */
-#btnGrid { transition:filter 0.6s var(--ease-out), opacity 0.14s var(--ease-out); }
-.connected-state #btnGrid { filter:drop-shadow(0 0 6px rgba(255,159,10,0.35)); opacity:1; }
-/* Map btn still hidden — accessible via bottom nav */
+.top-icon-btn:active { opacity:0.5; transform:scale(0.92); }
+#btnGrid { transition:filter 0.4s var(--ease-out), opacity 0.1s var(--ease-out); }
+.connected-state #btnGrid { filter:drop-shadow(0 0 4px rgba(255,159,10,0.25)); opacity:1; }
 .top-icon-btn.aux { display:none; }
-/* Share button — visible, compact, in topbar-right */
+
 #btnShare {
   display:flex; opacity:1;
-  background:rgba(255,255,255,0.06);
-  border:1px solid rgba(255,255,255,0.09);
-  border-radius:100px; padding:5px 12px 5px 9px;
-  gap:5px; align-items:center;
-  transition:background 0.15s var(--ease-out), transform 0.12s var(--ease-spring),
-             opacity 0.15s var(--ease-out);
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:100px; padding:5px 12px;
+  gap:6px; align-items:center;
+  transition:background 0.12s var(--ease-out), transform 0.1s var(--ease-spring), opacity 0.12s var(--ease-out);
 }
-#btnShare:active { background:rgba(255,255,255,0.12); transform:scale(0.94); }
-#btnShare.no-channel { opacity:0.32; pointer-events:none; }
+#btnShare:active { background:rgba(255,255,255,0.08); transform:scale(0.95); }
+#btnShare.no-channel { opacity:0.25; pointer-events:none; }
 .share-label {
   font-size:11px; font-weight:500; color:rgba(255,255,255,0.7);
   letter-spacing:0.2px; white-space:nowrap;
 }
-/* Power button — connection dot only, no ring */
+
+/* Power Button */
 .power-btn {
-  width:30px; height:30px; border-radius:50%;
+  width:28px; height:28px; border-radius:50%;
   background:none; border:none; cursor:pointer;
   display:flex; align-items:center; justify-content:center;
-  transition:transform 0.1s var(--ease-out), opacity 0.12s var(--ease-out);
-  position:relative; opacity:0.6;
+  transition:transform 0.1s var(--ease-out), opacity 0.1s var(--ease-out);
+  position:relative; opacity:0.5;
 }
 .power-btn::after {
   content:""; position:absolute; bottom:1px; right:1px;
-  width:8px; height:8px; border-radius:50%;
-  background:rgba(255,255,255,0.18);
+  width:7px; height:7px; border-radius:50%;
+  background:rgba(255,255,255,0.15);
   border:1.5px solid var(--bg);
-  transition:background 0.4s var(--ease-out), box-shadow 0.4s var(--ease-out);
+  transition:background 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
 }
 .power-btn.connected { opacity:0.9; }
 .power-btn.connected::after { background:var(--green); box-shadow:0 0 6px var(--green); }
 .power-btn.disconnected::after { background:var(--red); }
-.power-btn:active { transform:scale(0.88); }
+.power-btn:active { transform:scale(0.9); }
 
-/* Connection quality indicator */
+/* Connection Quality */
 .quality-btn {
-  background:none; border:none; cursor:pointer; padding:5px 6px;
+  background:none; border:none; cursor:pointer; padding:4px 6px;
   display:flex; align-items:center; gap:5px;
   border-radius:8px; opacity:0.75;
-  transition:opacity 0.15s var(--ease-out), transform 0.12s var(--ease-out);
+  transition:opacity 0.12s var(--ease-out), transform 0.1s var(--ease-out);
 }
-.quality-btn:active { opacity:0.45; transform:scale(0.88); }
-.quality-bars { display:flex; align-items:flex-end; gap:2px; height:14px; }
+.quality-btn:active { opacity:0.45; transform:scale(0.92); }
+.quality-bars { display:flex; align-items:flex-end; gap:2px; height:12px; }
 .qbar {
-  width:3px; border-radius:1.5px;
-  background:rgba(255,255,255,0.2);
-  transition:background 0.4s var(--ease-out), height 0.35s var(--ease-spring);
+  width:2.5px; border-radius:1px;
+  background:rgba(255,255,255,0.15);
+  transition:background 0.3s var(--ease-out), height 0.3s var(--ease-spring);
 }
-.qbar.lit  { background:var(--q-color, rgba(255,255,255,0.7)); }
-/* Score colour tokens — updated by JS */
+.qbar.lit  { background:var(--q-color, rgba(255,255,255,0.6)); }
 .quality-btn.q-good  { --q-color: var(--green); }
 .quality-btn.q-fair  { --q-color: var(--amber); }
 .quality-btn.q-poor  { --q-color: var(--red);   }
-.quality-btn.q-none  { --q-color: rgba(255,255,255,0.3); }
+.quality-btn.q-none  { --q-color: rgba(255,255,255,0.25); }
 .quality-score-tip {
-  font-size:11px; font-weight:500; color:rgba(255,255,255,0.35);
-  letter-spacing:0.1px; white-space:nowrap;
-  transition:color 0.4s var(--ease-out);
+  font-size:11px; font-weight:600; color:rgba(255,255,255,0.3);
+  white-space:nowrap; transition:color 0.3s var(--ease-out);
 }
 .quality-btn.q-good .quality-score-tip { color:var(--green); }
 .quality-btn.q-fair .quality-score-tip { color:var(--amber); }
 .quality-btn.q-poor .quality-score-tip { color:var(--red); }
 
-/* Quality detail toast — richer than normal toast */
+/* Quality detail toast */
 .quality-detail {
   position:fixed; top:calc(env(safe-area-inset-top,48px) + 54px);
-  right:12px; z-index:210;
-  background:rgba(16,16,18,0.96);
+  right:16px; z-index:210;
+  background:rgba(12,12,16,0.96);
   backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
-  border:1px solid rgba(255,255,255,0.09);
+  border:1px solid var(--border);
   border-radius:14px; padding:10px 14px;
   display:flex; flex-direction:column; gap:6px;
-  opacity:0; transform:translateY(-6px) scale(0.97);
-  transition:opacity 0.22s var(--ease-out), transform 0.24s var(--ease-spring);
-  pointer-events:none; min-width:160px;
+  opacity:0; transform:translateY(-4px) scale(0.97);
+  transition:opacity 0.2s var(--ease-out), transform 0.22s var(--ease-spring);
+  pointer-events:none; min-width:150px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
 .quality-detail.on { opacity:1; transform:translateY(0) scale(1); pointer-events:all; }
-.qd-row { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+.qd-row { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
 .qd-row:last-child { border-bottom:none; padding-bottom:0; }
 .qd-row:first-child { padding-top:0; }
-.qd-label { font-size:11px; font-weight:400; color:rgba(255,255,255,0.38); letter-spacing:0.05px; }
-.qd-value { font-size:12px; font-weight:600; color:var(--white); font-variant-numeric:tabular-nums; }
+.qd-label { font-size:10.5px; font-weight:400; color:var(--dim); }
+.qd-value { font-size:11.5px; font-weight:600; color:var(--white); font-variant-numeric:tabular-nums; }
 
-/* Username + location — centered header block */
+/* Username Pill */
 .username-wrap {
-  padding:2px 16px 0; flex-shrink:0; position:relative; z-index:1;
-  display:flex; flex-direction:column; align-items:center; gap:3px;
+  padding:14px 16px 0; flex-shrink:0; position:relative; z-index:1;
+  display:flex; flex-direction:column; align-items:center;
 }
 .username {
-  font-size:16px; font-weight:300; letter-spacing:-0.2px;
+  font-size:13px; font-weight:300;
   cursor:pointer; display:inline-flex; align-items:baseline; gap:1px;
-  line-height:1; transition:opacity 0.15s var(--ease-out);
-  background:rgba(255,255,255,0.04);
-  border:1px solid rgba(255,255,255,0.07);
-  border-radius:100px; padding:5px 14px 5px 12px;
+  line-height:1; transition:opacity 0.12s var(--ease-out);
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.05);
+  border-radius:100px; padding:6px 14px;
 }
-.username-at { color:rgba(255,255,255,0.22); font-weight:300; font-size:14px; letter-spacing:0; align-self:center; }
-.username-name { font-size:14px; font-weight:500; letter-spacing:0px; color:rgba(255,255,255,0.72); }
-.username:active { opacity:0.4; }
+.username-at { color:rgba(255,255,255,0.18); font-weight:300; font-size:12px; margin-right:1px; }
+.username-name { font-size:13px; font-weight:500; color:rgba(255,255,255,0.7); }
+.username:active { opacity:0.5; }
 .username-edit { display:none; }
 
-/* Location */
+/* Location indicator */
 .location-wrap { display:none; }
-.location-text { font-size:11px; font-weight:400; color:rgba(255,255,255,0.28); letter-spacing:0.15px; display:flex; align-items:center; gap:5px; }
-.location-icon { width:8px; height:8px; flex-shrink:0; opacity:0.5; }
 
-/* Channel pill — centered stage element */
+/* Channel Status Card */
 .channel-wrap {
   display:flex; justify-content:center;
-  padding:8px 16px 0; flex-shrink:0; position:relative; z-index:1;
+  padding:12px 16px 0; flex-shrink:0; position:relative; z-index:1;
 }
 .channel-pill {
-  display:inline-flex; align-items:center; gap:9px;
-  background:rgba(255,255,255,0.05);
-  border:1px solid rgba(255,255,255,0.08);
-  border-radius:16px; padding:10px 22px;
+  display:inline-flex; align-items:center; gap:8px;
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.05);
+  border-radius:16px; padding:10px 18px;
   cursor:pointer;
-  transition:background 0.18s var(--ease-out), transform 0.14s var(--ease-spring),
-             border-color 0.22s var(--ease-out), box-shadow 0.28s var(--ease-out);
+  transition:background 0.15s var(--ease-out), border-color 0.18s var(--ease-out), box-shadow 0.2s var(--ease-out), transform 0.1s var(--ease-spring);
   position:relative; max-width:calc(100vw - 32px);
-  box-shadow:0 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
 }
-/* Active channel */
 .channel-pill:not(.ph) {
-  border-color:rgba(255,255,255,0.11);
-  background:rgba(255,255,255,0.065);
-  box-shadow:0 2px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+  border-color:rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.05);
 }
-/* Peer count when on channel */
 .channel-pill:not(.ph) .peer-ct {
-  color:rgba(255,255,255,0.42);
+  color:rgba(255,255,255,0.35);
 }
-.channel-pill:active { background:rgba(255,255,255,0.1); transform:scale(0.97); }
+.channel-pill:active { background:rgba(255,255,255,0.08); transform:scale(0.98); }
 .channel-pill.tx-glow {
-  border-color:rgba(255,159,10,0.32);
-  box-shadow:0 0 0 4px rgba(255,159,10,0.06), 0 0 24px rgba(255,159,10,0.1);
+  border-color:rgba(255,159,10,0.2);
+  box-shadow: 0 0 16px rgba(255,159,10,0.06);
 }
-.unread-dot { position:absolute; top:-3px; right:-3px; width:8px; height:8px; border-radius:50%; background:var(--red); border:2px solid var(--bg); opacity:0; transition:opacity 0.22s var(--ease-out); pointer-events:none; }
+.unread-dot { position:absolute; top:-2px; right:-2px; width:7px; height:7px; border-radius:50%; background:var(--red); border:1.5px solid var(--bg); opacity:0; transition:opacity 0.15s var(--ease-out); pointer-events:none; }
 .channel-pill.has-unread .unread-dot { opacity:1; }
-/* Status dot */
-.ch-dot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.2); flex-shrink:0; transition:background 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out); }
-.ch-dot.online { background:var(--green); box-shadow:0 0 5px var(--green); }
-.ch-dot.rx     { background:var(--blue);  box-shadow:0 0 5px var(--blue); animation:dotpulse 0.8s ease-in-out infinite alternate; }
-.ch-dot.tx     { background:var(--amber); box-shadow:0 0 6px var(--amber); animation:dotpulse 0.4s ease-in-out infinite alternate; }
-.ch-dot.send   { background:var(--amber); box-shadow:0 0 5px var(--amber); }
-@keyframes dotpulse { to { opacity:0.2; } }
-/* Channel name */
+
+.ch-dot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.15); flex-shrink:0; transition:background 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out); }
+.ch-dot.online { background:var(--green); box-shadow:0 0 4px var(--green); }
+.ch-dot.rx     { background:var(--blue);  box-shadow:0 0 4px var(--blue); animation:dotpulse 0.8s ease-in-out infinite alternate; }
+.ch-dot.tx     { background:var(--amber); box-shadow:0 0 4px var(--amber); animation:dotpulse 0.4s ease-in-out infinite alternate; }
+.ch-dot.send   { background:var(--amber); box-shadow:0 0 4px var(--amber); }
+
 .ch-name {
-  font-size:13px; font-weight:500; color:var(--white);
+  font-size:12.5px; font-weight:500; color:var(--white);
   letter-spacing:0.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  max-width:min(200px, 55vw); font-family:var(--mono); text-transform:uppercase;
+  max-width:min(180px, 50vw); font-family:var(--mono); text-transform:uppercase;
 }
 .channel-pill.ph .ch-name {
-  color:rgba(255,255,255,0.3); font-weight:400; letter-spacing:0.1px;
-  font-family:inherit; text-transform:none; font-size:13px;
+  color:rgba(255,255,255,0.25); font-weight:400; letter-spacing:0px;
+  font-family:inherit; text-transform:none; font-size:12.5px;
 }
-/* Peer count */
 .peer-ct {
-  font-size:10px; font-weight:500; color:rgba(255,255,255,0.28);
-  white-space:nowrap; flex-shrink:0; letter-spacing:0.1px;
+  font-size:10px; font-weight:500; color:rgba(255,255,255,0.22);
+  white-space:nowrap; flex-shrink:0;
 }
 .peer-ct.has-peers { color:var(--green); }
 
 /* ── Circle area ── */
 .circle-wrap { flex:1; display:flex; align-items:center; justify-content:center; position:relative; min-height:0; z-index:1; }
 .cancel-hint {
-  position:absolute; top:calc(50% - var(--circ)/2 - 38px);
-  font-size:11px; font-weight:500; letter-spacing:0.3px;
-  color:rgba(255,255,255,0.7);
-  background:rgba(255,255,255,0.07);
-  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:20px; padding:5px 14px;
+  position:absolute; top:calc(50% - var(--circ)/2 - 32px);
+  font-size:11px; font-weight:500; letter-spacing:0.2px;
+  color:rgba(255,255,255,0.6);
+  background:rgba(255,255,255,0.04);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:100px; padding:4px 12px;
   opacity:0; transform:translateY(4px);
-  transition:opacity 0.22s var(--ease-out), transform 0.22s var(--ease-out);
+  transition:opacity 0.18s var(--ease-out), transform 0.18s var(--ease-out);
   pointer-events:none; white-space:nowrap;
 }
 .cancel-hint.on { opacity:1; transform:translateY(0); }
 
-/* Limit arc SVG — fixed at circ+8px so it sits just outside the border */
+/* Limit arc SVG */
 .limit-svg { position:absolute; width:calc(var(--circ) + 8px); height:calc(var(--circ) + 8px); transform:rotate(-90deg); pointer-events:none; overflow:visible; }
-#limitArc { transition:stroke-dashoffset 0.24s var(--ease-out); }
+#limitArc { transition:stroke-dashoffset 0.2s var(--ease-out); }
 
 /* Ripples */
 .ripples { position:absolute; width:var(--circ); height:var(--circ); border-radius:50%; pointer-events:none; will-change:opacity; transform:translateZ(0); }
-.ripple  { position:absolute; inset:0; border-radius:50%; border:1px solid rgba(255,255,255,0.12); opacity:0; }
+.ripple  { position:absolute; inset:0; border-radius:50%; border:1px solid rgba(255,255,255,0.06); opacity:0; }
 @media (prefers-reduced-motion:no-preference) {
-  .ripples.tx .ripple { border-color:rgba(255,159,10,0.2); }
-  .ripples.tx .ripple:nth-child(1) { animation:ripout 1.6s ease-out infinite 0s; }
-  .ripples.tx .ripple:nth-child(2) { animation:ripout 1.6s ease-out infinite 0.53s; }
-  .ripples.tx .ripple:nth-child(3) { animation:ripout 1.6s ease-out infinite 1.06s; }
-  .ripples.rx .ripple { border-color:rgba(10,132,255,0.18); }
-  .ripples.rx .ripple:nth-child(1) { animation:ripout 2s ease-out infinite 0s; }
-  .ripples.rx .ripple:nth-child(2) { animation:ripout 2s ease-out infinite 0.66s; }
-  .ripples.rx .ripple:nth-child(3) { animation:ripout 2s ease-out infinite 1.32s; }
+  .ripples.tx .ripple { border-color:rgba(255,159,10,0.12); }
+  .ripples.tx .ripple:nth-child(1) { animation:ripout 1.6s cubic-bezier(0.16, 1, 0.3, 1) infinite 0s; }
+  .ripples.tx .ripple:nth-child(2) { animation:ripout 1.6s cubic-bezier(0.16, 1, 0.3, 1) infinite 0.53s; }
+  .ripples.tx .ripple:nth-child(3) { animation:ripout 1.6s cubic-bezier(0.16, 1, 0.3, 1) infinite 1.06s; }
+  .ripples.rx .ripple { border-color:rgba(10,132,255,0.12); }
+  .ripples.rx .ripple:nth-child(1) { animation:ripout 2s cubic-bezier(0.16, 1, 0.3, 1) infinite 0s; }
+  .ripples.rx .ripple:nth-child(2) { animation:ripout 2s cubic-bezier(0.16, 1, 0.3, 1) infinite 0.66s; }
+  .ripples.rx .ripple:nth-child(3) { animation:ripout 2s cubic-bezier(0.16, 1, 0.3, 1) infinite 1.32s; }
 }
-@keyframes ripout { 0%{transform:scale(1);opacity:0.4;} 60%{opacity:0.15;} 100%{transform:scale(2.2);opacity:0;} }
+@keyframes ripout { 0%{transform:scale(1);opacity:0.3;} 100%{transform:scale(1.8);opacity:0;} }
 
-/* PTT circle */
+/* PTT Circle */
 .ptt-circle {
   width:var(--circ); height:var(--circ); border-radius:50%;
-  border:1.5px solid rgba(255,255,255,0.13);
-  outline:1.5px solid rgba(255,255,255,0.04);
-  outline-offset:9px;
+  border:1px solid rgba(255,255,255,0.08);
+  outline:1px solid rgba(255,255,255,0.02);
+  outline-offset:8px;
   display:flex; align-items:center; justify-content:center;
   position:relative; cursor:pointer;
   -webkit-user-select:none; user-select:none; touch-action:none;
-  transition:border-color 0.28s var(--ease-out), outline-color 0.28s var(--ease-out),
-             outline-offset 0.28s var(--ease-expo),
-             transform 0.24s var(--ease-spring),
-             background 0.28s var(--ease-out), box-shadow 0.32s var(--ease-out);
+  transition:border-color 0.24s var(--ease-out), outline-color 0.24s var(--ease-out),
+             outline-offset 0.24s var(--ease-expo),
+             transform 0.2s var(--ease-spring),
+             background 0.24s var(--ease-out), box-shadow 0.24s var(--ease-out);
   background:
-    radial-gradient(ellipse 60% 45% at 38% 28%, rgba(255,255,255,0.04) 0%, transparent 70%),
-    radial-gradient(ellipse 80% 80% at 50% 50%, rgba(255,255,255,0.01) 0%, transparent 100%);
+    radial-gradient(circle at 40% 30%, rgba(255,255,255,0.03) 0%, transparent 65%),
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.01) 0%, transparent 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.04),
     inset 0 -1px 0 rgba(0,0,0,0.3),
-    inset 0 -4px 22px rgba(0,0,0,0.4),
-    0 4px 32px rgba(0,0,0,0.25);
-  /* will-change added by JS only during tx/rx — avoids permanent GPU layer */
+    inset 0 -3px 16px rgba(0,0,0,0.4),
+    0 4px 24px rgba(0,0,0,0.3);
 }
-.ptt-circle.disabled   { border-color:rgba(255,255,255,0.07); outline-color:rgba(255,255,255,0.02); cursor:default; opacity:0.6; }
-.ptt-circle.tx         { border-color:var(--amber); outline-color:rgba(255,159,10,0.2); outline-offset:12px;
-                          transform:scale(1.025);
-                          background:radial-gradient(ellipse 65% 50% at 38% 28%, rgba(255,159,10,0.09) 0%, transparent 70%);
-                          box-shadow:0 0 0 12px rgba(255,159,10,0.06), 0 0 60px rgba(255,159,10,0.10),
-                                     inset 0 1px 0 rgba(255,159,10,0.15), inset 0 -3px 20px rgba(0,0,0,0.25),
-                                     0 6px 36px rgba(0,0,0,0.3); }
-.ptt-circle.rx         { border-color:var(--blue); outline-color:rgba(10,132,255,0.14); outline-offset:12px;
-                          transform:scale(1.012);
-                          background:radial-gradient(ellipse 65% 50% at 38% 28%, rgba(10,132,255,0.10) 0%, transparent 70%);
-                          box-shadow:0 0 0 12px rgba(10,132,255,0.07), 0 0 55px rgba(10,132,255,0.10),
-                                     inset 0 1px 0 rgba(10,132,255,0.14), inset 0 -3px 20px rgba(0,0,0,0.25),
-                                     0 6px 36px rgba(0,0,0,0.3); }
-.ptt-circle.sending    { border-color:rgba(255,255,255,0.3); outline-color:rgba(255,255,255,0.04); outline-offset:7px; }
-.ptt-circle.cancelling { border-color:rgba(255,255,255,0.14); outline-color:transparent; transform:scale(0.96); }
+.ptt-circle.disabled   { border-color:rgba(255,255,255,0.04); outline-color:transparent; cursor:default; opacity:0.5; }
+.ptt-circle.tx         { border-color:var(--amber); outline-color:rgba(255,159,10,0.15); outline-offset:10px;
+                          transform:scale(1.02);
+                          background:radial-gradient(circle at 40% 30%, rgba(255,159,10,0.06) 0%, transparent 70%);
+                          box-shadow:0 0 0 10px rgba(255,159,10,0.03), 0 0 48px rgba(255,159,10,0.08),
+                                     inset 0 1px 0 rgba(255,159,10,0.1), inset 0 -2px 14px rgba(0,0,0,0.25); }
+.ptt-circle.rx         { border-color:var(--blue); outline-color:rgba(10,132,255,0.1); outline-offset:10px;
+                          transform:scale(1.01);
+                          background:radial-gradient(circle at 40% 30%, rgba(10,132,255,0.06) 0%, transparent 70%);
+                          box-shadow:0 0 0 10px rgba(10,132,255,0.03), 0 0 44px rgba(10,132,255,0.08),
+                                     inset 0 1px 0 rgba(10,132,255,0.1), inset 0 -2px 14px rgba(0,0,0,0.25); }
+.ptt-circle.sending    { border-color:rgba(255,255,255,0.2); outline-color:transparent; outline-offset:6px; }
+.ptt-circle.cancelling { border-color:rgba(255,255,255,0.1); outline-color:transparent; transform:scale(0.97); }
 
-.ptt-inner { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; pointer-events:none; transition:opacity 0.2s var(--ease-out); }
-.ptt-circle.disabled .ptt-inner { opacity:0.18; }
+.ptt-inner { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; pointer-events:none; transition:opacity 0.15s var(--ease-out); }
+.ptt-circle.disabled .ptt-inner { opacity:0.15; }
 
-/* Mic icon adapts color per state */
-.mic-path { stroke:var(--white); transition:stroke 0.22s var(--ease-out); }
+.mic-path { stroke:var(--white); transition:stroke 0.18s var(--ease-out); }
 .ptt-circle.rx .mic-path { stroke:var(--blue); }
 .ptt-circle.tx .mic-path { stroke:var(--amber); }
 
-.ptt-hint { font-size:10px; font-weight:500; color:rgba(255,255,255,0.28); letter-spacing:1.2px; text-transform:uppercase; font-family:var(--mono); transition:color 0.22s var(--ease-out), opacity 0.22s var(--ease-out); }
+.ptt-hint { font-size:10px; font-weight:500; color:rgba(255,255,255,0.22); letter-spacing:1px; text-transform:uppercase; font-family:var(--mono); transition:color 0.18s var(--ease-out), opacity 0.18s var(--ease-out); }
 .ptt-hint.hidden { opacity:0; }
-.ptt-circle.tx .ptt-hint { color:var(--amber); opacity:1; letter-spacing:1.5px; }
+.ptt-circle.tx .ptt-hint { color:var(--amber); opacity:1; }
 .ptt-circle.rx .ptt-hint { color:var(--blue); opacity:1; }
 
-/* Recording / RX timer inside ring */
+/* Recording / RX timer */
 .circ-timer {
-  position:absolute; top:calc(var(--circ)*0.085);
-  font-size:14px; font-weight:500; letter-spacing:1.5px;
+  position:absolute; top:calc(var(--circ)*0.09);
+  font-size:13px; font-weight:500; letter-spacing:1px;
   font-family:var(--mono); font-variant-numeric:tabular-nums;
-  opacity:0; transition:opacity 0.2s var(--ease-out); color:rgba(255,255,255,0.8);
+  opacity:0; transition:opacity 0.15s var(--ease-out); color:rgba(255,255,255,0.7);
   pointer-events:none;
 }
 .ptt-circle.tx .circ-timer,
@@ -450,92 +417,87 @@ body::after {
 .ptt-circle.tx .circ-timer { color:var(--amber); }
 .ptt-circle.rx .circ-timer { color:var(--blue); }
 
-/* ── Mode switcher — Hold / Live cards ── */
+/* ── Mode switcher — Hold / Live ── */
 .mode-switcher {
   display:flex; justify-content:center; align-items:center;
-  flex-shrink:0; padding:2px 20px 0; position:relative; z-index:1;
+  flex-shrink:0; padding:4px 20px 0; position:relative; z-index:1;
 }
 .mode-seg {
   display:inline-flex; align-items:center;
-  background:rgba(255,255,255,0.035);
-  border:1px solid rgba(255,255,255,0.07);
-  border-radius:16px; padding:4px; gap:4px;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.2);
+  background:rgba(255,255,255,0.02);
+  border:1px solid rgba(255,255,255,0.04);
+  border-radius:15px; padding:3px; gap:2px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.02), 0 2px 8px rgba(0,0,0,0.2);
 }
 .mode-btn {
-  display:inline-flex; align-items:center; gap:7px;
-  padding:8px 22px;
-  border:none; border-radius:12px;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:7px 18px;
+  border:none; border-radius:11px;
   background:none; cursor:pointer; font-family:inherit;
-  transition:background 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out),
-             transform 0.14s var(--ease-spring);
+  transition:background 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out), transform 0.1s var(--ease-spring);
   -webkit-user-select:none; user-select:none;
   position:relative;
 }
-.mode-btn:active { transform:scale(0.94); }
-/* Mode label */
+.mode-btn:active { transform:scale(0.96); }
 .mode-btn-label {
-  font-size:11px; font-weight:600; letter-spacing:0.6px;
+  font-size:10.5px; font-weight:600; letter-spacing:0.4px;
   text-transform:uppercase; font-family:var(--mono);
-  color:rgba(255,255,255,0.28);
-  transition:color 0.2s var(--ease-out);
+  color:rgba(255,255,255,0.22);
+  transition:color 0.15s var(--ease-out);
 }
-/* Mode icon */
 .mode-btn-icon {
-  width:12px; height:12px; flex-shrink:0; opacity:0.3;
-  transition:opacity 0.2s var(--ease-out), color 0.2s var(--ease-out);
+  width:11px; height:11px; flex-shrink:0; opacity:0.25;
+  transition:opacity 0.15s var(--ease-out), color 0.15s var(--ease-out);
 }
-/* Active states */
+/* Mode Active States */
 .mode-btn.m-hold.active {
-  background:rgba(255,159,10,0.13);
-  box-shadow:0 0 0 1px rgba(255,159,10,0.22) inset, 0 2px 8px rgba(255,159,10,0.06);
+  background:rgba(255,159,10,0.08);
+  box-shadow:0 0 0 1px rgba(255,159,10,0.14) inset, 0 2px 6px rgba(255,159,10,0.03);
 }
 .mode-btn.m-hold.active .mode-btn-label { color:var(--amber); }
 .mode-btn.m-hold.active .mode-btn-icon  { opacity:1; color:var(--amber); }
 
 .mode-btn.m-live.active {
-  background:rgba(255,69,58,0.13);
-  box-shadow:0 0 0 1px rgba(255,69,58,0.22) inset, 0 2px 8px rgba(255,69,58,0.06);
+  background:rgba(255,69,58,0.08);
+  box-shadow:0 0 0 1px rgba(255,69,58,0.14) inset, 0 2px 6px rgba(255,69,58,0.03);
 }
 .mode-btn.m-live.active .mode-btn-label { color:var(--red); }
 .mode-btn.m-live.active .mode-btn-icon  { opacity:1; color:var(--red); }
 
-/* Live pulse dot on active live button */
 .mode-btn.m-live .live-dot {
-  width:6px; height:6px; border-radius:50%;
-  background:rgba(255,255,255,0.2); flex-shrink:0;
-  transition:background 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
+  width:5px; height:5px; border-radius:50%;
+  background:rgba(255,255,255,0.15); flex-shrink:0;
+  transition:background 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
 }
 .mode-btn.m-live.active .live-dot {
   background:var(--red);
-  box-shadow:0 0 5px var(--red);
+  box-shadow:0 0 4px var(--red);
 }
 @media (prefers-reduced-motion:no-preference) {
   .mode-btn.m-live.active .live-dot {
-    animation:livepulse 1s ease-in-out infinite alternate;
+    animation:livepulse 1.2s ease-in-out infinite alternate;
   }
 }
 @keyframes livepulse { to { opacity:0.3; } }
 
-/* PTT circle hint text updates per mode */
-.ptt-circle.live-mode:not(.live) .ptt-hint { color:var(--red); opacity:0.6; }
+.ptt-circle.live-mode:not(.live) .ptt-hint { color:var(--red); opacity:0.5; }
 
-/* PTT circle — live state: continuous red glow */
+/* PTT circle — live state */
 .ptt-circle.live {
   border-color:var(--red);
-  outline-color:rgba(255,69,58,0.15); outline-offset:10px;
-  transform:scale(1.018);
-  background:radial-gradient(ellipse at 38% 30%, rgba(255,69,58,0.07) 0%, transparent 58%);
-  box-shadow:0 0 0 10px rgba(255,69,58,0.04), 0 0 50px rgba(255,69,58,0.06),
-             inset 0 0 0 1px rgba(255,69,58,0.1), inset 0 -2px 16px rgba(0,0,0,0.2);
+  outline-color:rgba(255,69,58,0.12); outline-offset:9px;
+  transform:scale(1.015);
+  background:radial-gradient(circle at 40% 30%, rgba(255,69,58,0.05) 0%, transparent 60%);
+  box-shadow:0 0 0 9px rgba(255,69,58,0.02), 0 0 44px rgba(255,69,58,0.05),
+             inset 0 0 0 1px rgba(255,69,58,0.08), inset 0 -2px 14px rgba(0,0,0,0.15);
 }
 .ptt-circle.live .mic-path { stroke:var(--red); }
-.ptt-circle.live .ptt-hint { color:var(--red); opacity:0.9; }
-.ripples.live .ripple { border-color:rgba(255,69,58,0.18); }
+.ptt-circle.live .ptt-hint { color:var(--red); opacity:0.8; }
+.ripples.live .ripple { border-color:rgba(255,69,58,0.12); }
 @media (prefers-reduced-motion:no-preference) {
-  .ripples.live .ripple:nth-child(1) { animation:ripout 2.2s ease-out infinite 0s; }
-  .ripples.live .ripple:nth-child(2) { animation:ripout 2.2s ease-out infinite 0.73s; }
-  .ripples.live .ripple:nth-child(3) { animation:ripout 2.2s ease-out infinite 1.46s; }
+  .ripples.live .ripple:nth-child(1) { animation:ripout 2.2s cubic-bezier(0.16, 1, 0.3, 1) infinite 0s; }
+  .ripples.live .ripple:nth-child(2) { animation:ripout 2.2s cubic-bezier(0.16, 1, 0.3, 1) infinite 0.73s; }
+  .ripples.live .ripple:nth-child(3) { animation:ripout 2.2s cubic-bezier(0.16, 1, 0.3, 1) infinite 1.46s; }
 }
 
 /* ── Waveform ── */
@@ -544,27 +506,27 @@ body::after {
   display:flex; align-items:center; justify-content:center; gap:4px;
   height:44px; flex-shrink:0;
   opacity:0;
-  transition:opacity 0.32s var(--ease-out);
+  transition:opacity 0.28s var(--ease-out);
   padding:0 4px;
 }
 .wave-wrap.on { opacity:1; }
-.wbar { width:3px; height:4px; border-radius:3px; transition:height 0.05s var(--ease-out); }
-.wbar.tx { background:var(--amber); opacity:0.75; }
+.wbar { width:2.5px; height:4px; border-radius:2px; transition:height 0.05s var(--ease-out); }
+.wbar.tx { background:var(--amber); opacity:0.65; }
 .wave-wrap.on .wbar.tx {
-  filter:drop-shadow(0 0 5px rgba(255,159,10,0.7));
+  filter:drop-shadow(0 0 4px rgba(255,159,10,0.6));
   opacity:1;
 }
-.wbar.rx { background:var(--blue); opacity:0.75; }
+.wbar.rx { background:var(--blue); opacity:0.65; }
 .wave-wrap.on .wbar.rx {
-  filter:drop-shadow(0 0 5px rgba(10,132,255,0.65));
+  filter:drop-shadow(0 0 4px rgba(10,132,255,0.55));
   opacity:1;
 }
 
 /* ── Status line ── */
-.status-line { font-size:12.5px; font-weight:400; text-align:center; color:rgba(255,255,255,0.3); min-height:20px; padding:2px 20px 4px; flex-shrink:0; transition:color 0.18s var(--ease-out), opacity 0.16s var(--ease-out), transform 0.22s var(--ease-expo); letter-spacing:0.15px; line-height:1.4; overflow:hidden; }
-.status-line.changing { opacity:0; transform:translateY(4px); }
-@keyframes statusIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
-.status-line.changed { animation:statusIn 0.22s var(--ease-expo) forwards; }
+.status-line { font-size:12px; font-weight:400; text-align:center; color:rgba(255,255,255,0.25); min-height:20px; padding:2px 20px 4px; flex-shrink:0; transition:color 0.15s var(--ease-out), opacity 0.12s var(--ease-out), transform 0.18s var(--ease-expo); letter-spacing:0.1px; line-height:1.4; overflow:hidden; }
+.status-line.changing { opacity:0; transform:translateY(3px); }
+@keyframes statusIn { from{opacity:0;transform:translateY(-3px)} to{opacity:1;transform:translateY(0)} }
+.status-line.changed { animation:statusIn 0.18s var(--ease-expo) forwards; }
 @keyframes blink-cursor { 0%,100%{opacity:1} 50%{opacity:0} }
 .status-line.scan::after { content:"_"; animation:blink-cursor 1.1s step-end infinite; margin-left:1px; color:inherit; }
 .status-line.ok   { color:var(--green); font-weight:600; }
@@ -575,147 +537,137 @@ body::after {
 /* ── Bottom nav ── */
 .bottom-nav {
   display:flex; justify-content:space-around; align-items:center;
-  padding:4px 12px calc(env(safe-area-inset-bottom,0px) + 4px);
+  padding:4px 16px calc(env(safe-area-inset-bottom,0px) + 4px);
   flex-shrink:0; gap:0;
-  background:rgba(8,8,11,0.96);
+  background:rgba(6,6,9,0.95);
   backdrop-filter:blur(32px); -webkit-backdrop-filter:blur(32px);
-  border-top:1px solid rgba(255,255,255,0.05);
+  border-top:1px solid rgba(255,255,255,0.03);
 }
 .nav-btn {
   display:flex; flex-direction:column; align-items:center; gap:4px;
   background:none; border:none; cursor:pointer;
-  padding:7px 16px 6px; color:rgba(255,255,255,0.24);
-  transition:color 0.16s var(--ease-out), transform 0.14s var(--ease-spring);
+  padding:6px 16px; color:rgba(255,255,255,0.22);
+  transition:color 0.15s var(--ease-out), transform 0.12s var(--ease-spring);
   border-radius:14px; flex:1; position:relative;
 }
-.nav-btn:active { transform:scale(0.88); }
-.nav-btn.active { color:rgba(255,255,255,0.95); }
-/* Pill active indicator */
+.nav-btn:active { transform:scale(0.9); }
+.nav-btn.active { color:rgba(255,255,255,0.92); }
 .nav-btn.active::before {
-  content:""; position:absolute; top:3px; left:50%;
+  content:""; position:absolute; top:2px; left:50%;
   transform:translateX(-50%);
-  width:32px; height:3px; border-radius:2px;
-  background:linear-gradient(90deg, rgba(255,159,10,0.7), rgba(255,159,10,0.45));
+  width:24px; height:2px; border-radius:1px;
+  background:linear-gradient(90deg, rgba(255,159,10,0.6), rgba(255,159,10,0.3));
 }
-.nav-label { font-size:10px; font-weight:500; letter-spacing:0.15px; color:inherit; }
-.nav-btn.active .nav-label { color:rgba(255,255,255,0.55); font-weight:600; }
-.nav-btn svg { transition:transform 0.2s var(--ease-spring), opacity 0.16s var(--ease-out); }
-.nav-btn.active svg { transform:scale(1.1); }
-.nav-btn:active svg { transform:scale(0.84); }
+.nav-label { font-size:10px; font-weight:500; color:inherit; }
+.nav-btn.active .nav-label { color:rgba(255,255,255,0.5); font-weight:600; }
+.nav-btn svg { transition:transform 0.18s var(--ease-spring), opacity 0.15s var(--ease-out); }
+.nav-btn.active svg { transform:scale(1.08); }
 
 /* ════════════════════════════════════
    MAP VIEW
 ════════════════════════════════════ */
 #mapView {
-  background:#0c0c0e;
+  background:#09090b;
   position:relative;
   display:flex;
   flex-direction:column;
   height:100%;
-  content-visibility:auto; /* skip paint when hidden */
+  content-visibility:auto;
 }
 .map-topbar {
   position:relative; z-index:20; flex-shrink:0;
   display:flex; align-items:center; gap:10px;
-  padding:calc(env(safe-area-inset-top,44px) + 4px) 12px 10px;
-  background:rgba(6,6,8,0.88);
+  padding:calc(env(safe-area-inset-top,44px) + 4px) 16px 10px;
+  background:rgba(5,5,7,0.88);
   backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
-  border-bottom:1px solid rgba(255,255,255,0.05);
+  border-bottom:1px solid rgba(255,255,255,0.03);
 }
 .map-back {
   width:32px; height:32px; border-radius:50%;
-  background:rgba(255,255,255,0.07);
-  border:1px solid rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.06);
   cursor:pointer; flex-shrink:0;
   display:flex; align-items:center; justify-content:center;
-  transition:background 0.15s var(--ease-out), transform 0.12s var(--ease-out);
+  transition:background 0.12s var(--ease-out), transform 0.1s var(--ease-out);
 }
-.map-back:active { background:rgba(255,255,255,0.14); transform:scale(0.9); }
-/* Channel name — single line, centred */
+.map-back:active { background:rgba(255,255,255,0.1); transform:scale(0.92); }
 .map-topbar-info {
   flex:1; min-width:0;
   display:flex; align-items:center; gap:0;
 }
 .map-topbar-channel {
-  font-size:13px; font-weight:600; color:var(--white);
-  letter-spacing:0.2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:12.5px; font-weight:600; color:var(--white);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   font-family:var(--mono); text-transform:uppercase;
 }
-.map-topbar-hash { color:rgba(255,255,255,0.28); font-weight:400; }
-/* Sub-text hidden — too much noise */
+.map-topbar-hash { color:rgba(255,255,255,0.22); font-weight:400; }
 .map-topbar-sub { display:none; }
-/* Zone count badge — compact, right of topbar */
 .map-zone-badge {
   flex-shrink:0;
-  background:rgba(255,255,255,0.07);
-  border:1px solid rgba(255,255,255,0.09);
-  border-radius:10px; padding:4px 9px;
-  font-size:10px; font-weight:600; color:rgba(255,255,255,0.45);
-  letter-spacing:0.15px; white-space:nowrap;
-  transition:color 0.2s var(--ease-out), background 0.2s var(--ease-out);
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:8px; padding:3px 8px;
+  font-size:10px; font-weight:600; color:rgba(255,255,255,0.4);
+  white-space:nowrap;
+  transition:color 0.15s var(--ease-out), background 0.15s var(--ease-out);
 }
-/* FABs — moved into topbar right side, horizontal row */
 .map-topbar-actions {
   display:flex; align-items:center; gap:6px; flex-shrink:0;
 }
 .map-topbar-fab {
   width:32px; height:32px; border-radius:50%; border:none; cursor:pointer;
   display:flex; align-items:center; justify-content:center;
-  transition:opacity 0.15s var(--ease-out), transform 0.14s var(--ease-spring);
+  transition:opacity 0.12s var(--ease-out), transform 0.1s var(--ease-spring);
 }
-.map-topbar-fab:active { opacity:0.65; transform:scale(0.88); }
+.map-topbar-fab:active { opacity:0.65; transform:scale(0.9); }
 .map-topbar-fab.add-zone {
   background:var(--amber);
-  box-shadow:0 2px 10px rgba(255,159,10,0.35);
+  box-shadow:0 2px 10px rgba(255,159,10,0.3);
   color:#000;
 }
 .map-topbar-fab.list-zones {
-  background:rgba(255,255,255,0.08);
-  border:1px solid rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.06);
 }
-/* Map fills space between topbar and bottom — flex child, not absolute */
 #mapContainer {
   flex:1; min-height:0;
   position:relative; z-index:1;
 }
 .map-bottom {
   position:relative; z-index:20; flex-shrink:0;
-  background:rgba(6,6,8,0.92);
+  background:rgba(5,5,7,0.92);
   backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
-  /* single-row: location left · button right */
-  padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 10px);
-  display:flex; align-items:center; gap:10px;
-  border-top:1px solid rgba(255,255,255,0.05);
+  padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 10px);
+  display:flex; align-items:center; gap:12px;
+  border-top:1px solid rgba(255,255,255,0.03);
 }
-/* Location stack — left side */
 .map-info-row {
   flex:1; min-width:0;
   display:flex; flex-direction:column; gap:1px;
 }
 .map-location-text {
-  font-size:12px; font-weight:500; letter-spacing:-0.1px;
+  font-size:11.5px; font-weight:500;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--white);
 }
 .map-user-text {
-  font-size:10px; font-weight:400; color:rgba(255,255,255,0.28);
-  letter-spacing:0.1px; white-space:nowrap;
+  font-size:10px; color:var(--dim);
+  white-space:nowrap;
 }
-/* Talk Here — compact pill on the right */
 .talk-here-btn {
   flex-shrink:0;
-  padding:10px 20px;
+  padding:10px 18px;
   background:var(--amber);
   border:none; border-radius:100px;
-  box-shadow:0 1px 0 rgba(255,255,255,0.18) inset;
-  color:#000; font-family:inherit; font-size:14px; font-weight:700; letter-spacing:0.1px;
+  box-shadow:0 1px 0 rgba(255,255,255,0.15) inset;
+  color:#000; font-family:inherit; font-size:13px; font-weight:700; letter-spacing:0.1px;
   white-space:nowrap;
-  cursor:pointer; transition:opacity 0.14s var(--ease-out), transform 0.12s var(--ease-spring), background 0.18s var(--ease-out);
+  cursor:pointer; transition:opacity 0.12s var(--ease-out), transform 0.1s var(--ease-spring), background 0.15s var(--ease-out);
   -webkit-user-select:none; user-select:none; touch-action:none;
 }
-.talk-here-btn:disabled { opacity:0.28; cursor:default; }
-.talk-here-btn.pressed { opacity:0.75; transform:scale(0.95); }
-.talk-here-btn.transmitting { background:#cc7a00; color:rgba(255,210,100,0.95); }
-@keyframes btnpulse { from{box-shadow:0 0 0 0 rgba(255,159,10,0.4);} to{box-shadow:0 0 0 12px rgba(255,159,10,0);} }
+.talk-here-btn:disabled { opacity:0.25; cursor:default; }
+.talk-here-btn.pressed { opacity:0.8; transform:scale(0.96); }
+.talk-here-btn.transmitting { background:#cc7a00; color:rgba(255,210,100,0.9); }
+@keyframes btnpulse { from{box-shadow:0 0 0 0 rgba(255,159,10,0.35);} to{box-shadow:0 0 0 10px rgba(255,159,10,0);} }
 @media (prefers-reduced-motion:no-preference) {
   .talk-here-btn.transmitting { animation:btnpulse 0.9s ease-in-out infinite alternate; }
 }
@@ -723,177 +675,159 @@ body::after {
 /* ════════════════════════════════════
    SHEETS & OVERLAYS
 ════════════════════════════════════ */
-.overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); display:flex; align-items:flex-end; z-index:100; opacity:0; pointer-events:none; transition:opacity 0.28s var(--ease-out); }
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,0.65); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); display:flex; align-items:flex-end; z-index:100; opacity:0; pointer-events:none; transition:opacity 0.24s var(--ease-out); }
 .overlay.open { opacity:1; pointer-events:all; }
-.sheet { width:100%; background:rgba(13,13,18,0.98); border-radius:26px 26px 0 0; padding:12px 20px 34px; display:flex; flex-direction:column; gap:12px; transform:translateY(100%); transition:transform 0.36s var(--ease-sheet); will-change:transform; border-top:1px solid rgba(255,255,255,0.09); box-shadow:0 -8px 50px rgba(0,0,0,0.6), 0 -1px 0 rgba(255,255,255,0.05) inset; }
+.sheet { width:100%; background:rgba(10,10,14,0.98); border-radius:24px 24px 0 0; padding:12px 20px 34px; display:flex; flex-direction:column; gap:12px; transform:translateY(100%); transition:transform 0.32s var(--ease-sheet); will-change:transform; border-top:1px solid rgba(255,255,255,0.07); box-shadow:0 -8px 40px rgba(0,0,0,0.5); }
 .overlay.open .sheet { transform:translateY(0); }
-.sheet-handle { width:32px; height:4px; background:rgba(255,255,255,0.14); border-radius:2px; margin:0 auto 2px; }
-.sheet-title { font-size:18px; font-weight:600; text-align:center; letter-spacing:-0.4px; }
-.sheet-sub { font-size:12px; color:var(--dim); text-align:center; margin-top:-4px; line-height:1.45; letter-spacing:0.05px; }
-.sheet-input { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:13px; color:var(--white); font-family:inherit; font-size:17px; font-weight:500; letter-spacing:0.2px; padding:14px 16px; outline:none; width:100%; text-align:center; transition:border-color 0.18s var(--ease-out), background 0.18s var(--ease-out); }
-.sheet-input::placeholder { color:rgba(255,255,255,0.18); }
-.sheet-input:focus { border-color:rgba(255,159,10,0.45); background:rgba(255,159,10,0.04); box-shadow:0 0 0 3px rgba(255,159,10,0.08); }
-.sheet-btn { border:none; border-radius:var(--radius-btn); font-family:inherit; font-size:16px; font-weight:600; letter-spacing:-0.1px; padding:15px; cursor:pointer; transition:opacity 0.15s var(--ease-out), transform 0.12s var(--ease-spring); }
-.sheet-btn:active { opacity:0.72; transform:scale(0.97); }
-.sheet-btn.primary   { background:linear-gradient(180deg,#ffb340 0%,var(--amber) 100%); color:#000; letter-spacing:0px; font-family:var(--mono); text-transform:uppercase; font-size:14px; box-shadow:0 1px 0 rgba(255,255,255,0.8) inset; }
-.sheet-btn.secondary { background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.7); border:1px solid rgba(255,255,255,0.08); }
+.sheet-handle { width:28px; height:3.5px; background:rgba(255,255,255,0.12); border-radius:2px; margin:0 auto 4px; }
+.sheet-title { font-size:17px; font-weight:600; text-align:center; letter-spacing:-0.2px; }
+.sheet-sub { font-size:11.5px; color:var(--dim); text-align:center; margin-top:-4px; line-height:1.4; }
+.sheet-input { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:12px; color:var(--white); font-family:inherit; font-size:16px; font-weight:500; padding:12px 14px; outline:none; width:100%; text-align:center; transition:border-color 0.15s var(--ease-out), background 0.15s var(--ease-out); }
+.sheet-input::placeholder { color:rgba(255,255,255,0.15); }
+.sheet-input:focus { border-color:rgba(255,159,10,0.3); background:rgba(255,159,10,0.03); }
+.sheet-btn { border:none; border-radius:var(--radius-btn); font-family:inherit; font-size:15px; font-weight:600; padding:14px; cursor:pointer; transition:opacity 0.12s var(--ease-out), transform 0.1s var(--ease-spring); }
+.sheet-btn:active { opacity:0.75; transform:scale(0.98); }
+.sheet-btn.primary   { background:linear-gradient(180deg,#ffb340 0%,var(--amber) 100%); color:#000; font-family:var(--mono); text-transform:uppercase; font-size:13px; box-shadow:0 1px 0 rgba(255,255,255,0.6) inset; }
+.sheet-btn.secondary { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.7); border:1px solid rgba(255,255,255,0.05); }
 
-/* ── Geofence UI ── */
-
-/* Old floating FAB toolbar — replaced by topbar buttons */
+/* ── Geofence Banners ── */
 .geo-toolbar { display:none; }
 .geo-fab     { display:none; }
 
-/* Zone banners — float just above bottom bar */
 .geo-banners {
   position:absolute;
   bottom:calc(env(safe-area-inset-bottom,0px) + 66px);
-  left:10px; right:10px; z-index:20;
-  display:flex; flex-direction:column; gap:3px;
-  max-height:140px; overflow-y:auto;
-  overflow-x:hidden;
-  -webkit-overflow-scrolling:touch;
+  left:12px; right:12px; z-index:20;
+  display:flex; flex-direction:column; gap:4px;
+  max-height:130px; overflow-y:auto;
   pointer-events:none;
 }
 .geo-banners::-webkit-scrollbar { display:none; }
 .geo-banner {
   pointer-events:all;
   display:flex; align-items:center;
-  height:40px;
+  height:38px;
   border-radius:10px;
-  background:rgba(12,12,14,0.90);
-  border:1px solid rgba(255,255,255,0.06);
+  background:rgba(8,8,10,0.92);
+  border:1px solid rgba(255,255,255,0.04);
   backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
-  box-shadow:0 1px 6px rgba(0,0,0,0.5);
-  transform:translateY(8px); opacity:0;
-  transition:transform 0.26s var(--ease-expo), opacity 0.2s var(--ease-out);
+  box-shadow:0 2px 10px rgba(0,0,0,0.4);
+  transform:translateY(6px); opacity:0;
+  transition:transform 0.22s var(--ease-expo), opacity 0.18s var(--ease-out);
   cursor:pointer; overflow:hidden;
 }
 .geo-banner.on { transform:translateY(0); opacity:1; }
-/* Left colour dot — replaces stripe */
 .geo-banner-accent {
-  width:4px; height:4px; border-radius:50%;
-  flex-shrink:0; margin:0 10px 0 12px;
-  opacity:1;
+  width:3.5px; height:3.5px; border-radius:50%;
+  flex-shrink:0; margin:0 8px 0 10px;
 }
-/* Inner content */
 .geo-banner-body {
   flex:1; min-width:0;
   display:flex; align-items:center; gap:6px;
-  padding:0 8px 0 0;
+  padding:0 4px 0 0;
   height:100%;
 }
-.geo-banner-info { flex:1; min-width:0; display:flex; align-items:center; gap:5px; }
-/* Zone name */
+.geo-banner-info { flex:1; min-width:0; display:flex; align-items:center; gap:4px; }
 .geo-banner-title {
-  font-size:13px; font-weight:500; color:var(--white);
+  font-size:12px; font-weight:500; color:var(--white);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  letter-spacing:-0.1px; flex-shrink:1; min-width:0;
+  flex-shrink:1; min-width:0;
 }
-/* Channel tag — dimmer, smaller */
 .geo-banner-ch {
-  font-size:10px; font-weight:400;
-  color:rgba(255,255,255,0.25);
+  font-size:9.5px;
+  color:rgba(255,255,255,0.2);
   white-space:nowrap; flex-shrink:0;
 }
-/* Mine dot — hidden for minimal look */
 .geo-banner-mine { display:none; }
-/* Distance / inside status */
 .geo-banner-dist {
-  font-size:11px; font-weight:400;
-  color:rgba(255,255,255,0.28);
+  font-size:10.5px;
+  color:rgba(255,255,255,0.22);
   white-space:nowrap; flex-shrink:0;
 }
 .geo-banner-dist.inside { color:var(--green); font-weight:500; }
-/* Expiry — only show when urgent */
 .geo-banner-expiry {
-  font-size:10px; font-weight:400;
+  font-size:9.5px;
   white-space:nowrap; flex-shrink:0;
 }
-/* Action button — text only, no background box */
 .geo-banner-action {
   flex-shrink:0; border:none; background:none;
-  font-family:inherit; font-size:12px; font-weight:600;
-  padding:0 10px; height:100%;
+  font-family:inherit; font-size:11.5px; font-weight:600;
+  padding:0 8px; height:100%;
   display:flex; align-items:center; justify-content:center;
   cursor:pointer;
-  transition:opacity 0.15s var(--ease-out);
+  transition:opacity 0.12s var(--ease-out);
 }
 .geo-banner-action:active { opacity:0.5; }
-/* Dismiss */
 .geo-banner-dismiss {
-  width:36px; height:40px; flex-shrink:0;
+  width:32px; height:38px; flex-shrink:0;
   background:none; border:none; cursor:pointer;
   display:flex; align-items:center; justify-content:center;
-  color:rgba(255,255,255,0.18); font-size:10px;
-  transition:color 0.15s var(--ease-out);
+  color:rgba(255,255,255,0.15); font-size:10px;
+  transition:color 0.12s var(--ease-out);
 }
-.geo-banner-dismiss:active { color:rgba(255,255,255,0.55); }
+.geo-banner-dismiss:active { color:rgba(255,255,255,0.45); }
 .geo-banner-sub { display:none; }
 
-/* Draw hint pill */
 .geo-draw-hint {
   position:absolute; top:calc(env(safe-area-inset-top,44px) + 56px);
   left:50%; transform:translateX(-50%) translateY(-4px);
   z-index:25;
-  background:rgba(12,12,14,0.88);
+  background:rgba(8,8,10,0.88);
   backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
-  border:1px solid rgba(255,255,255,0.09);
-  border-radius:20px; padding:7px 18px;
-  font-size:12px; font-weight:500; color:rgba(255,255,255,0.75); letter-spacing:0.1px;
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:100px; padding:6px 14px;
+  font-size:11.5px; font-weight:500; color:rgba(255,255,255,0.7);
   white-space:nowrap; pointer-events:none;
-  opacity:0; transition:opacity 0.22s var(--ease-out), transform 0.22s var(--ease-out);
+  opacity:0; transition:opacity 0.18s var(--ease-out), transform 0.18s var(--ease-out);
 }
 .geo-draw-hint.on { opacity:1; transform:translateX(-50%) translateY(0); }
 
-/* Zone list sheet */
+/* Zone list view */
 .geo-sheet-row {
   display:flex; align-items:center; justify-content:space-between;
-  padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.06);
+  padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.04);
 }
 .geo-sheet-row:last-child { border-bottom:none; }
-.geo-zone-swatch { width:10px; height:10px; border-radius:50%; flex-shrink:0; margin-right:10px; }
+.geo-zone-swatch { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-right:8px; }
 .geo-zone-info   { flex:1; min-width:0; }
-.geo-zone-name   { font-size:14px; font-weight:600; color:var(--white); letter-spacing:-0.1px; }
-.geo-zone-meta   { font-size:11px; font-weight:400; color:var(--dim); margin-top:2px; line-height:1.4; }
-.geo-zone-inside { font-size:11px; font-weight:600; letter-spacing:0.2px; margin-top:3px; }
+.geo-zone-name   { font-size:13px; font-weight:600; color:var(--white); }
+.geo-zone-meta   { font-size:10.5px; color:var(--dim); margin-top:1px; line-height:1.4; }
+.geo-zone-inside { font-size:10.5px; font-weight:600; margin-top:2px; }
 .geo-zone-del {
-  background:rgba(255,69,58,0.1); border:1px solid rgba(255,69,58,0.18);
-  border-radius:7px; color:var(--red); font-family:inherit; font-size:12px; font-weight:500; padding:5px 10px;
+  background:rgba(255,69,58,0.08); border:1px solid rgba(255,69,58,0.14);
+  border-radius:6px; color:var(--red); font-family:inherit; font-size:11px; font-weight:500; padding:4px 8px;
   cursor:pointer; flex-shrink:0;
-  transition:opacity 0.15s var(--ease-out), transform 0.12s var(--ease-spring);
+  transition:opacity 0.12s var(--ease-out), transform 0.1s var(--ease-spring);
 }
 .geo-zone-del:active { opacity:0.7; transform:scale(0.95); }
-.geo-empty-zones { text-align:center; font-size:13px; font-weight:400; color:var(--dim); padding:20px 0; line-height:1.5; }
+.geo-empty-zones { text-align:center; font-size:12px; color:var(--dim); padding:16px 0; line-height:1.4; }
 
-/* Sheet row: auto-join toggle */
-.geo-toggle-row { display:flex; align-items:center; justify-content:space-between; padding:4px 0 8px; }
-.geo-toggle-label { font-size:13px; font-weight:400; color:var(--dim); letter-spacing:0.05px; }
-.geo-toggle { position:relative; width:44px; height:26px; }
+.geo-toggle-row { display:flex; align-items:center; justify-content:space-between; padding:2px 0 6px; }
+.geo-toggle-label { font-size:12px; color:var(--dim); }
+.geo-toggle { position:relative; width:40px; height:24px; }
 .geo-toggle input { opacity:0; width:0; height:0; }
 .geo-toggle-track {
-  position:absolute; inset:0; background:rgba(255,255,255,0.15);
-  border-radius:13px; cursor:pointer; transition:background 0.22s var(--ease-out);
+  position:absolute; inset:0; background:rgba(255,255,255,0.12);
+  border-radius:12px; cursor:pointer; transition:background 0.18s var(--ease-out);
 }
 .geo-toggle input:checked + .geo-toggle-track { background:var(--amber); }
 .geo-toggle-thumb {
-  position:absolute; top:3px; left:3px;
-  width:20px; height:20px; border-radius:50%;
-  background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.35);
-  transition:transform 0.22s var(--ease-spring); pointer-events:none;
+  position:absolute; top:2.5px; left:2.5px;
+  width:19px; height:19px; border-radius:50%;
+  background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.3);
+  transition:transform 0.18s var(--ease-spring); pointer-events:none;
 }
-.geo-toggle input:checked ~ .geo-toggle-thumb { transform:translateX(18px); }
+.geo-toggle input:checked ~ .geo-toggle-thumb { transform:translateX(16px); }
 
-/* Color palette in create sheet */
-.geo-color-row { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+.geo-color-row { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
 .geo-color-swatch {
-  width:28px; height:28px; border-radius:50%; cursor:pointer;
-  border:2px solid transparent; transition:border-color 0.18s var(--ease-out), transform 0.18s var(--ease-spring);
+  width:24px; height:24px; border-radius:50%; cursor:pointer;
+  border:2px solid transparent; transition:border-color 0.15s var(--ease-out), transform 0.15s var(--ease-spring);
 }
-.geo-color-swatch.selected { border-color:#fff; transform:scale(1.18); }
+.geo-color-swatch.selected { border-color:#fff; transform:scale(1.15); }
 
-/* Toast */
-.toast { position:fixed; bottom:calc(env(safe-area-inset-bottom,0px) + 86px); left:50%; transform:translateX(-50%) translateY(12px) scale(0.96); background:rgba(24,24,26,0.96); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:9px 18px; font-size:13px; font-weight:500; letter-spacing:0.04px; color:rgba(255,255,255,0.92); opacity:0; transition:opacity 0.22s var(--ease-out), transform 0.28s var(--ease-spring); pointer-events:none; white-space:nowrap; z-index:200; will-change:transform, opacity; }
+/* Toast alert */
+.toast { position:fixed; bottom:calc(env(safe-area-inset-bottom,0px) + 86px); left:50%; transform:translateX(-50%) translateY(8px) scale(0.97); background:rgba(20,20,24,0.94); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid var(--border); border-radius:10px; padding:8px 16px; font-size:12.5px; font-weight:500; color:rgba(255,255,255,0.9); opacity:0; transition:opacity 0.18s var(--ease-out), transform 0.22s var(--ease-spring); pointer-events:none; white-space:nowrap; z-index:200; }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
 </style>
 </head>
@@ -960,7 +894,7 @@ body::after {
       <div class="quality-bars" id="qualityBars">
         <div class="qbar" id="qb1" style="height:5px"></div>
         <div class="qbar" id="qb2" style="height:9px"></div>
-        <div class="qbar" id="qb3" style="height:14px"></div>
+        <div class="qbar" id="qb3" style="height:12px"></div>
       </div>
       <span class="quality-score-tip" id="qualityTip">—</span>
     </button>
@@ -1013,7 +947,6 @@ body::after {
   <div class="mode-switcher">
     <div class="mode-seg" role="group" aria-label="Talk mode">
       <button class="mode-btn m-hold active" id="modeHoldBtn" aria-pressed="true" title="Hold to talk — press and hold the circle">
-        <!-- Mic icon -->
         <svg class="mode-btn-icon" viewBox="0 0 14 16" fill="none" aria-hidden="true">
           <rect x="4" y="0.5" width="6" height="8.5" rx="3" stroke="currentColor" stroke-width="1.3"/>
           <path d="M2 8c0 2.8 2.2 5 5 5s5-2.2 5-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
@@ -1031,10 +964,9 @@ body::after {
   <div class="circle-wrap">
     <div class="cancel-hint" id="cancelHint">Slide up to cancel</div>
 
-    <!-- Limit arc — radius sized to match --circ via JS -->
     <svg class="limit-svg" id="limitSvg" viewBox="0 0 300 300" aria-hidden="true">
       <circle cx="150" cy="150" r="137.5" fill="none"
-        stroke="rgba(255,69,58,0.3)" stroke-width="2.5"
+        stroke="rgba(255,69,58,0.2)" stroke-width="2"
         stroke-dasharray="864" stroke-dashoffset="864"
         id="limitArc" stroke-linecap="round"/>
     </svg>
@@ -1059,14 +991,13 @@ body::after {
     </div>
   </div>
 
-  <!-- Waveform — bars colored via JS class (tx/rx) -->
+  <!-- Waveform -->
   <div class="wave-wrap" id="waveWrap">
     <div class="wbar tx" id="wb1"></div><div class="wbar tx" id="wb2"></div>
     <div class="wbar tx" id="wb3"></div><div class="wbar tx" id="wb4"></div>
     <div class="wbar tx" id="wb5"></div><div class="wbar tx" id="wb6"></div>
     <div class="wbar tx" id="wb7"></div><div class="wbar tx" id="wb8"></div>
   </div>
-
 
   <div class="status-line" id="statusLine">Tap grid to join a channel</div>
 
@@ -1107,7 +1038,6 @@ body::after {
       <div class="map-topbar-channel" id="mapTopChannel">Map</div>
     </div>
     <div class="map-zone-badge" id="mapZoneBadge" style="display:none">0 zones</div>
-    <!-- Actions moved into topbar -->
     <div class="map-topbar-actions">
       <button class="map-topbar-fab list-zones" id="geoListBtn" title="Manage zones">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round">
@@ -1319,11 +1249,7 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
     var _urlRoomHandler = function() {
       socket.off('connect', _urlRoomHandler); // fire once only
       joinChannel(urlRoom);
-      // Apply mode from URL after room join — wait for room_state
-      // room_state handler will call startLive() if _talkMode === 'live'
       if (urlMode === 'live') {
-        // Set mode state and update UI immediately
-        // (room_state will trigger startLive once server confirms join)
         _talkMode = 'live';
         isLiveMode = true;
         var _hb = document.getElementById('modeHoldBtn');
@@ -1341,9 +1267,7 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
   getLocation();
   wireUI();
   _checkMicPermission(); // pre-check without prompting — updates _micPermission
-  // Init share button state — grey until channel joined
   setTimeout(_updateShareBtn, 0);
-  // Register service worker for PWA / offline support
   _registerSW();
 })();
 
@@ -1355,9 +1279,7 @@ function _registerSW() {
   navigator.serviceWorker.register('sw.js', { scope: '/' })
     .then(function(reg) {
       console.log('[PWA] SW registered, scope:', reg.scope);
-      // Check for waiting worker — new version available
       if (reg.waiting) { _onNewSWReady(reg.waiting); }
-      // Poll for updates every 30 min — catches updates in long-running sessions
       setInterval(function() { reg.update().catch(function(){}); }, 30 * 60 * 1000);
       reg.addEventListener('updatefound', function() {
         var newWorker = reg.installing;
@@ -1373,10 +1295,8 @@ function _registerSW() {
     });
 }
 
-// New SW waiting — show update toast so user can refresh
 function _onNewSWReady(worker) {
   showToast('Update available — refresh to apply');
-  // Auto-apply after 8s if user is not in an active session
   setTimeout(function() {
     if (!isRecording && !isLive && !queuePlaying) {
       worker.postMessage({ type: 'SKIP_WAITING' });
@@ -1385,8 +1305,6 @@ function _onNewSWReady(worker) {
   }, 8000);
 }
 
-// Browser fires this before showing the native install prompt —
-// capture it so we can show it ourselves at a better moment.
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault(); // suppress automatic browser mini-infobar
   _deferredInstallPrompt = e;
@@ -1404,7 +1322,6 @@ function _maybeShowInstallBar() {
   if (!_deferredInstallPrompt) return;              // no prompt available
   if (localStorage.getItem('wt_pwa_dismissed')) return;  // user dismissed
   if (localStorage.getItem('wt_pwa_installed'))   return;  // already installed
-  // Show after a short delay so the app has loaded first
   setTimeout(function() {
     var bar = document.getElementById('installBar');
     if (bar) bar.classList.add('on');
@@ -1492,9 +1409,6 @@ function wireUI() {
   document.addEventListener('keyup',   function (e) { if (e.code === 'Space') stopRecording(false); });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) channelPill.classList.remove('has-unread'); });
   window.addEventListener('pagehide', _releaseMicStream);  // release mic on tab close / navigate away
-  // Unlock AudioContext on first interaction with any interactive element.
-  // We use capture:true so it fires before any other handler, guaranteeing
-  // we're still inside the user gesture call stack when AudioContext is created.
   var _audioUnlockHandler = function() {
     unlockAudio();
     document.removeEventListener('touchstart', _audioUnlockHandler, { capture: true });
@@ -1537,18 +1451,15 @@ function wirePTT(el, isMapBtn) {
   }
 
   el.addEventListener('touchend', function (e) {
-    // Guard: only preventDefault when cancelable (prevents synthetic click double-fire)
     if (e.cancelable) e.preventDefault();
     if (isMapBtn) talkHereBtn.classList.remove('pressed');
     stopRecording(false);
   }, { passive: false });
 
   el.addEventListener('touchcancel', function () {
-    // touchcancel is always non-cancelable — never call preventDefault() on it.
-    // The browser fires this when it takes over the touch (scroll, system gesture, etc.)
     if (isMapBtn) talkHereBtn.classList.remove('pressed');
     stopRecording(true);
-  });  // no passive:false — we're not calling preventDefault
+  });
 }
 
 // ── Views ──
@@ -1563,12 +1474,8 @@ function showMapView() {
   _mainView.classList.add('hidden');
   _mapView.classList.remove('hidden');
   setNavActive('navMap');
-  // Defer initMap until after the view transition completes (transition is 0.28s)
-  // so Leaflet measures the container at its final rendered size.
   setTimeout(function() {
     initMap();
-    // If Leaflet was already loaded from a previous open, buildMap won't re-run
-    // but we still need to invalidate so tiles fill the now-visible container.
     if (mapInstance) mapInstance.invalidateSize({ animate: false });
   }, 320);
 }
@@ -1578,16 +1485,11 @@ function setNavActive(id) {
   _navBtns.navTalk.classList.toggle('active', id === 'navTalk');
   _navBtns.navMap.classList.toggle('active',  id === 'navMap');
   _navBtns.navChannel.classList.toggle('active', id === 'navChannel');
-  // When returning to talk tab, switch nav active but keep talk mode unchanged
 }
 
 // ── Microphone permission ──
-// _micStream is acquired once and kept alive across recordings so the browser
-// never re-prompts on "Allow Once". Tracks are only stopped on channel leave
-// or page unload.
-
 function _checkMicPermission() {
-  if (!navigator.permissions) return; // API not available — will learn on first use
+  if (!navigator.permissions) return;
   navigator.permissions.query({ name: 'microphone' }).then(function(result) {
     _micPermission = result.state === 'granted' ? 'granted'
                    : result.state === 'denied'  ? 'denied'
@@ -1596,7 +1498,6 @@ function _checkMicPermission() {
       _micPermission = result.state === 'granted' ? 'granted'
                      : result.state === 'denied'  ? 'denied'
                      : 'unknown';
-      // If permission revoked mid-session, tear down the shared stream
       if (result.state === 'denied') _releaseMicStream();
     };
   }).catch(function() {});
@@ -1609,14 +1510,10 @@ function _releaseMicStream() {
   }
 }
 
-// Acquire the shared mic stream — called once per session (or after revocation).
-// Returns a Promise<MediaStream> or rejects on denial.
 async function _acquireMicStream() {
-  // Return existing live stream if all tracks are still active
   if (_micStream && _micStream.getTracks().every(function(t) { return t.readyState === 'live'; })) {
     return _micStream;
   }
-  // Release any dead stream before re-acquiring
   _releaseMicStream();
 
   var stream;
@@ -1632,15 +1529,12 @@ async function _acquireMicStream() {
       video: false
     });
   } catch (_) {
-    // Fallback: plain constraints (older Android/iOS)
     stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
   }
 
   _micPermission = 'granted';
   _micStream = stream;
 
-  // If the OS kills our stream tracks (device revoked, iOS backgrounding),
-  // clear _micStream so next PTT re-acquires cleanly instead of failing silently
   stream.getTracks().forEach(function(t) {
     t.onended = function() {
       if (_micStream === stream) _micStream = null;
@@ -1651,13 +1545,9 @@ async function _acquireMicStream() {
 }
 
 // ── Geolocation ──
-// getLocation() is called exactly ONCE at startup. watchPosition handles all
-// subsequent updates. Never call getCurrentPosition more than once — on
-// "Allow Once" browsers each extra call triggers a new permission prompt.
-
 function _onLocSuccess(pos) {
   _locPermission = 'granted';
-  var firstFix = (userLat === null); // capture BEFORE updating coords
+  var firstFix = (userLat === null);
   userLat = pos.coords.latitude;
   userLng = pos.coords.longitude;
   if (_geoLastCodedLat === null || geoDistance(userLat, userLng, _geoLastCodedLat, _geoLastCodedLng) > 500) {
@@ -1669,12 +1559,10 @@ function _onLocSuccess(pos) {
 }
 
 function _onLocError(err) {
-  // PERMISSION_DENIED=1, POSITION_UNAVAILABLE=2, TIMEOUT=3
   if (err && err.code === 1) {
     _locPermission = 'denied';
     setLocationText('Location access denied');
   } else {
-    // Don't downgrade from 'granted' — transient error, watch will recover
     if (_locPermission !== 'granted') _locPermission = 'unavailable';
     if (!userLat) setLocationText('Location unavailable');
   }
@@ -1687,18 +1575,15 @@ function getLocation() {
     return;
   }
 
-  // If watch is already running, do nothing — positions arrive via _onLocSuccess
   if (geoWatchId != null) return;
 
-  // Use Permissions API (no prompt, no position cost) to pre-check state
   if (navigator.permissions) {
     navigator.permissions.query({ name: 'geolocation' }).then(function(result) {
       if (result.state === 'denied') {
         _locPermission = 'denied';
         setLocationText('Location access denied');
-        return; // don't start watch if already denied
+        return;
       }
-      // Listen for user changing permission in browser settings
       result.onchange = function() {
         if (result.state === 'denied') {
           _locPermission = 'denied';
@@ -1708,14 +1593,12 @@ function getLocation() {
             geoWatchId = null;
           }
         }
-        // If granted after being denied, restart the watch (one prompt needed)
         else if (result.state === 'granted' && geoWatchId == null) {
           _startLocationWatch();
         }
       };
       _startLocationWatch();
     }).catch(function() {
-      // Permissions API not supported — start watch directly (one prompt)
       _startLocationWatch();
     });
   } else {
@@ -1724,13 +1607,8 @@ function getLocation() {
 }
 
 function _startLocationWatch() {
-  // Guard: never start two watches — would double-prompt on "Allow Once"
   if (geoWatchId != null) return;
 
-  // Single watchPosition call serves both the initial fix and all updates.
-  // maximumAge:0 forces a fresh fix immediately (acts like getCurrentPosition
-  // for the first callback), then delivers live updates. No separate
-  // getCurrentPosition needed — that's the extra prompt.
   geoWatchId = navigator.geolocation.watchPosition(
     _onLocSuccess,
     _onLocError,
@@ -1745,7 +1623,6 @@ function setLocationText(s) {
 }
 var _geocodeController = null;
 function reverseGeocode(lat, lng) {
-  // Cancel any in-flight request so stale results don't overwrite newer ones
   if (_geocodeController) { try { _geocodeController.abort(); } catch(e){} }
   _geocodeController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   var opts = _geocodeController ? { signal: _geocodeController.signal } : {};
@@ -1768,9 +1645,8 @@ function reverseGeocode(lat, lng) {
 // ── Map ──
 function initMap() {
   if (mapReady) return;
-  mapReady = true; // set early to prevent double-load on rapid tab switches
+  mapReady = true;
 
-  // Inject Leaflet CSS only once
   if (!document.querySelector('link[href*="leaflet"]')) {
     var css = document.createElement('link');
     css.rel = 'stylesheet';
@@ -1778,7 +1654,6 @@ function initMap() {
     document.head.appendChild(css);
   }
 
-  // If Leaflet already on page (e.g. script cached), build immediately
   if (typeof L !== 'undefined') {
     buildMap();
     return;
@@ -1791,7 +1666,7 @@ function initMap() {
   document.head.appendChild(s);
 }
 function buildMap() {
-  var lat = userLat || 11.5564, lng = userLng || 104.9282; // default: Phnom Penh
+  var lat = userLat || 11.5564, lng = userLng || 104.9282;
   mapInstance = L.map('mapContainer', {
     zoomControl: false,
     attributionControl: false,
@@ -1806,7 +1681,6 @@ function buildMap() {
   });
   tileLayer.addTo(mapInstance);
 
-  // invalidateSize after tiles finish loading the first batch
   tileLayer.once('load', function() {
     mapInstance.invalidateSize({ animate: false });
   });
@@ -1819,7 +1693,6 @@ function buildMap() {
   });
   userMarker = L.marker([lat, lng], { icon: icon, zIndexOffset: 1000 }).addTo(mapInstance);
 
-  // Double invalidate: once immediately and once after a paint cycle
   mapInstance.invalidateSize({ animate: false });
   setTimeout(function() { if (mapInstance) mapInstance.invalidateSize({ animate: false }); }, 100);
 
@@ -1829,7 +1702,6 @@ function buildMap() {
 function updateMapMarker(center) {
   if (!mapInstance || !userMarker) return;
   userMarker.setLatLng([userLat, userLng]);
-  // Only pan if explicitly requested (first fix) — don't snap user away from where they panned
   if (center) mapInstance.setView([userLat, userLng], 14);
 }
 
@@ -1845,16 +1717,16 @@ function doJoin() {
   var r = document.getElementById('channelInput').value.trim().toUpperCase().replace(/[^A-Z0-9\-_]/g,'').slice(0,40);
   if (!r) return;
   closeChannelSheet();
-  if (r === myRoom) return; // already in this channel
+  if (r === myRoom) return;
   joinChannel(r);
 }
 function joinChannel(room) {
   room = room.toUpperCase().replace(/[^A-Z0-9\-_]/g, '').slice(0, 40);
   if (!room) return;
   myRoom = room;
-  peers = {};           // clear stale peer state immediately
+  peers = {};
   updatePeers();
-  chNameEl.textContent = '#' + room;   // # prefix matches map topbar
+  chNameEl.textContent = '#' + room;
   channelPill.classList.remove('ph');
   _updateShareBtn();
   chDot.className = 'ch-dot';
@@ -1878,7 +1750,7 @@ function saveName() {
   if (_namePart) _namePart.textContent = myName; else usernameText.textContent = '@' + myName;
   mapUserText.textContent  = '@' + myName;
   pttHint.textContent = 'Select a channel';
-  pttHint.classList.remove('hidden'); // show hint immediately — helps discoverability
+  pttHint.classList.remove('hidden');
   document.getElementById('nameOverlay').classList.remove('open');
   if (myRoom) socket.emit('update_name', { name: myName });
   showToast('Name updated');
@@ -1888,17 +1760,15 @@ function saveName() {
 // GEOFENCE SYSTEM
 // ════════════════════════════════════
 
-// ── Constants ──
 var _DEG2RAD     = Math.PI / 180;
 var GEO_MIN_MOVE_M = 10;
 var GEO_COLORS   = ['#007aff','#30d158','#ff453a','#ffd60a','#bf5af2','#ff9f0a','#64d2ff','#ff375f'];
 
-// ── State ──
-var geoZones         = [];    // { id, name, channel, lat, lng, radius, color, autoJoin, circle, marker, bannerEl }
+var geoZones         = [];
 var geoDrawMode      = false;
-var geoNewZone       = null;  // { lat, lng, radius, color, autoJoin }
+var geoNewZone       = null;
 var geoWatchId       = null;
-var geoInsideZones   = {};    // id → { since: timestamp, wasAutoJoined: bool }
+var geoInsideZones   = {};
 var geoPreviewCircle = null;
 var geoSelectedColor = GEO_COLORS[0];
 var _geoInitDone     = false;
@@ -1907,8 +1777,6 @@ var _geoLastCheckLng = null;
 var _geoLastCodedLat = null;
 var _geoLastCodedLng = null;
 
-
-// ── Haversine distance (m) ──
 function geoDistance(lat1, lng1, lat2, lng2) {
   var d1 = (lat2-lat1)*_DEG2RAD, d2 = (lng2-lng1)*_DEG2RAD;
   var a  = Math.sin(d1/2)*Math.sin(d1/2) +
@@ -1916,9 +1784,6 @@ function geoDistance(lat1, lng1, lat2, lng2) {
   return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// ── Supabase calls routed via backend proxy ──
-
-// Fetch ALL zones (all devices)
 function sbFetchZones(onSuccess, onError) {
   fetch(SERVER_URL + '/zones', { method: 'GET' })
   .then(function(r) {
@@ -1945,7 +1810,6 @@ function sbFetchZones(onSuccess, onError) {
   .catch(function(e) { console.warn('sbFetchZones:', e); if (onError) onError(e); });
 }
 
-// Upsert a zone via backend proxy
 function sbUpsertZone(z, onDone, onError) {
   var payload = {
     id:        z.id,
@@ -1976,7 +1840,6 @@ function sbUpsertZone(z, onDone, onError) {
   });
 }
 
-// Delete a zone via backend proxy
 function sbDeleteZone(id, onError) {
   fetch(
     SERVER_URL + '/zones/' + encodeURIComponent(id) +
@@ -1992,10 +1855,9 @@ function sbDeleteZone(id, onError) {
   });
 }
 
-// ── geoLoadData: fetch from Supabase, fall back to localStorage if offline ──
 function geoLoadData() {
   if (_geoInitDone) return;
-  _geoInitDone = true; // prevent concurrent calls — reset on failure so reconnect can retry
+  _geoInitDone = true;
 
   function _applyZones(zones) {
     var existingById = {};
@@ -2053,7 +1915,6 @@ function geoLoadData() {
   );
 }
 
-// ── geoDrawAll: draw all loaded zones onto the map ──
 function geoDrawAll() {
   geoZones.forEach(function(z) {
     if (!z.circle) _geoDrawZone(z);
@@ -2061,10 +1922,9 @@ function geoDrawAll() {
   _geoBuildColorPicker();
 }
 
-// ── _geoBuildColorPicker: build color swatches in create sheet ──
 function _geoBuildColorPicker() {
   var row = document.getElementById('geoColorRow');
-  if (!row || row.children.length > 0) return; // already built
+  if (!row || row.children.length > 0) return;
   GEO_COLORS.forEach(function(c) {
     var sw = document.createElement('div');
     sw.className = 'geo-color-swatch' + (c === geoSelectedColor ? ' selected' : '');
@@ -2079,7 +1939,6 @@ function _geoBuildColorPicker() {
   });
 }
 
-// ── Shared zone label HTML builder ──
 function _geoLabelHtml(color, name, channel) {
   return '<div style="display:flex;align-items:center;gap:5px;pointer-events:none;' +
     'filter:drop-shadow(0 1px 6px rgba(0,0,0,0.8))">' +
@@ -2091,7 +1950,6 @@ function _geoLabelHtml(color, name, channel) {
     '</div>';
 }
 
-// ── _geoDrawZone: draw a single zone's circle+marker onto the map ──
 function _geoDrawZone(z) {
   if (!mapInstance || z.circle) return;
   var color  = z.color || GEO_COLORS[0];
@@ -2119,12 +1977,10 @@ function _geoDrawZone(z) {
   z.circle.on('click', (function(zone){ return function() { geoShowBanner(zone); }; })(z));
 }
 
-// ── geoInit: legacy alias ──
 function geoInit() {
   geoDrawAll();
 }
 
-// ── Persist: localStorage cache only ──
 function geoPersist() {
   var data = geoZones.map(function(z) {
     return { id:z.id, deviceId:z.deviceId, createdBy:z.createdBy||'', name:z.name, channel:z.channel, lat:z.lat, lng:z.lng, radius:z.radius, color:z.color, autoJoin:z.autoJoin, expiresAt:z.expiresAt||null };
@@ -2132,12 +1988,10 @@ function geoPersist() {
   localStorage.setItem('wt_geo_zones', JSON.stringify(data));
 }
 
-// ── Escape HTML ──
 function _esc(s) {
   return String(s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; });
 }
 
-// ── Add zone ──
 function geoAddZoneToMap(z) {
   var zone = {
     id: z.id, deviceId: z.deviceId || _deviceId, createdBy: z.createdBy || '',
@@ -2151,7 +2005,6 @@ function geoAddZoneToMap(z) {
   if (mapInstance) _geoDrawZone(zone);
 }
 
-// ── Delete zone ──
 function geoDeleteZone(id) {
   var idx = geoZones.findIndex(function(z){ return z.id === id; });
   if (idx === -1) return;
@@ -2170,7 +2023,6 @@ function geoDeleteZone(id) {
   _updateMapZoneBadge();
 }
 
-// ── Update zone circle style ──
 function _geoStyleZone(zone, inside) {
   if (!zone.circle) return;
   zone.circle.setStyle({
@@ -2181,7 +2033,6 @@ function _geoStyleZone(zone, inside) {
   });
 }
 
-// ── Show/update banner for a zone ──
 function _zoneExpiryLabel(expiresAt) {
   if (!expiresAt) return '';
   var ms = new Date(expiresAt).getTime() - Date.now();
@@ -2247,7 +2098,6 @@ function geoShowBanner(zone) {
   geoUpdateBanner(zone);
 }
 
-// ── Update banner distance + status + button ──
 function geoUpdateBanner(zone, precomputedDist) {
   var el = zone.bannerEl;
   if (!el) return;
@@ -2287,7 +2137,6 @@ function geoUpdateBanner(zone, precomputedDist) {
   actionEl.style.cssText = 'color:' + (isActive ? zone.color : 'rgba(255,255,255,0.55)') + ';font-family:inherit;font-size:12px;font-weight:' + (isActive ? '600' : '500');
 }
 
-// ── Hide banner for zone ──
 function geoHideBanner(zone) {
   if (!zone.bannerEl) return;
   var el = zone.bannerEl;
@@ -2295,7 +2144,6 @@ function geoHideBanner(zone) {
   setTimeout(function() { if (el.parentNode) el.remove(); zone.bannerEl = null; }, 320);
 }
 
-// ── Check all zones ──
 function geoCheckAll(lat, lng) {
   if (!lat || !lng) return;
   if (_geoLastCheckLat !== null &&
@@ -2309,7 +2157,6 @@ function geoCheckAll(lat, lng) {
     if (z.bannerEl) geoUpdateBanner(z, dist);
 
     if (inside && !wasIn) {
-      // Entered
       geoInsideZones[z.id] = { since: Date.now(), wasAutoJoined: false };
       _geoStyleZone(z, true);
       geoShowBanner(z);
@@ -2323,7 +2170,6 @@ function geoCheckAll(lat, lng) {
         }
       }
     } else if (!inside && wasIn) {
-      // Exited
       var entry = geoInsideZones[z.id] || {};
       delete geoInsideZones[z.id];
       _geoStyleZone(z, false);
@@ -2331,7 +2177,7 @@ function geoCheckAll(lat, lng) {
       if (entry.wasAutoJoined && myRoom === z.channel) {
         showToast('Left zone · auto-leaving #' + z.channel);
         socket.emit('leave_room_event', {});
-        _releaseMicStream(); // free mic
+        _releaseMicStream();
         if (isLive) stopLive();
         if (_talkMode === 'live') setTalkMode('hold');
         myRoom = '';
@@ -2353,7 +2199,6 @@ function geoCheckAll(lat, lng) {
   });
 }
 
-// ── Draw mode ──
 function geoStartDraw() {
   if (!mapInstance) { showMain(); setTimeout(function(){ showMapView(); showToast('Open map first'); }, 100); return; }
 
@@ -2449,7 +2294,6 @@ function geoSaveZone() {
   );
 }
 
-// ── Zone list ──
 function geoOpenList() {
   var list = document.getElementById('geoZonesList');
   list.innerHTML = '';
@@ -2496,7 +2340,6 @@ function geoOpenList() {
 }
 function geoCloseList() { document.getElementById('geoListOverlay').classList.remove('open'); }
 
-// ── Update map topbar zone badge ──
 function _updateMapZoneBadge() {
   var badge = document.getElementById('mapZoneBadge');
   if (!badge) return;
@@ -2506,7 +2349,6 @@ function _updateMapZoneBadge() {
   badge.textContent = n + (n === 1 ? ' zone' : ' zones');
 }
 
-// ── Update map topbar channel/location ──
 function _updateMapTopbar() {
   var chEl  = document.getElementById('mapTopChannel');
   var subEl = document.getElementById('mapTopSub');
@@ -3018,7 +2860,7 @@ socket.on('voice_chunk', function(data) {
   clearTimeout(q.timeoutId);
   q.timeoutId = setTimeout(function() {
     endLiveRx(sid);
-  }, 5000); // Auto-end receiving stream after 5 seconds of silence
+  }, 5000);
 
   if (!q.playing) {
     q.playing = true;
@@ -3166,7 +3008,7 @@ function stopRecording(cancel) {
     if (elapsed < MIN_REC_MS && !cancel) showToast('Hold longer to record');
     else { chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot'; setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn'); }
     isCancelling = false;
-    recChunks = []; // Essential: empty array so onRecorderStop ignores stop event
+    recChunks = [];
     if (mediaRec && mediaRec.state !== 'inactive') mediaRec.stop();
     return;
   }
@@ -3234,7 +3076,6 @@ function sendVoice(blob, duration, mime) {
   }
 }
 
-// ── Mode-aware idle status helper ──
 function _idleStatus() {
   if (typeof _talkMode !== 'undefined' && _talkMode === 'live') {
     return isLive ? 'Live \u2014 tap circle to mute / stop' : 'Live \u2014 tap circle to start speaking';
@@ -3420,7 +3261,7 @@ function stopVolMeter() {
   wBars.forEach(function(b){b.style.height='3px';});
 }
 
-// ── Shared AudioContext (iOS-safe) ──
+// ── Shared AudioContext ──
 function getSharedCtx(cb) {
   if (!sharedCtx) {
     try { sharedCtx = new (window.AudioContext || window.webkitAudioContext)(); }
@@ -3536,7 +3377,7 @@ function playBeep(freq, dur) {
   });
 }
 
-// ── Connection quality ────────────────────────────────────────────────────────
+// ── Connection quality ──
 var _qualityScore   = -1;
 var _qualityDetail  = false;
 var _qualityPopTimer = null;
