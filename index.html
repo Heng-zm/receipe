@@ -560,8 +560,6 @@ body::after {
   opacity:1;
 }
 
-/* message log removed */
-
 /* ── Status line ── */
 .status-line { font-size:12.5px; font-weight:400; text-align:center; color:rgba(255,255,255,0.3); min-height:20px; padding:2px 20px 4px; flex-shrink:0; transition:color 0.18s var(--ease-out), opacity 0.16s var(--ease-out), transform 0.22s var(--ease-expo); letter-spacing:0.15px; line-height:1.4; overflow:hidden; }
 .status-line.changing { opacity:0; transform:translateY(4px); }
@@ -1269,7 +1267,7 @@ var _liveStreamId = null;  // unique ID for this live session
 var _liveChunkSeq = 0;     // chunk sequence number for receiver ordering
 var _liveInitData = null;  // WebM init segment (chunk 0) — prepended to all chunks so each is decodable
 // Receiver: per-sender chunk queues for smooth playback
-var _liveRxQueues = {};    // sid → { chunks:[], playing:bool, initBlob:null }
+var _liveRxQueues = {};    // sid → { chunks:[], playing:bool, lastSeq:-1, timeoutId:null }
 
 // ── Audio viz (rAF-based) ──
 var analyser  = null;
@@ -1489,7 +1487,6 @@ function wireUI() {
     document.getElementById('geoRadiusLabel').textContent = this.value + ' m';
     if (geoNewZone) { geoNewZone.radius = parseInt(this.value); geoUpdatePreview(); }
   });
-  // geoBannerBtn removed — banners are dynamic elements, wired in geoShowBanner()
 
   document.addEventListener('keydown', function (e) { if (e.code === 'Space' && !e.repeat) startRecording(); });
   document.addEventListener('keyup',   function (e) { if (e.code === 'Space') stopRecording(false); });
@@ -1888,7 +1885,7 @@ function saveName() {
 }
 
 // ════════════════════════════════════
-// GEOFENCE SYSTEM — upgraded
+// GEOFENCE SYSTEM
 // ════════════════════════════════════
 
 // ── Constants ──
@@ -1919,9 +1916,9 @@ function geoDistance(lat1, lng1, lat2, lng2) {
   return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// ── Supabase calls routed via backend proxy (see SERVER_URL/zones) ──
+// ── Supabase calls routed via backend proxy ──
 
-// Fetch ALL zones (all devices) — every user sees every zone
+// Fetch ALL zones (all devices)
 function sbFetchZones(onSuccess, onError) {
   fetch(SERVER_URL + '/zones', { method: 'GET' })
   .then(function(r) {
@@ -2001,7 +1998,6 @@ function geoLoadData() {
   _geoInitDone = true; // prevent concurrent calls — reset on failure so reconnect can retry
 
   function _applyZones(zones) {
-    // Merge: keep existing drawn zones, add/update from server data
     var existingById = {};
     geoZones.forEach(function(z){ existingById[z.id] = z; });
 
@@ -2009,7 +2005,6 @@ function geoLoadData() {
     zones.forEach(function(z) {
       var existing = existingById[z.id];
       if (existing) {
-        // Update data fields, preserve live Leaflet objects
         existing.name      = z.name || z.channel;
         existing.channel   = z.channel;
         existing.radius    = z.radius;
@@ -2029,7 +2024,7 @@ function geoLoadData() {
         });
       }
     });
-    // Remove zones that no longer exist in Supabase
+
     Object.values(existingById).forEach(function(z) {
       if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
       if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
@@ -2037,25 +2032,19 @@ function geoLoadData() {
     });
     geoZones = newZones;
 
-    // Cache to localStorage for offline use
     geoPersist();
-    // Re-check zones with fresh data
     if (userLat && userLng) {
       _geoLastCheckLat = null; _geoLastCheckLng = null;
       geoCheckAll(userLat, userLng);
     }
-    // Draw any new zones if map is open
     if (mapInstance) geoDrawAll();
     _updateMapZoneBadge();
   }
 
-  // Try Supabase first
   sbFetchZones(
     function(zones) { _applyZones(zones); },
     function() {
-      // Network failure — reset flag so next connect attempt retries the fetch
       _geoInitDone = false;
-      // Offline fallback — load from localStorage
       try {
         var saved = JSON.parse(localStorage.getItem('wt_geo_zones') || '[]');
         _applyZones(saved);
@@ -2064,12 +2053,11 @@ function geoLoadData() {
   );
 }
 
-// ── geoDrawAll: draw all loaded zones onto the map — called once map is ready ──
+// ── geoDrawAll: draw all loaded zones onto the map ──
 function geoDrawAll() {
   geoZones.forEach(function(z) {
     if (!z.circle) _geoDrawZone(z);
   });
-  // Also build the color picker now that the DOM is ready
   _geoBuildColorPicker();
 }
 
@@ -2109,36 +2097,34 @@ function _geoDrawZone(z) {
   var color  = z.color || GEO_COLORS[0];
   var inside = !!geoInsideZones[z.id];
 
-  // Circle: thin solid ring, barely-there fill — lets the map breathe
   z.circle = L.circle([z.lat, z.lng], {
     radius:      z.radius,
     color:       color,
     fillColor:   color,
     fillOpacity: inside ? 0.08 : 0.04,
     weight:      inside ? 1.5  : 1,
-    dashArray:   null,           // solid line — cleaner than dashed
+    dashArray:   null,
     opacity:     inside ? 0.9   : 0.55
   }).addTo(mapInstance);
 
-  // Label: shared builder keeps _geoDrawZone and zone_upserted in sync
   var labelHtml = _geoLabelHtml(color, z.name, z.channel);
 
   var labelIcon = L.divIcon({
     className: '',
     html: labelHtml,
-    iconAnchor: [0, 6],   // vertically center the 6px dot
+    iconAnchor: [0, 6],
     iconSize:   null
   });
   z.marker = L.marker([z.lat, z.lng], { icon: labelIcon, interactive: false }).addTo(mapInstance);
   z.circle.on('click', (function(zone){ return function() { geoShowBanner(zone); }; })(z));
 }
 
-// ── geoInit: legacy alias — kept so buildMap() still works ──
+// ── geoInit: legacy alias ──
 function geoInit() {
   geoDrawAll();
 }
 
-// ── Persist: localStorage cache only (Supabase is called directly in save/delete) ──
+// ── Persist: localStorage cache only ──
 function geoPersist() {
   var data = geoZones.map(function(z) {
     return { id:z.id, deviceId:z.deviceId, createdBy:z.createdBy||'', name:z.name, channel:z.channel, lat:z.lat, lng:z.lng, radius:z.radius, color:z.color, autoJoin:z.autoJoin, expiresAt:z.expiresAt||null };
@@ -2151,9 +2137,8 @@ function _esc(s) {
   return String(s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; });
 }
 
-// ── Add zone (called when user saves a new zone) ──
+// ── Add zone ──
 function geoAddZoneToMap(z) {
-  // Register data record first
   var zone = {
     id: z.id, deviceId: z.deviceId || _deviceId, createdBy: z.createdBy || '',
     name: z.name || z.channel, channel: z.channel,
@@ -2163,11 +2148,10 @@ function geoAddZoneToMap(z) {
     circle: null, marker: null, bannerEl: null
   };
   geoZones.push(zone);
-  // Draw immediately if map is already open
   if (mapInstance) _geoDrawZone(zone);
 }
 
-// ── Delete zone — only the owner can delete ──
+// ── Delete zone ──
 function geoDeleteZone(id) {
   var idx = geoZones.findIndex(function(z){ return z.id === id; });
   if (idx === -1) return;
@@ -2186,7 +2170,7 @@ function geoDeleteZone(id) {
   _updateMapZoneBadge();
 }
 
-// ── Update zone circle style when inside/outside ──
+// ── Update zone circle style ──
 function _geoStyleZone(zone, inside) {
   if (!zone.circle) return;
   zone.circle.setStyle({
@@ -2212,7 +2196,7 @@ function _zoneExpiryColor(expiresAt) {
   if (!expiresAt) return 'rgba(255,255,255,0.3)';
   var ms = new Date(expiresAt).getTime() - Date.now();
   if (ms <= 0)           return 'var(--red)';
-  if (ms < 30 * 60000)   return 'var(--amber)';  // < 30 min
+  if (ms < 30 * 60000)   return 'var(--amber)';
   return 'rgba(255,255,255,0.3)';
 }
 
@@ -2227,7 +2211,6 @@ function geoShowBanner(zone) {
 
     var isMine = zone.deviceId === _deviceId;
 
-    // Single-row layout: accent | name  #CH  [mine dot]  · · ·  dist/expiry  [Join]  [×]
     el.innerHTML =
       '<div class="geo-banner-accent" style="background:' + zone.color + '"></div>' +
       '<div class="geo-banner-body">' +
@@ -2265,7 +2248,6 @@ function geoShowBanner(zone) {
 }
 
 // ── Update banner distance + status + button ──
-// precomputedDist: optional metres already calculated by geoCheckAll — avoids second haversine
 function geoUpdateBanner(zone, precomputedDist) {
   var el = zone.bannerEl;
   if (!el) return;
@@ -2274,12 +2256,10 @@ function geoUpdateBanner(zone, precomputedDist) {
   var actionEl = document.getElementById('gbaction_' + zone.id);
   if (!actionEl) return;
 
-  // Use pre-computed distance if provided — avoids a second haversine per zone
   var dist = (precomputedDist !== undefined) ? Math.round(precomputedDist)
            : (userLat && userLng) ? Math.round(geoDistance(userLat, userLng, zone.lat, zone.lng)) : null;
   var inside = !!geoInsideZones[zone.id];
 
-  // Distance / inside indicator
   if (distEl) {
     if (inside) {
       distEl.textContent = '● inside';
@@ -2292,7 +2272,6 @@ function geoUpdateBanner(zone, precomputedDist) {
     }
   }
 
-  // Expiry label (only show when < 2h or expired)
   if (expEl && zone.expiresAt) {
     var ms = new Date(zone.expiresAt).getTime() - Date.now();
     if (ms < 2 * 3600000) {
@@ -2303,10 +2282,8 @@ function geoUpdateBanner(zone, precomputedDist) {
     }
   }
 
-  // Action button
   var isActive = myRoom === zone.channel;
   actionEl.textContent = isActive ? 'Active' : 'Join';
-  // Minimal: text-only colored label, no background box
   actionEl.style.cssText = 'color:' + (isActive ? zone.color : 'rgba(255,255,255,0.55)') + ';font-family:inherit;font-size:12px;font-weight:' + (isActive ? '600' : '500');
 }
 
@@ -2329,27 +2306,24 @@ function geoCheckAll(lat, lng) {
     var dist    = geoDistance(lat, lng, z.lat, z.lng);
     var inside  = dist <= z.radius;
     var wasIn   = !!geoInsideZones[z.id];
-    // Update proximity bar on visible banners — pass pre-computed distance
     if (z.bannerEl) geoUpdateBanner(z, dist);
 
     if (inside && !wasIn) {
-      // ── Entered ──
+      // Entered
       geoInsideZones[z.id] = { since: Date.now(), wasAutoJoined: false };
       _geoStyleZone(z, true);
       geoShowBanner(z);
       if (z.autoJoin) {
-        var wasAutoJoined = false;
         if (myRoom !== z.channel) {
           joinChannel(z.channel);
           geoInsideZones[z.id].wasAutoJoined = true;
-          wasAutoJoined = true;
           showToast('Entered zone · joined #' + z.channel);
         } else {
           showToast('Inside zone · #' + z.channel);
         }
       }
     } else if (!inside && wasIn) {
-      // ── Exited ──
+      // Exited
       var entry = geoInsideZones[z.id] || {};
       delete geoInsideZones[z.id];
       _geoStyleZone(z, false);
@@ -2357,8 +2331,7 @@ function geoCheckAll(lat, lng) {
       if (entry.wasAutoJoined && myRoom === z.channel) {
         showToast('Left zone · auto-leaving #' + z.channel);
         socket.emit('leave_room_event', {});
-        _releaseMicStream(); // free mic — user has left, no recording expected
-        // Reset live mode if active — can't stream to a room we just left
+        _releaseMicStream(); // free mic
         if (isLive) stopLive();
         if (_talkMode === 'live') setTalkMode('hold');
         myRoom = '';
@@ -2384,7 +2357,6 @@ function geoCheckAll(lat, lng) {
 function geoStartDraw() {
   if (!mapInstance) { showMain(); setTimeout(function(){ showMapView(); showToast('Open map first'); }, 100); return; }
 
-  // Require location permission before allowing zone creation
   if (_locPermission === 'denied') {
     showToast('Enable location in browser settings to create zones');
     return;
@@ -2394,8 +2366,6 @@ function geoStartDraw() {
     return;
   }
   if (!userLat || !userLng) {
-    // Watch is already running — a fix will arrive soon without re-prompting.
-    // Just tell the user to wait; tapping + again once the fix arrives will work.
     showToast('Waiting for GPS fix — try again in a moment');
     return;
   }
@@ -2413,7 +2383,6 @@ function geoStartDraw() {
       radius: 300, color: geoSelectedColor, fillColor: geoSelectedColor,
       fillOpacity: 0.06, weight: 1.5, dashArray: null, opacity: 0.75
     }).addTo(mapInstance);
-    // Pre-fill fields
     document.getElementById('geoSheetSub').textContent = e.latlng.lat.toFixed(4) + ', ' + e.latlng.lng.toFixed(4);
     document.getElementById('geoZoneName').value    = '';
     document.getElementById('geoZoneChannel').value = myRoom || '';
@@ -2446,7 +2415,6 @@ function geoSaveZone() {
   var aj  = document.getElementById('geoAutoJoin').checked;
   if (!ch) { showToast('Enter a channel name'); return; }
   var name = rawName ? rawName.toUpperCase().slice(0,24) : ch;
-  // Guard: location must be available to create a meaningful zone
   if (!userLat || !userLng) {
     showToast('GPS fix required to save a zone');
     return;
@@ -2454,7 +2422,6 @@ function geoSaveZone() {
 
   var zone = { id:'z_'+Date.now(), deviceId:_deviceId, createdBy:myName, name:name, channel:ch, lat:geoNewZone.lat, lng:geoNewZone.lng, radius:r, color:col, autoJoin:aj };
 
-  // Disable save button while request is in flight
   var saveBtn = document.getElementById('geoSaveBtn');
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
 
@@ -2462,27 +2429,21 @@ function geoSaveZone() {
   document.getElementById('geoOverlay').classList.remove('open');
   geoNewZone = null;
 
-  // Save only AFTER server confirms — no optimistic local-only state
   sbUpsertZone(zone,
     function() {
-      // Success — now add to map and persist
       geoAddZoneToMap(zone);
       geoPersist();
       showToast('Zone saved — ' + name);
-      // Reset color picker
       geoSelectedColor = GEO_COLORS[0];
       var row = document.getElementById('geoColorRow');
       if (row) row.querySelectorAll('.geo-color-swatch').forEach(function(s,i){ s.classList.toggle('selected', i===0); });
-      // Trigger immediate geofence check
       _geoLastCheckLat = null; _geoLastCheckLng = null;
       if (userLat && userLng) geoCheckAll(userLat, userLng);
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Zone'; }
     },
     function() {
-      // Failed — do NOT save locally, inform user
       showToast('Save failed — check connection');
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Zone'; }
-      // Re-open sheet so user can retry
       setTimeout(function() { document.getElementById('geoOverlay').classList.add('open'); }, 300);
     }
   );
@@ -2509,7 +2470,6 @@ function geoOpenList() {
       var expStr   = expLabel ? ' · ' + expLabel : '';
       mt.textContent = '#' + z.channel + ' · ' + z.radius + 'm radius' + byStr + expStr;
       if (expLabel && expLabel !== 'expired') {
-        // colour based on urgency
         mt.style.color = _zoneExpiryColor(z.expiresAt) === 'var(--amber)' ? 'var(--amber)' : '';
       }
       info.appendChild(nm); info.appendChild(mt);
@@ -2564,15 +2524,13 @@ function showToast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2400);
 }
-var _statusPending = null; // track pending status to fix stale comparison bug
+var _statusPending = null;
 function setStatus(msg, cls) {
   cls = cls || '';
-  // Compare against pending (what will be shown), not current DOM text
   if (_statusPending && _statusPending.msg === msg && _statusPending.cls === cls) return;
   _statusPending = { msg: msg, cls: cls };
   statusLine.classList.add('changing');
   setTimeout(function() {
-    // Only apply if this is still the most recent call
     if (!_statusPending || _statusPending.msg !== msg) return;
     var scanning = !cls && (
       msg.indexOf('Waiting') !== -1 ||
@@ -2629,9 +2587,7 @@ socket.on('connect', function () {
   document.getElementById('btnPower').classList.remove('disconnected');
   document.getElementById('btnPower').classList.add('connected');
   document.body.classList.add('connected-state');
-  // Good moment to show install prompt — user is clearly engaged
   _maybeShowInstallBar();
-  // Prefetch Leaflet in idle time so map opens instantly on first tap
   if (!mapReady && typeof requestIdleCallback !== 'undefined') {
     requestIdleCallback(function() {
       if (!mapReady && !document.querySelector('link[href*="leaflet"]')) {
@@ -2643,7 +2599,6 @@ socket.on('connect', function () {
   }
   if (!myRoom) setStatus('Tap grid to join a channel', '');
   else { setStatus('Reconnected', 'ok'); joinChannel(myRoom); }
-  // Re-fetch zones on reconnect — may have missed realtime events while offline
   geoLoadData();
 });
 socket.on('disconnect', function () {
@@ -2666,7 +2621,6 @@ socket.on('disconnect', function () {
   pttHint.classList.remove('hidden');
   talkHereBtn.disabled = true;
   stopRecording(true);
-  // Reset quality indicator
   _qualityScore = -1;
   if (qualityBtn) {
     qualityBtn.className = 'quality-btn q-none';
@@ -2689,7 +2643,6 @@ socket.on('room_state', function (data) {
   talkHereBtn.disabled = false;
   playBeep(700, 0.09);
   if (_talkMode === 'live') {
-    // Restore live mode after join/reconnect
     setStatus(numPeers() > 0 ? names+extra+' online' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
     if (!isLive) startLive().catch(function() { setTalkMode('hold'); });
   } else {
@@ -2717,15 +2670,7 @@ socket.on('peer_joined', function (data) {
 socket.on('peer_left', function (data) {
   var name = peers[data.sid] || 'someone';
   delete peers[data.sid];
-  // Clean up live RX queue if this peer was streaming
-  if (_liveRxQueues[data.sid]) {
-    delete _liveRxQueues[data.sid];
-    var anyLive = Object.keys(_liveRxQueues).some(function(k){ return _liveRxQueues[k].playing; });
-    if (!anyLive && !isLive) {
-      waveWrap.classList.remove('on');
-      stopVolMeter();
-    }
-  }
+  endLiveRx(data.sid);
   updatePeers();
   if (numPeers() === 0) {
     chDot.className = 'ch-dot';
@@ -2743,7 +2688,6 @@ socket.on('voice_message', function (data) {
   chDot.className = 'ch-dot online';
   channelPill.classList.add('has-unread');
   if (playQueue.length >= 10) playQueue.shift();
-  // Receipt now sent after playback finishes (in drainQueue onEndedFn)
   playQueue.push({ blob:blob, duration:data.duration, senderName:sender, msgId:data.msg_id, senderSid:data.sender_sid });
   drainQueue();
 });
@@ -2779,10 +2723,9 @@ socket.on('error', function (data) {
   } else { showToast(data.msg || 'Server error'); }
 });
 
-// ── Realtime zone sync — server broadcasts when any device saves/deletes a zone ──
+// ── Realtime zone sync ──
 socket.on('zone_upserted', function(data) {
   var isOwn = data.device_id === _deviceId;
-  // Skip if this is our own save (already applied locally, optimistically)
   if (isOwn) return;
 
   var z = {
@@ -2801,19 +2744,16 @@ socket.on('zone_upserted', function(data) {
 
   var idx = geoZones.findIndex(function(x){ return x.id === z.id; });
   if (idx === -1) {
-    // New zone from another device — add it
     geoAddZoneToMap(z);
     geoPersist();
     showToast('New zone: ' + z.name + ' by @' + (z.createdBy || 'someone'));
   } else {
-    // Updated zone — patch data fields, redraw label
     var existing = geoZones[idx];
     existing.name     = z.name;
     existing.channel  = z.channel;
     existing.radius   = z.radius;
     existing.color    = z.color;
     existing.autoJoin = z.autoJoin;
-    // Redraw circle + label if map is open
     if (existing.circle && mapInstance) {
       existing.circle.setStyle({ color: z.color, fillColor: z.color });
       existing.circle.setRadius(z.radius);
@@ -2826,7 +2766,6 @@ socket.on('zone_upserted', function(data) {
     }
     geoPersist();
   }
-  // Re-check if user is inside any updated zone
   if (userLat && userLng) {
     _geoLastCheckLat = null; _geoLastCheckLng = null;
     geoCheckAll(userLat, userLng);
@@ -2835,12 +2774,11 @@ socket.on('zone_upserted', function(data) {
 
 socket.on('zone_deleted', function(data) {
   var idx = geoZones.findIndex(function(x){ return x.id === data.id; });
-  if (idx === -1) return; // already removed locally
+  if (idx === -1) return;
 
   var z = geoZones[idx];
   var isOwn = z.deviceId === _deviceId;
 
-  // Remove from map
   if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
   if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
   if (z.bannerEl) { z.bannerEl.remove(); z.bannerEl = null; }
@@ -2849,31 +2787,26 @@ socket.on('zone_deleted', function(data) {
   geoPersist();
   _updateMapZoneBadge();
 
-  // Toast: different messages for expired vs deleted by peer
   if (data.expired && isOwn) {
     showToast('Your zone "' + (z.name || '#' + z.channel) + '" expired');
   } else if (!isOwn) {
     showToast('Zone "' + (z.name || '#' + z.channel) + '" removed');
   }
-  // Own manual delete: no toast — user already knows
 });
 
-// ── Periodic full sync fallback (every 60s) — catches missed realtime events ──
+// ── Periodic full sync fallback (every 60s) ──
 setInterval(function() {
   if (!_geoInitDone) return;
   sbFetchZones(function(zones) {
-    // Quietly merge without resetting _geoInitDone
     var existingById = {};
     geoZones.forEach(function(z){ existingById[z.id] = z; });
     var seen = {};
     zones.forEach(function(z) {
       seen[z.id] = true;
       if (!existingById[z.id]) {
-        // New zone appeared — add it silently
         geoAddZoneToMap(z);
       }
     });
-    // Remove zones that disappeared from server — iterate by id to avoid splice-during-forEach
     var toRemove = geoZones.filter(function(z){ return !seen[z.id]; });
     toRemove.forEach(function(z) {
       var i = geoZones.findIndex(function(x){ return x.id === z.id; });
@@ -2892,15 +2825,13 @@ setInterval(function() {
 // LIVE VOICE MODE — continuous streaming, no hold required
 // ══════════════════════════════════════════════════════════
 
-// ── Mode switcher: 'hold' | 'live' ──
-var _talkMode = 'hold'; // current mode
+var _talkMode = 'hold';
 
 function setTalkMode(mode) {
-  if (_talkMode === mode) return; // already in this mode
+  if (_talkMode === mode) return;
   var holdBtn = document.getElementById('modeHoldBtn');
   var liveBtn = document.getElementById('modeLiveBtn');
 
-  // Stop whatever is currently active
   if (_talkMode === 'hold' && isRecording) stopRecording(true);
   if (_talkMode === 'live') {
     stopLive();
@@ -2910,7 +2841,6 @@ function setTalkMode(mode) {
   _talkMode = mode;
 
   if (mode === 'hold') {
-    // Activate hold mode
     holdBtn.classList.add('active');    holdBtn.setAttribute('aria-pressed', 'true');
     liveBtn.classList.remove('active'); liveBtn.setAttribute('aria-pressed', 'false');
     pttCircle.classList.remove('live-mode');
@@ -2919,7 +2849,6 @@ function setTalkMode(mode) {
       setStatus('Hold to record, release to send', numPeers() > 0 ? 'ok' : 'warn');
     }
   } else {
-    // Activate live mode
     liveBtn.classList.add('active');    liveBtn.setAttribute('aria-pressed', 'true');
     holdBtn.classList.remove('active'); holdBtn.setAttribute('aria-pressed', 'false');
     pttCircle.classList.add('live-mode');
@@ -2932,16 +2861,13 @@ function setTalkMode(mode) {
       return;
     }
     isLiveMode = true;
-    // startLive is async — call it and catch any top-level rejection
     startLive().catch(function(e) {
       console.warn('startLive failed:', e);
-      // Reset to hold mode if stream couldn't start
       setTalkMode('hold');
     });
   }
 }
 
-// Keep toggleLiveMode as alias for back-compat (disconnect handler calls this pattern)
 function toggleLiveMode() {
   setTalkMode(_talkMode === 'live' ? 'hold' : 'live');
 }
@@ -2955,7 +2881,6 @@ async function startLive() {
   } catch(err) {
     _micPermission = 'denied';
     showToast('Microphone access denied');
-    // Reset mode switcher back to Hold on mic denial
     isLiveMode = false; _talkMode = 'hold';
     var _hb3 = document.getElementById('modeHoldBtn');
     var _lb3 = document.getElementById('modeLiveBtn');
@@ -2976,16 +2901,12 @@ async function startLive() {
   mediaRec = new MediaRecorder(recStream, recOpts);
 
   mediaRec.ondataavailable = function(e) {
-    if (!e.data || e.data.size < 50 || !isLive) return; // skip tiny/empty chunks
+    if (!e.data || e.data.size < 50 || !isLive) return;
     var seq = _liveChunkSeq++;
     var streamId = _liveStreamId;
 
-    // WebM streaming: chunk 0 contains the EBML init segment (codec params + header).
-    // Chunks 1–N are bare cluster data — decodeAudioData rejects them as invalid.
-    // Fix: save chunk 0 as the init segment and prepend it to every subsequent chunk
-    // so each emitted payload is a complete, independently decodable WebM file.
     if (seq === 0) {
-      _liveInitData = e.data; // save init segment for this stream session
+      _liveInitData = e.data;
     }
     var chunkToSend = (seq === 0 || !_liveInitData)
       ? e.data
@@ -2993,7 +2914,7 @@ async function startLive() {
 
     var reader = new FileReader();
     reader.onload = function() {
-      if (!isLive || _liveStreamId !== streamId) return; // mode exited while encoding
+      if (!isLive || _liveStreamId !== streamId) return;
       var result = reader.result;
       var comma  = result.indexOf(',');
       var b64    = comma !== -1 ? result.slice(comma + 1) : result;
@@ -3003,9 +2924,8 @@ async function startLive() {
   };
 
   mediaRec.onerror = function() { stopLive(); };
-  mediaRec.start(300); // 300ms chunks — low latency, low overhead
+  mediaRec.start(300);
 
-  // UI — live state
   pttCircle.style.willChange = 'transform';
   pttCircle.classList.add('live');
   pttCircle.classList.remove('disabled');
@@ -3020,13 +2940,11 @@ async function startLive() {
   try { if (navigator.vibrate) navigator.vibrate(15); } catch(e) {}
   startVolMeter(recStream);
 
-  // Timer
   recStartTime = Date.now();
   recTimerID = setInterval(function() {
     var elapsed = (Date.now() - recStartTime) / 1000;
     var m = Math.floor(elapsed / 60), s = Math.floor(elapsed % 60);
     circTimer.textContent = m + ':' + (s < 10 ? '0' : '') + s;
-    // Auto-stop after MAX_REC_SEC — restart with safe gap after cleanup finishes
     if (elapsed >= MAX_REC_SEC && isLive) {
       stopLive();
       if (isLiveMode) setTimeout(function(){ if (isLiveMode && !isLive) startLive(); }, 500);
@@ -3037,9 +2955,9 @@ async function startLive() {
 function stopLive() {
   if (!isLive) return;
   isLive = false;
-  var endedStreamId = _liveStreamId; // capture before null — FileReader callbacks check this
+  var endedStreamId = _liveStreamId;
   _liveStreamId = null;
-  _liveInitData = null;   // reset init segment — next stream session will save a new one
+  _liveInitData = null;
 
   clearInterval(recTimerID); recTimerID = null;
   circTimer.textContent = '0:00';
@@ -3049,13 +2967,11 @@ function stopLive() {
   }
   mediaRec = null;
 
-  // Signal end to peers only if we had an active stream
   if (endedStreamId) {
     socket.emit('voice_stream_end', { stream_id: endedStreamId });
   }
   recStream = null;
 
-  // UI — back to idle
   pttCircle.style.willChange = '';
   pttCircle.classList.remove('live', 'tx');
   ripples.classList.remove('live', 'tx');
@@ -3065,7 +2981,6 @@ function stopLive() {
   stopVolMeter();
 
   if (isLiveMode) {
-    // Mode still on — update hint but don't reset circle
     pttHint.textContent = 'Tap to speak';
     setStatus('Live — tap circle to start speaking', 'warn');
   } else {
@@ -3075,18 +2990,36 @@ function stopLive() {
 }
 
 // ── Receive live voice chunks ──
+function endLiveRx(sid) {
+  if (_liveRxQueues[sid]) {
+    clearTimeout(_liveRxQueues[sid].timeoutId);
+    _liveRxQueues[sid].playing = false;
+    delete _liveRxQueues[sid];
+  }
+  var anyLive = Object.keys(_liveRxQueues).some(function(k){ return _liveRxQueues[k].playing; });
+  if (!anyLive && !isLive) {
+    chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
+    waveWrap.classList.remove('on');
+    stopVolMeter();
+    setStatus(_idleStatus(), _idleCls());
+  }
+}
+
 socket.on('voice_chunk', function(data) {
   if (!data || !data.audio || !data.stream_id) return;
   var sid = data.sender_sid;
   var sender = data.sender_name || peers[sid] || 'someone';
 
-  // Init queue for this sender if needed
   if (!_liveRxQueues[sid]) {
-    _liveRxQueues[sid] = { chunks: [], playing: false, lastSeq: -1 };
+    _liveRxQueues[sid] = { chunks: [], playing: false, lastSeq: -1, timeoutId: null };
   }
   var q = _liveRxQueues[sid];
 
-  // Show receiving UI (first chunk of a stream)
+  clearTimeout(q.timeoutId);
+  q.timeoutId = setTimeout(function() {
+    endLiveRx(sid);
+  }, 5000); // Auto-end receiving stream after 5 seconds of silence
+
   if (!q.playing) {
     q.playing = true;
     chDot.className = 'ch-dot rx';
@@ -3094,17 +3027,14 @@ socket.on('voice_chunk', function(data) {
     channelPill.classList.add('has-unread');
   }
 
-  // Decode and play chunk immediately — real-time playback
   var blob = b64toBlob(data.audio, data.mime || 'audio/webm');
   if (!blob || blob.size < 10) return;
 
   getSharedCtx(function(ctx) {
     if (!ctx) return;
-    // Ensure context is running before decode — suspended ctx causes synchronous throw
     var doDecodeChunk = function() {
       var reader = new FileReader();
       reader.onload = function() {
-        // Hybrid callback+Promise — same reasoning as decodeAndPlay above.
         var p;
         try {
           p = ctx.decodeAudioData(
@@ -3127,17 +3057,15 @@ socket.on('voice_chunk', function(data) {
               }
               source.start(0);
             },
-            function() { /* chunk decode failed — skip silently */ }
+            function() { }
           );
         } catch(e) {
-          return; // decode threw synchronously — skip this chunk
+          return;
         }
-        // Silence unhandled Promise rejection in modern browsers.
         if (p && typeof p.then === 'function') { p.catch(function() {}); }
       };
       reader.readAsArrayBuffer(blob);
     };
-    // Resume suspended context first (e.g. iOS background/locked screen)
     if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
       ctx.resume().then(doDecodeChunk).catch(function() {});
     } else {
@@ -3148,25 +3076,12 @@ socket.on('voice_chunk', function(data) {
 
 socket.on('voice_stream_end', function(data) {
   if (!data || !data.sender_sid) return;
-  var sid = data.sender_sid;
-  if (_liveRxQueues[sid]) {
-    _liveRxQueues[sid].playing = false;
-    delete _liveRxQueues[sid];
-  }
-  // Only reset RX UI if nobody else is streaming to us
-  var anyLive = Object.keys(_liveRxQueues).some(function(k){ return _liveRxQueues[k].playing; });
-  if (!anyLive && !isLive) {
-    chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
-    waveWrap.classList.remove('on');
-    stopVolMeter();
-    setStatus(_idleStatus(), _idleCls());
-  }
+  endLiveRx(data.sender_sid);
 });
 
-// In live mode, tap on the circle toggles stream on/off
 function _handleLiveCircleTap() {
   if (!isLiveMode) return false;
-  if (pttCircle.classList.contains('disabled')) return true; // absorb tap, do nothing
+  if (pttCircle.classList.contains('disabled')) return true;
   if (isLive) {
     stopLive();
   } else {
@@ -3177,11 +3092,10 @@ function _handleLiveCircleTap() {
 
 // ── Recording ──
 async function startRecording() {
-  if (isLiveMode) return; // live mode: circle tap handled by _handleLiveCircleTap
+  if (isLiveMode) return;
   if (!myRoom || isRecording) return;
   unlockAudio();
 
-  // Reuse the persistent mic stream — getUserMedia called only once per session
   try {
     recStream = await _acquireMicStream();
   } catch (err) {
@@ -3193,7 +3107,6 @@ async function startRecording() {
   recChunks=[]; isRecording=true; isCancelling=false; recStartTime=Date.now(); _recStopFired=false;
 
   var mime = ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg'].find(function(m){return MediaRecorder.isTypeSupported(m);}) || 'audio/webm';
-  // 16kbps is ample for voice — cuts payload size 4-6× vs browser default
   var recOpts = { mimeType: mime };
   try { if (MediaRecorder.isTypeSupported(mime)) recOpts.audioBitsPerSecond = 16000; } catch(e) {}
   mediaRec = new MediaRecorder(recStream, recOpts);
@@ -3201,7 +3114,6 @@ async function startRecording() {
   mediaRec.onstop = onRecorderStop;
   mediaRec.start(250);
 
-  // UI — TX state
   pttCircle.style.willChange = 'transform';
   pttCircle.classList.add('tx');
   ripples.classList.add('tx');
@@ -3245,9 +3157,6 @@ function stopRecording(cancel) {
   talkHereBtn.textContent = 'Talk Here';
   stopVolMeter();
 
-  // Keep _micStream alive — do NOT stop tracks here.
-  // Stopping tracks forces a re-prompt on the next recording ("Allow Once").
-  // Tracks are only released on channel leave or page unload.
   recStream = null;
   recDuration = elapsed / 1000;
   var shouldCancel = cancel || isCancelling || (elapsed < MIN_REC_MS);
@@ -3257,6 +3166,7 @@ function stopRecording(cancel) {
     if (elapsed < MIN_REC_MS && !cancel) showToast('Hold longer to record');
     else { chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot'; setStatus(numPeers() > 0 ? 'Hold to record, release to send' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn'); }
     isCancelling = false;
+    recChunks = []; // Essential: empty array so onRecorderStop ignores stop event
     if (mediaRec && mediaRec.state !== 'inactive') mediaRec.stop();
     return;
   }
@@ -3269,11 +3179,11 @@ function stopRecording(cancel) {
   if (mediaRec && mediaRec.state !== 'inactive') mediaRec.stop();
 }
 
-var _recStopFired = false; // guard against double-fire on Android
+var _recStopFired = false;
 function onRecorderStop() {
   if (_recStopFired) return;
   _recStopFired = true;
-  if (isLive || isLiveMode) return; // live mode handles its own stop
+  if (isLive || isLiveMode) return;
   if (recChunks.length === 0) {
     pttCircle.classList.remove('sending');
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
@@ -3300,8 +3210,7 @@ function sendVoice(blob, duration, mime) {
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
     setStatus('Hold to record, release to send', 'ok');
   }
-  // Encode blob to base64 — use FileReader.readAsDataURL (browser-native, fastest path)
-  // then strip the data: prefix. Falls back to manual chunked btoa on older browsers.
+
   if (typeof FileReader !== 'undefined') {
     var reader = new FileReader();
     reader.onload = function() {
@@ -3326,9 +3235,6 @@ function sendVoice(blob, duration, mime) {
 }
 
 // ── Mode-aware idle status helper ──
-// Returns the correct status text + class for the current talk mode and peer state.
-// _talkMode is declared later (var hoisting makes it visible here as undefined until
-// the assignment runs, but drainQueue is only called after full init).
 function _idleStatus() {
   if (typeof _talkMode !== 'undefined' && _talkMode === 'live') {
     return isLive ? 'Live \u2014 tap circle to mute / stop' : 'Live \u2014 tap circle to start speaking';
@@ -3347,7 +3253,7 @@ function drainQueue() {
   if (queuePlaying || playQueue.length === 0) return;
   queuePlaying = true;
   var item = playQueue.shift();
-  var done = false;                           // FIX 5: single-fire guard — prevents double safeNext
+  var done = false;
   var safeNext = function() {
     if (done) return;
     done = true;
@@ -3355,9 +3261,8 @@ function drainQueue() {
     drainQueue();
   };
 
-  // FIX 6: closure-local playing flag for the timer — immune to global queuePlaying reuse
   var itemPlaying = true;
-  var ctxStartTime = 0;                       // FIX 8: set when source actually starts
+  var ctxStartTime = 0;
   var timerRAF = null;
 
   function startTimer() {
@@ -3385,20 +3290,17 @@ function drainQueue() {
     setStatus(_idleStatus(), _idleCls());
   }
 
-  // FIX 2: small gap between end-beep and next item's chirp
   var onEndedFn = function() {
     cleanupRx();
     socket.emit('msg_delivered', { msg_id: item.msgId, to: item.senderSid });
     playEndBeep();
-    setTimeout(safeNext, 220);               // let end-beep finish before next chirp starts
+    setTimeout(safeNext, 220);
   };
 
-  // FIX 1+8: _setSrc is called by decodeAndPlay when source ACTUALLY starts —
-  //           start the vol meter and timer here, not before decoding
   onEndedFn._setSrc = function(source) {
-    ctxStartTime = sharedCtx ? sharedCtx.currentTime : 0;  // FIX 8: accurate start time
+    ctxStartTime = sharedCtx ? sharedCtx.currentTime : 0;
     startTimer();
-    startVolMeterAudio();                    // FIX 1: analyser exists now (created in decodeAndPlay)
+    startVolMeterAudio();
   };
 
   try {
@@ -3410,7 +3312,6 @@ function drainQueue() {
       setWaveBarsColor('rx');
       chDot.className = 'ch-dot rx';
       setStatus('From @' + item.senderName + '...', 'rx');
-      // FIX 3+4: pass cleanupRx+safeNext as error handler so queue never gets stuck
       decodeAndPlay(item.blob, onEndedFn, function() {
         cleanupRx();
         safeNext();
@@ -3454,36 +3355,33 @@ function playEndBeep() {
   });
 }
 
-
 function setWaveBarsColor(cls) {
   wBars.forEach(function(b) { b.className = 'wbar ' + cls; });
-  // Shift wave container color to match state
   waveWrap.classList.remove('wt-tx', 'wt-rx');
   if (cls === 'tx' || cls === 'rx') waveWrap.classList.add('wt-' + cls);
 }
 
 function b64toBlob(b64, mime) {
-  // Fast path: decode via fetch data-URL — browser-native, avoids per-byte JS loop
-  // Falls back to manual Uint8Array decode for environments without fetch
   try {
     var bin = atob(b64);
-    // Use Uint8Array.from with a map fn — single allocation, no chunked push
-    var arr = Uint8Array.from(bin, function(c) { return c.charCodeAt(0); });
+    var len = bin.length;
+    var arr = new Uint8Array(len);
+    for (var i = 0; i < len; i++) {
+      arr[i] = bin.charCodeAt(i);
+    }
     return new Blob([arr], { type: mime });
   } catch(e) { return new Blob([], { type: mime }); }
 }
 
 // ── Volume meters ──
-var _vizLastFrame = 0; // throttle timestamp
+var _vizLastFrame = 0;
 function _startVizTick() {
-  // Shared RAF loop — throttled to ~24fps (42ms) to save CPU
-  // Reuse vizData buffer to avoid allocation on every start
   var binCount = analyser.frequencyBinCount;
   if (!vizData || vizData.length !== binCount) vizData = new Uint8Array(binCount);
-  _vizLastFrame = 0; // reset so first real RAF frame always renders
+  _vizLastFrame = 0;
   vizRAF = requestAnimationFrame(function tick(ts) {
     if (!analyser) return;
-    if (ts - _vizLastFrame >= 42) { // ~24fps
+    if (ts - _vizLastFrame >= 42) {
       _vizLastFrame = ts;
       analyser.getByteFrequencyData(vizData);
       for (var i=0; i<8; i++) { var v=vizData[i*2]||0; wBars[i].style.height=Math.max(3,Math.min(26,v*0.22))+'px'; }
@@ -3504,7 +3402,6 @@ function startVolMeter(stream) {
 }
 
 function startVolMeterAudio() {
-  // Called from _setSrc after decodeAndPlay creates the analyser
   if (vizRAF) { cancelAnimationFrame(vizRAF); vizRAF = null; }
   if (!analyser) return;
   _startVizTick();
@@ -3512,7 +3409,6 @@ function startVolMeterAudio() {
 
 function stopVolMeter() {
   if (vizRAF) { cancelAnimationFrame(vizRAF); vizRAF=null; }
-  // Disconnect MediaStreamSource first — prevents node accumulation across recordings
   if (_mediaStreamSrc) {
     try { _mediaStreamSrc.disconnect(); } catch(e){}
     _mediaStreamSrc = null;
@@ -3521,15 +3417,11 @@ function stopVolMeter() {
     try { analyser.disconnect(); } catch(e){}
     analyser = null;
   }
-  // Keep vizData buffer alive — avoids reallocation on next startVolMeter
   wBars.forEach(function(b){b.style.height='3px';});
 }
 
 // ── Shared AudioContext (iOS-safe) ──
-// iOS requires AudioContext to be created/resumed inside a user gesture.
-// We create it once on the first PTT press and reuse it for the session.
 function getSharedCtx(cb) {
-  // Create context on first call
   if (!sharedCtx) {
     try { sharedCtx = new (window.AudioContext || window.webkitAudioContext)(); }
     catch(e) { cb(null); return; }
@@ -3538,17 +3430,12 @@ function getSharedCtx(cb) {
   if (state === 'running') {
     cb(sharedCtx);
   } else if (state === 'suspended' || state === 'interrupted') {
-    // Resume — this must be called inside or close to a user gesture.
-    // If it fails (policy violation), return null so callers degrade gracefully.
     sharedCtx.resume()
       .then(function() { cb(sharedCtx); })
       .catch(function() {
-        // Context couldn't be resumed — likely no gesture yet.
-        // Return it anyway; playback will be silenced until next gesture unlocks it.
         cb(sharedCtx);
       });
   } else if (state === 'closed') {
-    // Context was closed — create a fresh one
     sharedCtx = null;
     getSharedCtx(cb);
   } else {
@@ -3557,8 +3444,6 @@ function getSharedCtx(cb) {
 }
 
 function unlockAudio() {
-  // Must be called synchronously inside a user gesture handler.
-  // Creates the AudioContext and plays a silent buffer to fully unlock on iOS/Safari.
   if (!sharedCtx) {
     try { sharedCtx = new (window.AudioContext || window.webkitAudioContext)(); }
     catch(e) { return; }
@@ -3578,9 +3463,9 @@ function unlockAudio() {
   }
 }
 
-// ── iOS/Android-safe audio playback via AudioBuffer ──
+// ── Audio playback via AudioBuffer ──
 function decodeAndPlay(blob, onEnded, onError) {
-  var fired = false;                         // FIX 4: guard — onEnded/onError fire exactly once
+  var fired = false;
   function safeEnded() { if (!fired) { fired = true; onEnded(); } }
   function safeError() { if (!fired) { fired = true; if (onError) onError(); } }
 
@@ -3588,21 +3473,15 @@ function decodeAndPlay(blob, onEnded, onError) {
     if (!ctx) { safeError(); return; }
 
     function doDecode() {
-      // FIX 7: reject empty blobs before decoding — avoids silent decode error
       if (!blob || blob.size === 0) { safeError(); return; }
 
       var reader = new FileReader();
       reader.onload = function() {
-        // Hybrid: pass callbacks (Safari < 14.1, old Android — no Promise support)
-        // AND catch the returned value if it is a Promise (Chrome/Firefox — callback
-        // form still rejects the Promise, causing "Uncaught (in promise)" if uncaught).
-        // Both code paths fire from the same underlying operation — no double-fire.
         var p;
         try {
           p = ctx.decodeAudioData(
             reader.result,
             function(buffer) {
-              // Ensure analyser exists (created here so startVolMeterAudio can reuse it)
               if (!analyser) {
                 analyser = ctx.createAnalyser();
                 analyser.fftSize = 32;
@@ -3612,31 +3491,30 @@ function decodeAndPlay(blob, onEnded, onError) {
               source.buffer = buffer;
               source.connect(analyser);
 
-              // Notify caller that source exists (starts timer + vol meter)
               if (typeof onEnded._setSrc === 'function') onEnded._setSrc(source);
 
               source.onended = safeEnded;
               source.start(0);
 
-              // Watchdog — if onended never fires (Android short-clip bug),
-              // force-complete after duration + 3s grace period
               var watchdogMs = Math.max(3000, (buffer.duration * 1000) + 3000);
-              setTimeout(safeEnded, watchdogMs);
+              setTimeout(function() {
+                if (!fired) {
+                  try { source.stop(); } catch(e){}
+                  safeEnded();
+                }
+              }, watchdogMs);
             },
             function() { safeError(); }
           );
         } catch(e) {
           safeError(); return;
         }
-        // Silence unhandled Promise rejection in modern browsers —
-        // callbacks above already handle success/error.
         if (p && typeof p.then === 'function') { p.catch(function() {}); }
       };
       reader.onerror = function() { safeError(); };
       reader.readAsArrayBuffer(blob);
     }
 
-    // FIX 3: resume on BOTH 'suspended' and 'interrupted' (Safari-specific state)
     if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
       ctx.resume().then(doDecode).catch(safeError);
     } else {
@@ -3659,8 +3537,8 @@ function playBeep(freq, dur) {
 }
 
 // ── Connection quality ────────────────────────────────────────────────────────
-var _qualityScore   = -1;   // -1 = no data yet
-var _qualityDetail  = false; // popover open?
+var _qualityScore   = -1;
+var _qualityDetail  = false;
 var _qualityPopTimer = null;
 
 var qualityBtn    = document.getElementById('qualityBtn');
@@ -3674,13 +3552,11 @@ var qb1 = document.getElementById('qb1');
 var qb2 = document.getElementById('qb2');
 var qb3 = document.getElementById('qb3');
 
-// Echo quality_ping back immediately — RTT measured server-side
 socket.on('quality_ping', function(data) {
   if (!data || !data.nonce) return;
   socket.emit('quality_pong', { nonce: data.nonce });
 });
 
-// Receive quality_update — update bars, tip, and detail panel
 socket.on('quality_update', function(data) {
   var score   = data.score      || 0;
   var latency = data.latency_ms || 0;
@@ -3688,35 +3564,29 @@ socket.on('quality_update', function(data) {
   var drop    = data.drop_pct   || 0;
   _qualityScore = score;
 
-  // Choose colour class — skip DOM write if unchanged
   var cls = score >= 70 ? 'q-good' : score >= 40 ? 'q-fair' : 'q-poor';
   var newQCls = 'quality-btn ' + cls;
   if (qualityBtn.className !== newQCls) qualityBtn.className = newQCls;
   qualityTip.textContent = score;
 
-  // Bars: 3 levels — light bar 1 at >0, bar 2 at >35, bar 3 at >70
   qb1.className = 'qbar' + (score > 0  ? ' lit' : '');
   qb2.className = 'qbar' + (score > 35 ? ' lit' : '');
   qb3.className = 'qbar' + (score > 70 ? ' lit' : '');
 
-  // Detail panel values
   qdScore.textContent   = score + ' / 100';
   qdLatency.textContent = latency + ' ms';
   qdJitter.textContent  = jitter  + ' ms';
   qdDrop.textContent    = drop    + '%';
 
-  // Colour the score value in the panel
   qdScore.style.color = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--amber)' : 'var(--red)';
 });
 
-// Tap quality button — toggle detail popover
 qualityBtn.addEventListener('click', function(e) {
   e.stopPropagation();
-  if (_qualityScore < 0) return; // no data yet — nothing to show
+  if (_qualityScore < 0) return;
   _qualityDetail ? _hideQualityDetail() : _showQualityDetail();
 });
 
-// Tap anywhere else — close detail
 document.addEventListener('click', function() { _hideQualityDetail(); });
 document.addEventListener('touchstart', function() { _hideQualityDetail(); }, { passive: true });
 
@@ -3724,7 +3594,6 @@ function _showQualityDetail() {
   _qualityDetail = true;
   qualityDetail.classList.add('on');
   clearTimeout(_qualityPopTimer);
-  // Auto-close after 6s
   _qualityPopTimer = setTimeout(_hideQualityDetail, 6000);
 }
 function _hideQualityDetail() {
