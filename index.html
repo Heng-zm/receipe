@@ -323,6 +323,709 @@ body::after {
 .geo-color-swatch { width:24px; height:24px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:border-color 0.15s var(--ease-out), transform 0.15s var(--ease-spring); }
 .geo-color-swatch.selected { border-color:#fff; transform:scale(1.15); }
 .toast { position:fixed; bottom:calc(env(safe-area-inset-bottom,0px) + 86px); left:50%; transform:translateX(-50%) translateY(8px) scale(0.97); background:rgba(20,20,24,0.94); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid var(--border); border-radius:10px; padding:8px 16px; font-size:12.5px; font-weight:500; color:rgba(255,255,255,0.9); opacity:0; transition:opacity 0.18s var(--ease-out), transform 0.22s var(--ease-spring); pointer-events:none; white-space:nowrap; z-index:200; }
+
+
+/* ════════════ UI/UX OPTIMIZED STYLE PACK v2 ════════════
+   Visual polish only: safer mobile layout, better touch states, accessible focus,
+   working spinner/toast, responsive sheets, and cleaner map controls. */
+:root {
+  --bg: #050508;
+  --bg-card: rgba(13, 13, 19, 0.82);
+  --surface: rgba(255,255,255,0.055);
+  --surface-hi: rgba(255,255,255,0.105);
+  --border: rgba(255,255,255,0.075);
+  --border-hi: rgba(255,255,255,0.14);
+  --white: #f7f7fb;
+  --dim: rgba(247,247,251,0.58);
+  --dimmer: rgba(247,247,251,0.18);
+  --shadow-soft: 0 14px 42px rgba(0,0,0,0.34);
+  --shadow-strong: 0 24px 80px rgba(0,0,0,0.58);
+  --tap-size: 44px;
+  --pad-x: clamp(16px, 4vw, 24px);
+  --circ: clamp(214px, min(60vmin, 34vh), 286px);
+  color-scheme: dark;
+}
+
+html { overscroll-behavior: none; }
+body {
+  line-height: 1.45;
+  background:
+    radial-gradient(circle at 50% -18%, rgba(255,159,10,0.09), transparent 34%),
+    radial-gradient(circle at 100% 12%, rgba(10,132,255,0.08), transparent 26%),
+    var(--bg);
+}
+button, input { font: inherit; }
+button { min-height: var(--tap-size); }
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+.geo-color-swatch:focus-visible {
+  outline: 2px solid rgba(255,159,10,0.78);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(255,159,10,0.12);
+}
+
+/* Missing states from the original stylesheet */
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid rgba(255,255,255,0.14);
+  border-top-color: var(--amber);
+  animation: wtSpin 0.85s linear infinite;
+}
+@keyframes wtSpin { to { transform: rotate(360deg); } }
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+/* Main screen hierarchy */
+#mainView {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  padding-bottom: 0;
+}
+.topbar {
+  height: 58px;
+  padding-inline: var(--pad-x);
+  background: linear-gradient(180deg, rgba(6,6,10,0.72), rgba(6,6,10,0.2));
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+.topbar-right { gap: 9px; }
+.top-icon-btn,
+.power-btn,
+.quality-btn,
+.map-back,
+.map-topbar-fab,
+.nav-btn,
+.mode-btn,
+.geo-banner-action,
+.geo-banner-dismiss {
+  min-width: var(--tap-size);
+  min-height: var(--tap-size);
+}
+.top-icon-btn,
+.power-btn,
+.quality-btn,
+.map-back,
+.map-topbar-fab {
+  background: rgba(255,255,255,0.045);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.top-icon-btn:hover,
+.power-btn:hover,
+.quality-btn:hover,
+.map-back:hover,
+.map-topbar-fab:hover,
+.channel-pill:hover,
+.username:hover {
+  background: rgba(255,255,255,0.085);
+  border-color: rgba(255,255,255,0.12);
+}
+.power-btn::after { bottom: 6px; right: 6px; }
+
+.username-wrap { padding-top: 10px; }
+.username,
+.channel-pill,
+.mode-seg,
+.sheet,
+.quality-detail,
+.install-bar,
+.toast,
+.geo-banner,
+.map-bottom,
+.map-topbar {
+  box-shadow: var(--shadow-soft);
+}
+.username {
+  min-height: 34px;
+  padding: 8px 15px;
+  background: rgba(255,255,255,0.045);
+  border-color: rgba(255,255,255,0.08);
+}
+.username-name { color: rgba(255,255,255,0.78); letter-spacing: 0.05px; }
+.channel-wrap { padding-top: 10px; }
+.channel-pill {
+  min-height: 46px;
+  padding: 11px 18px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.035));
+  border-color: rgba(255,255,255,0.09);
+}
+.channel-pill.ph { border-style: dashed; background: rgba(255,255,255,0.035); }
+.ch-name { max-width: min(230px, 58vw); letter-spacing: 0.55px; }
+.peer-ct { font-variant-numeric: tabular-nums; }
+
+.mode-switcher { padding-top: 10px; }
+.mode-seg {
+  padding: 4px;
+  gap: 4px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.035);
+  border-color: rgba(255,255,255,0.075);
+}
+.mode-btn {
+  min-width: 92px;
+  justify-content: center;
+  padding: 9px 18px;
+  border-radius: 14px;
+}
+.mode-btn-label { font-size: 11px; }
+
+.circle-wrap { padding-inline: var(--pad-x); }
+.ptt-circle {
+  isolation: isolate;
+  border-color: rgba(255,255,255,0.11);
+  background:
+    radial-gradient(circle at 40% 28%, rgba(255,255,255,0.075), transparent 44%),
+    radial-gradient(circle at 50% 64%, rgba(255,255,255,0.028), transparent 68%),
+    rgba(255,255,255,0.018);
+}
+.ptt-circle::before {
+  content: '';
+  position: absolute;
+  inset: 13px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.035);
+  pointer-events: none;
+}
+.ptt-circle:not(.disabled):hover { transform: scale(1.012); }
+.ptt-circle.disabled { opacity: 0.62; filter: saturate(0.8); }
+.ptt-hint { font-size: 10.5px; color: rgba(255,255,255,0.32); }
+.circ-timer { top: calc(var(--circ)*0.082); }
+.status-line {
+  max-width: min(520px, calc(100vw - 32px));
+  margin-inline: auto;
+  padding-inline: 18px;
+  color: rgba(255,255,255,0.34);
+}
+.wave-wrap { height: 42px; }
+.wbar { border-radius: 999px; }
+
+.bottom-nav {
+  padding-inline: max(12px, env(safe-area-inset-left, 0px));
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  padding-top: 7px;
+  background: rgba(6,6,10,0.84);
+  border-top-color: rgba(255,255,255,0.07);
+  box-shadow: 0 -18px 44px rgba(0,0,0,0.28);
+}
+.nav-btn { border-radius: 16px; padding-block: 7px; }
+.nav-btn.active { background: rgba(255,255,255,0.055); }
+.nav-btn.active::before { top: 3px; width: 28px; height: 3px; }
+
+/* Map screen readability */
+#mapView { background: #07070a; }
+.map-topbar {
+  padding-inline: var(--pad-x);
+  padding-bottom: 12px;
+  gap: 12px;
+  background: rgba(6,6,10,0.88);
+  border-bottom-color: rgba(255,255,255,0.075);
+}
+.map-topbar-info {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+.map-topbar-channel { font-size: 13px; letter-spacing: 0.25px; }
+.map-topbar-sub {
+  display: block;
+  max-width: 42vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  color: rgba(255,255,255,0.38);
+}
+.map-zone-badge {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding-inline: 10px;
+}
+.map-bottom {
+  padding-inline: var(--pad-x);
+  padding-top: 12px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  background: rgba(6,6,10,0.9);
+  border-top-color: rgba(255,255,255,0.075);
+}
+.map-location-text { font-size: 12.5px; }
+.talk-here-btn {
+  min-width: 118px;
+  padding-inline: 20px;
+  background: linear-gradient(180deg, #ffbd52, var(--amber));
+}
+.talk-here-btn:disabled { filter: grayscale(0.7); }
+.geo-draw-hint {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  box-shadow: var(--shadow-soft);
+}
+
+/* Sheets and forms */
+.overlay { padding: 16px; }
+.sheet {
+  max-height: min(86vh, 720px);
+  overflow-y: auto;
+  gap: 13px;
+  padding: 14px 20px max(22px, env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(18,18,25,0.98), rgba(9,9,14,0.985));
+  border-color: rgba(255,255,255,0.095);
+  scrollbar-width: none;
+}
+.sheet::-webkit-scrollbar { display: none; }
+.sheet-title { font-size: 18px; letter-spacing: -0.25px; }
+.sheet-sub { color: rgba(255,255,255,0.48); }
+.sheet-input {
+  min-height: 50px;
+  border-radius: 15px;
+  background: rgba(255,255,255,0.052);
+  border-color: rgba(255,255,255,0.085);
+  letter-spacing: 0.35px;
+}
+.sheet-input:focus {
+  border-color: rgba(255,159,10,0.5);
+  box-shadow: 0 0 0 5px rgba(255,159,10,0.1);
+}
+.sheet-btn {
+  min-height: 50px;
+  border-radius: 16px;
+  letter-spacing: 0.12px;
+}
+.sheet-btn.primary { background: linear-gradient(180deg, #ffbd52, var(--amber)); }
+#channelAiBtn {
+  background: linear-gradient(180deg, #d078ff 0%, #9f45df 100%) !important;
+  color: #fff !important;
+}
+.sheet-btn.secondary { background: rgba(255,255,255,0.065); }
+
+/* Geofence list / banners */
+.geo-banners {
+  left: var(--pad-x);
+  right: var(--pad-x);
+  gap: 6px;
+}
+.geo-banner {
+  min-height: 44px;
+  height: auto;
+  border-radius: 14px;
+  background: rgba(11,11,16,0.94);
+  border-color: rgba(255,255,255,0.08);
+}
+.geo-banner-title { font-size: 12.5px; }
+.geo-banner-action { border-left: 1px solid rgba(255,255,255,0.055); }
+.geo-zone-del,
+.geo-color-swatch,
+.geo-toggle-track { min-height: 28px; }
+.geo-color-swatch {
+  width: 30px;
+  height: 30px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+}
+.geo-color-swatch.selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 5px rgba(255,255,255,0.09);
+}
+.geo-toggle { width: 46px; height: 28px; }
+.geo-toggle-thumb { width: 22px; height: 22px; top: 3px; left: 3px; }
+.geo-toggle input:checked ~ .geo-toggle-thumb { transform: translateX(18px); }
+
+/* Install and quality popovers */
+.install-bar {
+  left: var(--pad-x);
+  right: var(--pad-x);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+  border-radius: 20px;
+}
+.quality-detail {
+  right: var(--pad-x);
+  border-radius: 16px;
+  background: rgba(14,14,20,0.97);
+}
+.toast {
+  max-width: min(92vw, 520px);
+  white-space: normal;
+  text-align: center;
+  border-radius: 999px;
+  padding: 10px 18px;
+  bottom: calc(env(safe-area-inset-bottom,0px) + 92px);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .topbar,
+  .bottom-nav,
+  .map-topbar,
+  .map-bottom,
+  .sheet,
+  .install-bar,
+  .quality-detail,
+  .toast,
+  .geo-banner {
+    backdrop-filter: blur(28px) saturate(1.25);
+    -webkit-backdrop-filter: blur(28px) saturate(1.25);
+  }
+}
+
+@media (min-width: 720px) {
+  :root { --circ: clamp(258px, 38vmin, 330px); }
+  .overlay { align-items: center; justify-content: center; }
+  .sheet {
+    max-width: 430px;
+    border-radius: 28px;
+    padding: 16px 22px 22px;
+    transform: translateY(14px) scale(0.985);
+  }
+  .overlay.open .sheet { transform: translateY(0) scale(1); }
+  .install-bar { max-width: 460px; left: 50%; right: auto; width: calc(100vw - 32px); transform: translate(-50%, 12px) scale(0.98); }
+  .install-bar.on { transform: translate(-50%, 0) scale(1); }
+  .geo-banners { left: 50%; right: auto; width: min(520px, calc(100vw - 32px)); transform: translateX(-50%); }
+}
+
+@media (max-width: 390px) {
+  :root { --pad-x: 14px; --circ: clamp(202px, 58vmin, 238px); }
+  .topbar { height: 54px; }
+  .share-label { display: none; }
+  #btnShare { padding-inline: 10px; }
+  .mode-btn { min-width: 82px; padding-inline: 14px; }
+  .ch-name { max-width: 49vw; }
+  .bottom-nav { padding-inline: 8px; }
+  .nav-btn { padding-inline: 8px; }
+  .sheet { padding-inline: 16px; }
+}
+
+@media (max-height: 700px) {
+  :root { --circ: clamp(190px, 46vh, 242px); }
+  .username-wrap { padding-top: 4px; }
+  .channel-wrap, .mode-switcher { padding-top: 6px; }
+  .wave-wrap { height: 30px; }
+  .status-line { min-height: 18px; padding-top: 0; }
+  .ptt-inner svg { width: 32px; height: 39px; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  :root { --circ: min(52vh, 210px); }
+  .username-wrap, .channel-wrap { padding-top: 4px; }
+  .mode-switcher { padding-top: 4px; }
+  .wave-wrap { display: none; }
+  .bottom-nav { padding-top: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --border: rgba(255,255,255,0.18);
+    --border-hi: rgba(255,255,255,0.28);
+    --dim: rgba(255,255,255,0.72);
+  }
+  .status-line, .sheet-sub, .geo-zone-meta, .map-user-text { color: rgba(255,255,255,0.72); }
+}
+
+
+
+/* ════════════ AI CHAT FEATURE ════════════ */
+#aiView {
+  background:
+    radial-gradient(circle at 50% -14%, rgba(191,90,242,0.16), transparent 34%),
+    radial-gradient(circle at 100% 8%, rgba(10,132,255,0.08), transparent 28%),
+    var(--bg);
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) var(--pad-x) calc(env(safe-area-inset-bottom, 0px) + 12px);
+  isolation: isolate;
+}
+.ai-shell {
+  width: min(720px, 100%);
+  height: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.ai-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding-bottom: 8px;
+}
+.ai-title-wrap { flex: 1; min-width: 0; }
+.ai-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--purple);
+  opacity: 0.95;
+}
+.ai-title {
+  font-size: clamp(22px, 5vw, 30px);
+  font-weight: 750;
+  letter-spacing: -0.7px;
+  line-height: 1.05;
+  color: var(--white);
+}
+.ai-subtitle {
+  font-size: 12px;
+  color: var(--dim);
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ai-icon-btn {
+  width: var(--tap-size);
+  height: var(--tap-size);
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.055);
+  color: var(--white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.16s var(--ease-out), border-color 0.16s var(--ease-out), transform 0.12s var(--ease-spring);
+}
+.ai-icon-btn:active { transform: scale(0.93); }
+.ai-icon-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.14); }
+.ai-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(15,15,22,0.82), rgba(8,8,13,0.72));
+  box-shadow: var(--shadow-strong);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+}
+.ai-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+.ai-messages::-webkit-scrollbar { width: 8px; }
+.ai-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
+.ai-empty {
+  margin: auto;
+  max-width: 420px;
+  text-align: center;
+  color: var(--dim);
+  padding: 28px 14px;
+}
+.ai-empty-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 14px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(145deg, rgba(191,90,242,0.9), rgba(10,132,255,0.82));
+  box-shadow: 0 18px 45px rgba(191,90,242,0.22);
+}
+.ai-empty-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--white);
+  letter-spacing: -0.2px;
+}
+.ai-empty-sub {
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 7px;
+}
+.ai-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.ai-suggestion {
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.055);
+  color: rgba(255,255,255,0.82);
+  border-radius: 999px;
+  padding: 9px 12px;
+  min-height: 0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ai-msg {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 88%;
+  animation: aiMsgIn 0.2s var(--ease-expo) both;
+}
+@keyframes aiMsgIn { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.ai-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+.ai-msg.assistant { align-self: flex-start; }
+.ai-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(145deg, rgba(191,90,242,0.95), rgba(10,132,255,0.88));
+  box-shadow: 0 8px 22px rgba(0,0,0,0.28);
+}
+.ai-msg.user .ai-avatar { background: rgba(255,159,10,0.95); color: #111; }
+.ai-bubble-wrap { min-width: 0; }
+.ai-bubble {
+  padding: 11px 13px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.ai-msg.assistant .ai-bubble {
+  color: rgba(255,255,255,0.92);
+  background: rgba(255,255,255,0.06);
+  border-bottom-left-radius: 7px;
+}
+.ai-msg.user .ai-bubble {
+  color: #110b00;
+  background: linear-gradient(180deg, #ffb340, var(--amber));
+  border-color: rgba(255,255,255,0.22);
+  border-bottom-right-radius: 7px;
+}
+.ai-meta {
+  font-size: 10px;
+  color: rgba(255,255,255,0.28);
+  margin-top: 4px;
+  padding-inline: 4px;
+}
+.ai-msg.user .ai-meta { text-align: right; }
+.ai-typing {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 0 18px 10px;
+  color: rgba(255,255,255,0.45);
+  font-size: 12px;
+}
+.ai-typing.on { display: flex; }
+.ai-typing-dots { display: inline-flex; gap: 3px; }
+.ai-typing-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--purple);
+  opacity: 0.35;
+  animation: aiDot 1s ease-in-out infinite;
+}
+.ai-typing-dots span:nth-child(2) { animation-delay: 0.14s; }
+.ai-typing-dots span:nth-child(3) { animation-delay: 0.28s; }
+@keyframes aiDot { 0%, 80%, 100% { transform: translateY(0); opacity: 0.35; } 40% { transform: translateY(-4px); opacity: 1; } }
+.ai-compose {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  background: rgba(4,4,8,0.48);
+}
+.ai-input-wrap {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  background: rgba(255,255,255,0.055);
+  padding: 10px 12px;
+  transition: border-color 0.16s var(--ease-out), background 0.16s var(--ease-out);
+}
+.ai-input-wrap:focus-within { border-color: rgba(191,90,242,0.38); background: rgba(191,90,242,0.055); }
+.ai-input {
+  width: 100%;
+  max-height: 118px;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--white);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.ai-input::placeholder { color: rgba(255,255,255,0.25); }
+.ai-send {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  min-height: 46px;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(145deg, rgba(191,90,242,1), rgba(10,132,255,0.9));
+  box-shadow: 0 12px 32px rgba(191,90,242,0.24);
+  transition: opacity 0.16s var(--ease-out), transform 0.12s var(--ease-spring), filter 0.16s var(--ease-out);
+}
+.ai-send:active { transform: scale(0.94); }
+.ai-send:disabled { opacity: 0.38; cursor: default; filter: grayscale(0.5); box-shadow: none; }
+.ai-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px 10px;
+  color: var(--dim);
+  font-size: 11px;
+}
+.ai-clear {
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.42);
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  min-height: 32px;
+  padding: 4px 8px;
+  border-radius: 9px;
+}
+.ai-clear:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.74); }
+@media (max-width: 480px) {
+  #aiView { padding-inline: 10px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); }
+  .ai-card { border-radius: 24px; }
+  .ai-messages { padding: 14px 12px; }
+  .ai-msg { max-width: 94%; }
+  .ai-bubble { font-size: 13.5px; }
+  .ai-title { font-size: 22px; }
+  .ai-subtitle { max-width: 220px; }
+}
+
 </style>
 </head>
 <body>
@@ -512,6 +1215,13 @@ body::after {
       </svg>
       <span class="nav-label">Map</span>
     </button>
+    <button class="nav-btn" id="navAI" title="AI Chat">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M5 15.5h9.5a4 4 0 0 1 0 8H9l-4 2v-10z" transform="translate(0 -4)" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <span class="nav-label">AI</span>
+    </button>
     <button class="nav-btn" id="navChannel">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
         <path d="M2 5h20M2 12h20M2 19h20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -530,6 +1240,7 @@ body::after {
     </button>
     <div class="map-topbar-info">
       <div class="map-topbar-channel" id="mapTopChannel">Map</div>
+      <div class="map-topbar-sub" id="mapTopSub"></div>
     </div>
     <div class="map-zone-badge" id="mapZoneBadge" style="display:none">0 zones</div>
     <div class="map-topbar-actions">
@@ -565,6 +1276,46 @@ body::after {
   </div>
 </div>
 
+
+<!-- ════════════ AI CHAT VIEW ════════════ -->
+<div class="view hidden" id="aiView">
+  <div class="ai-shell">
+    <div class="ai-topbar">
+      <button class="ai-icon-btn" id="aiBackBtn" aria-label="Back to Talk" title="Back">
+        <svg width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1L1 8L8 15"/></svg>
+      </button>
+      <div class="ai-title-wrap">
+        <div class="ai-kicker">Assistant</div>
+        <div class="ai-title">Chat with AI</div>
+        <div class="ai-subtitle" id="aiSubtitle">Ask anything while you use WalkieTalk</div>
+      </div>
+      <button class="ai-icon-btn" id="aiClearBtn" aria-label="Clear AI chat" title="Clear chat">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/><path d="M10 11v6M14 11v6"/></svg>
+      </button>
+    </div>
+    <div class="ai-toolbar">
+      <span id="aiStatusText">Private chat · saved on this device</span>
+      <button class="ai-clear" id="aiVoiceBtn" type="button">Voice AI</button>
+    </div>
+    <section class="ai-card" aria-label="AI chat">
+      <div class="ai-messages" id="aiMessages"></div>
+      <div class="ai-typing" id="aiTyping">
+        <span class="ai-avatar">AI</span>
+        <span>AI is typing</span>
+        <span class="ai-typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+      </div>
+      <form class="ai-compose" id="aiForm">
+        <div class="ai-input-wrap">
+          <textarea class="ai-input" id="aiInput" rows="1" maxlength="2000" placeholder="Message AI..."></textarea>
+        </div>
+        <button class="ai-send" id="aiSendBtn" type="submit" aria-label="Send message" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </button>
+      </form>
+    </section>
+  </div>
+</div>
+
 <!-- Channel sheet -->
 <div class="overlay" id="channelOverlay">
   <div class="sheet">
@@ -573,7 +1324,7 @@ body::after {
     <div class="sheet-sub">Share the same name with friends</div>
     <input class="sheet-input" id="channelInput" placeholder="CHANNEL-01" maxlength="30" autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
     <button class="sheet-btn primary" id="channelJoinBtn">Join</button>
-    <button class="sheet-btn primary" id="channelAiBtn" style="background: linear-gradient(180deg, #bf5af2 0%, #9e36e2 100%); color: #fff; margin-top: 4px; box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset;">Talk to AI Assistant</button>
+    <button class="sheet-btn primary" id="channelAiBtn" style="background: linear-gradient(180deg, #bf5af2 0%, #9e36e2 100%); color: #fff; margin-top: 4px; box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset;">Open AI Chat</button>
     <button class="sheet-btn secondary" id="channelCancelBtn">Cancel</button>
   </div>
 </div>
@@ -643,10 +1394,14 @@ var CIRC        = 864; // 2π × 137.5
 
 // ── Socket ──
 var socket = io(SERVER_URL, {
-  transports: ['websocket'],
+  transports: ['websocket', 'polling'],
+  upgrade: true,
   reconnection: true,
-  reconnectionDelay: 2000,
-  reconnectionAttempts: Infinity
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 8000,
+  randomizationFactor: 0.4,
+  reconnectionAttempts: Infinity,
+  timeout: 12000
 });
 
 // ── App state ──
@@ -671,6 +1426,13 @@ var userLng      = null;
 var locationStr  = '';
 var _locPermission = 'unknown';
 
+// ── AI chat state ──
+var aiMessages = [];
+var _aiBusy = false;
+var _aiPending = {};
+var _AI_HISTORY_KEY = 'wt_ai_chat_history_v1';
+var _AI_MAX_HISTORY = 50;
+
 // ── Recording state ──
 var mediaRec     = null;
 var recChunks    = [];
@@ -691,6 +1453,9 @@ var _liveStreamId = null;
 var _liveChunkSeq = 0;
 var _liveInitData = null;
 var _liveRxQueues = {};
+var _livePendingReads = 0;
+var _MAX_LIVE_PENDING_READS = 3;
+var _LIVE_TIMESLICE_MS = 800;
 
 // ── Audio viz (rAF-based) ──
 var analyser  = null;
@@ -755,6 +1520,8 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
     socket.on('connect', _urlRoomHandler);
   }
 
+  aiLoadHistory();
+  aiRender();
   geoLoadData();
   getLocation();
   wireUI();
@@ -852,53 +1619,67 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ── UI wiring ──
+function _el(id) { return document.getElementById(id); }
+function _listen(idOrEl, eventName, handler, opts) {
+  var node = (typeof idOrEl === 'string') ? _el(idOrEl) : idOrEl;
+  if (!node) { console.warn('[WalkieTalk] Missing UI element:', idOrEl); return null; }
+  node.addEventListener(eventName, handler, opts);
+  return node;
+}
 function wireUI() {
-  document.getElementById('btnGrid').addEventListener('click', openChannelSheet);
-  document.getElementById('modeHoldBtn').addEventListener('click', function(){ setTalkMode('hold'); });
-  document.getElementById('modeLiveBtn').addEventListener('click', function(){ setTalkMode('live'); });
-  document.getElementById('btnShare').addEventListener('click', copyChannelLink);
-  document.getElementById('btnMap').addEventListener('click', showMapView);
-  document.getElementById('btnPower').addEventListener('click', openChannelSheet);
-  channelPill.addEventListener('click', function () { channelPill.classList.remove('has-unread'); openChannelSheet(); });
-  usernameEl.addEventListener('click', openNameSheet);
+  _listen('btnGrid', 'click', openChannelSheet);
+  _listen('modeHoldBtn', 'click', function(){ setTalkMode('hold'); });
+  _listen('modeLiveBtn', 'click', function(){ setTalkMode('live'); });
+  _listen('btnShare', 'click', copyChannelLink);
+  _listen('btnMap', 'click', showMapView);
+  _listen('btnPower', 'click', openChannelSheet);
+  _listen(channelPill, 'click', function () { channelPill.classList.remove('has-unread'); openChannelSheet(); });
+  _listen(usernameEl, 'click', openNameSheet);
 
-  document.getElementById('navTalk').addEventListener('click', showMain);
-  document.getElementById('navMap').addEventListener('click', showMapView);
-  document.getElementById('navChannel').addEventListener('click', openChannelSheet);
-  document.getElementById('mapBackBtn').addEventListener('click', showMain);
+  _listen('navTalk', 'click', showMain);
+  _listen('navMap', 'click', showMapView);
+  _listen('navAI', 'click', showAiView);
+  _listen('navChannel', 'click', openChannelSheet);
+  _listen('aiBackBtn', 'click', showMain);
+  _listen('aiClearBtn', 'click', aiClearHistory);
+  _listen('aiVoiceBtn', 'click', function(){ showMain(); joinChannel('AI-BOT'); });
+  _listen('aiInput', 'input', aiOnInput);
+  _listen('aiInput', 'keydown', aiOnKeyDown);
+  _listen('aiForm', 'submit', function(e){ e.preventDefault(); aiSendMessage(); });
+  _listen('mapBackBtn', 'click', showMain);
 
-  document.getElementById('channelOverlay').addEventListener('click', function (e) { if (e.target === this) closeChannelSheet(); });
-  document.getElementById('channelCancelBtn').addEventListener('click', closeChannelSheet);
-  document.getElementById('channelInput').addEventListener('input', function () { this.value = this.value.toUpperCase(); });
-  document.getElementById('channelInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') doJoin(); });
-  document.getElementById('channelJoinBtn').addEventListener('click', doJoin);
+  _listen('channelOverlay', 'click', function (e) { if (e.target === this) closeChannelSheet(); });
+  _listen('channelCancelBtn', 'click', closeChannelSheet);
+  _listen('channelInput', 'input', function () { this.value = this.value.toUpperCase(); });
+  _listen('channelInput', 'keydown', function (e) { if (e.key === 'Enter') doJoin(); });
+  _listen('channelJoinBtn', 'click', doJoin);
 
   // AI assistant button click handler
-  document.getElementById('channelAiBtn').addEventListener('click', function() {
+  _listen('channelAiBtn', 'click', function() {
     closeChannelSheet();
-    joinChannel('AI-BOT');
+    showAiView();
   });
 
-  document.getElementById('nameOverlay').addEventListener('click', function (e) { if (e.target === this) this.classList.remove('open'); });
-  document.getElementById('nameCancelBtn').addEventListener('click', function () { document.getElementById('nameOverlay').classList.remove('open'); });
-  document.getElementById('nameInput').addEventListener('input', function () { this.value = this.value.toUpperCase(); });
-  document.getElementById('nameInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') saveName(); });
-  document.getElementById('nameSaveBtn').addEventListener('click', saveName);
+  _listen('nameOverlay', 'click', function (e) { if (e.target === this) this.classList.remove('open'); });
+  _listen('nameCancelBtn', 'click', function () { document.getElementById('nameOverlay').classList.remove('open'); });
+  _listen('nameInput', 'input', function () { this.value = this.value.toUpperCase(); });
+  _listen('nameInput', 'keydown', function (e) { if (e.key === 'Enter') saveName(); });
+  _listen('nameSaveBtn', 'click', saveName);
 
   wirePTT(pttCircle, false);
   wirePTT(talkHereBtn, true);
 
   // Geofence UI wiring
-  document.getElementById('geoAddBtn').addEventListener('click', geoStartDraw);
-  document.getElementById('geoListBtn').addEventListener('click', geoOpenList);
-  document.getElementById('geoListCloseBtn').addEventListener('click', geoCloseList);
-  document.getElementById('geoListOverlay').addEventListener('click', function(e){ if(e.target===this) geoCloseList(); });
-  document.getElementById('geoOverlay').addEventListener('click', function(e){ if(e.target===this) geoCancelDraw(); });
-  document.getElementById('geoCancelBtn').addEventListener('click', geoCancelDraw);
-  document.getElementById('geoSaveBtn').addEventListener('click', geoSaveZone);
-  document.getElementById('geoZoneName').addEventListener('input', function(){ this.value=this.value.toUpperCase(); });
-  document.getElementById('geoZoneChannel').addEventListener('input', function(){ this.value=this.value.toUpperCase(); geoUpdatePreview(); });
-  document.getElementById('geoRadiusSlider').addEventListener('input', function(){
+  _listen('geoAddBtn', 'click', geoStartDraw);
+  _listen('geoListBtn', 'click', geoOpenList);
+  _listen('geoListCloseBtn', 'click', geoCloseList);
+  _listen('geoListOverlay', 'click', function(e){ if(e.target===this) geoCloseList(); });
+  _listen('geoOverlay', 'click', function(e){ if(e.target===this) geoCancelDraw(); });
+  _listen('geoCancelBtn', 'click', geoCancelDraw);
+  _listen('geoSaveBtn', 'click', geoSaveZone);
+  _listen('geoZoneName', 'input', function(){ this.value=this.value.toUpperCase(); });
+  _listen('geoZoneChannel', 'input', function(){ this.value=this.value.toUpperCase(); geoUpdatePreview(); });
+  _listen('geoRadiusSlider', 'input', function(){
     document.getElementById('geoRadiusLabel').textContent = this.value + ' m';
     if (geoNewZone) { geoNewZone.radius = parseInt(this.value); geoUpdatePreview(); }
   });
@@ -963,26 +1744,43 @@ function wirePTT(el, isMapBtn) {
 // ── Views ──
 var _mainView = document.getElementById('mainView');
 var _mapView  = document.getElementById('mapView');
+var _aiView   = document.getElementById('aiView');
 function showMain() {
   _mainView.classList.remove('hidden');
   _mapView.classList.add('hidden');
+  if (_aiView) _aiView.classList.add('hidden');
   setNavActive('navTalk');
 }
 function showMapView() {
   _mainView.classList.add('hidden');
   _mapView.classList.remove('hidden');
+  if (_aiView) _aiView.classList.add('hidden');
   setNavActive('navMap');
   setTimeout(function() {
     initMap();
     if (mapInstance) mapInstance.invalidateSize({ animate: false });
   }, 320);
 }
+function showAiView() {
+  _mainView.classList.add('hidden');
+  _mapView.classList.add('hidden');
+  if (_aiView) _aiView.classList.remove('hidden');
+  setNavActive('navAI');
+  aiRender();
+  setTimeout(function() { var input = document.getElementById('aiInput'); if (input) input.focus(); }, 180);
+}
 var _navBtns = null;
 function setNavActive(id) {
-  if (!_navBtns) _navBtns = { navTalk: document.getElementById('navTalk'), navMap: document.getElementById('navMap'), navChannel: document.getElementById('navChannel') };
-  _navBtns.navTalk.classList.toggle('active', id === 'navTalk');
-  _navBtns.navMap.classList.toggle('active',  id === 'navMap');
-  _navBtns.navChannel.classList.toggle('active', id === 'navChannel');
+  if (!_navBtns) _navBtns = {
+    navTalk: document.getElementById('navTalk'),
+    navMap: document.getElementById('navMap'),
+    navAI: document.getElementById('navAI'),
+    navChannel: document.getElementById('navChannel')
+  };
+  if (_navBtns.navTalk) _navBtns.navTalk.classList.toggle('active', id === 'navTalk');
+  if (_navBtns.navMap) _navBtns.navMap.classList.toggle('active', id === 'navMap');
+  if (_navBtns.navAI) _navBtns.navAI.classList.toggle('active', id === 'navAI');
+  if (_navBtns.navChannel) _navBtns.navChannel.classList.toggle('active', id === 'navChannel');
 }
 
 // ── Microphone permission ──
@@ -1062,7 +1860,7 @@ function _onLocError(err) {
     setLocationText('Location access denied');
   } else {
     if (_locPermission !== 'granted') _locPermission = 'unavailable';
-    if (!userLat) setLocationText('Location unavailable');
+    if (userLat === null) setLocationText('Location unavailable');
   }
 }
 
@@ -1390,7 +2188,7 @@ function geoLoadData() {
     geoZones = newZones;
 
     geoPersist();
-    if (userLat && userLng) {
+    if (userLat !== null && userLng !== null) {
       _geoLastCheckLat = null; _geoLastCheckLng = null;
       geoCheckAll(userLat, userLng);
     }
@@ -1602,7 +2400,7 @@ function geoUpdateBanner(zone, precomputedDist) {
   if (!actionEl) return;
 
   var dist = (precomputedDist !== undefined) ? Math.round(precomputedDist)
-           : (userLat && userLng) ? Math.round(geoDistance(userLat, userLng, zone.lat, zone.lng)) : null;
+           : (userLat !== null && userLng !== null) ? Math.round(geoDistance(userLat, userLng, zone.lat, zone.lng)) : null;
   var inside = !!geoInsideZones[zone.id];
 
   if (distEl) {
@@ -1641,7 +2439,7 @@ function geoHideBanner(zone) {
 
 // ── Check all zones ──
 function geoCheckAll(lat, lng) {
-  if (!lat || !lng) return;
+  if (lat === null || lng === null || lat === undefined || lng === undefined) return;
   if (_geoLastCheckLat !== null &&
       geoDistance(lat, lng, _geoLastCheckLat, _geoLastCheckLng) < GEO_MIN_MOVE_M) return;
   _geoLastCheckLat = lat; _geoLastCheckLng = lng;
@@ -1757,7 +2555,7 @@ function geoSaveZone() {
   var aj  = document.getElementById('geoAutoJoin').checked;
   if (!ch) { showToast('Enter a channel name'); return; }
   var name = rawName ? rawName.toUpperCase().slice(0,24) : ch;
-  if (!userLat || !userLng) {
+  if (userLat === null || userLng === null) {
     showToast('GPS fix required to save a zone');
     return;
   }
@@ -1780,7 +2578,7 @@ function geoSaveZone() {
       var row = document.getElementById('geoColorRow');
       if (row) row.querySelectorAll('.geo-color-swatch').forEach(function(s,i){ s.classList.toggle('selected', i===0); });
       _geoLastCheckLat = null; _geoLastCheckLng = null;
-      if (userLat && userLng) geoCheckAll(userLat, userLng);
+      if (userLat !== null && userLng !== null) geoCheckAll(userLat, userLng);
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Zone'; }
     },
     function() {
@@ -1804,7 +2602,7 @@ function geoOpenList() {
       var info = document.createElement('div'); info.className = 'geo-zone-info';
       var nm   = document.createElement('div'); nm.className = 'geo-zone-name'; nm.textContent = z.name;
       var mt   = document.createElement('div'); mt.className = 'geo-zone-meta';
-      var dist = (userLat && userLng) ? Math.round(geoDistance(userLat, userLng, z.lat, z.lng)) : null;
+      var dist = (userLat !== null && userLng !== null) ? Math.round(geoDistance(userLat, userLng, z.lat, z.lng)) : null;
       var distStr = dist !== null ? (dist >= 1000 ? (dist/1000).toFixed(1)+'km' : dist+'m') + ' away · ' : '';
       var byStr    = (!z.deviceId || z.deviceId === _deviceId) ? '' : (z.createdBy ? ' · by @' + z.createdBy : '');
       var expLabel = _zoneExpiryLabel(z.expiresAt);
@@ -1920,6 +2718,174 @@ function fallbackCopy(url) {
   document.body.removeChild(el);
 }
 
+
+// ── AI Chat ──
+function aiLoadHistory() {
+  try {
+    var raw = localStorage.getItem(_AI_HISTORY_KEY);
+    var parsed = raw ? JSON.parse(raw) : [];
+    aiMessages = Array.isArray(parsed) ? parsed.filter(function(m) {
+      return m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string';
+    }).slice(-_AI_MAX_HISTORY) : [];
+  } catch (e) { aiMessages = []; }
+}
+function aiSaveHistory() {
+  try { localStorage.setItem(_AI_HISTORY_KEY, JSON.stringify(aiMessages.slice(-_AI_MAX_HISTORY))); }
+  catch (e) { /* storage may be full/private */ }
+}
+function aiClearHistory() {
+  aiMessages = [];
+  aiSaveHistory();
+  aiRender();
+  showToast('AI chat cleared');
+}
+function aiNowLabel() {
+  var d = new Date();
+  var h = d.getHours(), m = d.getMinutes();
+  return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+}
+function aiCompactHistory() {
+  return aiMessages.slice(-10).map(function(m) {
+    return { role: m.role, text: String(m.text || '').slice(0, 600) };
+  });
+}
+function aiRender() {
+  var box = document.getElementById('aiMessages');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!aiMessages.length) {
+    var empty = document.createElement('div');
+    empty.className = 'ai-empty';
+    empty.innerHTML = '<div class="ai-empty-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z"/><path d="M5 15.5h9.5a4 4 0 0 1 0 8H9l-4 2v-10z" transform="translate(0 -4)"/></svg></div><div class="ai-empty-title">Ask your AI assistant</div><div class="ai-empty-sub">Type a question, ask for ideas, translate text, or get help while using WalkieTalk.</div>';
+    var suggestions = document.createElement('div');
+    suggestions.className = 'ai-suggestions';
+    ['Summarize my idea', 'Translate to Khmer', 'Help me write a message'].forEach(function(text) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ai-suggestion';
+      b.textContent = text;
+      b.addEventListener('click', function() {
+        var input = document.getElementById('aiInput');
+        if (input) { input.value = text; aiOnInput.call(input); input.focus(); }
+      });
+      suggestions.appendChild(b);
+    });
+    empty.appendChild(suggestions);
+    box.appendChild(empty);
+    return;
+  }
+  aiMessages.forEach(function(m) {
+    var row = document.createElement('div');
+    row.className = 'ai-msg ' + (m.role === 'user' ? 'user' : 'assistant');
+    var av = document.createElement('div');
+    av.className = 'ai-avatar';
+    av.textContent = m.role === 'user' ? 'ME' : 'AI';
+    var wrap = document.createElement('div');
+    wrap.className = 'ai-bubble-wrap';
+    var bubble = document.createElement('div');
+    bubble.className = 'ai-bubble';
+    bubble.textContent = m.text;
+    var meta = document.createElement('div');
+    meta.className = 'ai-meta';
+    meta.textContent = m.time || '';
+    wrap.appendChild(bubble);
+    wrap.appendChild(meta);
+    row.appendChild(av);
+    row.appendChild(wrap);
+    box.appendChild(row);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+function aiSetBusy(on) {
+  _aiBusy = !!on;
+  var typing = document.getElementById('aiTyping');
+  var send = document.getElementById('aiSendBtn');
+  var input = document.getElementById('aiInput');
+  if (typing) typing.classList.toggle('on', _aiBusy);
+  if (send) send.disabled = _aiBusy || !input || !input.value.trim();
+}
+function aiOnInput() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 118) + 'px';
+  var send = document.getElementById('aiSendBtn');
+  if (send) send.disabled = _aiBusy || !this.value.trim();
+}
+function aiOnKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    aiSendMessage();
+  }
+}
+function aiAddMessage(role, text) {
+  aiMessages.push({ role: role, text: String(text || '').slice(0, 4000), time: aiNowLabel() });
+  aiMessages = aiMessages.slice(-_AI_MAX_HISTORY);
+  aiSaveHistory();
+  aiRender();
+}
+function aiSendMessage() {
+  var input = document.getElementById('aiInput');
+  if (!input || _aiBusy) return;
+  var text = input.value.trim();
+  if (!text) return;
+  if (text.length > 2000) {
+    showToast('Message too long');
+    return;
+  }
+  input.value = '';
+  aiOnInput.call(input);
+  aiAddMessage('user', text);
+  aiSetBusy(true);
+
+  var msgId = 'aiq_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  _aiPending[msgId] = setTimeout(function() {
+    delete _aiPending[msgId];
+    aiSetBusy(false);
+    aiAddMessage('assistant', 'AI request timed out. Check your server or AI endpoint.');
+  }, 45000);
+
+  var payload = {
+    msg_id: msgId,
+    text: text,
+    username: myName,
+    room: myRoom || 'AI-CHAT',
+    history: aiCompactHistory()
+  };
+
+  if (socket && socket.connected) {
+    socket.emit('ai_chat_message', payload);
+  } else {
+    aiSendViaHttp(payload);
+  }
+}
+function aiFinishPending(msgId) {
+  if (msgId && _aiPending[msgId]) {
+    clearTimeout(_aiPending[msgId]);
+    delete _aiPending[msgId];
+  }
+  aiSetBusy(false);
+}
+function aiSendViaHttp(payload) {
+  fetch(SERVER_URL + '/ai/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r) {
+    return r.json().catch(function(){ return {}; }).then(function(body) {
+      if (!r.ok) throw new Error(body.error || body.detail || ('HTTP ' + r.status));
+      return body;
+    });
+  })
+  .then(function(body) {
+    aiFinishPending(payload.msg_id);
+    aiAddMessage('assistant', body.text || body.reply || 'No response');
+  })
+  .catch(function(err) {
+    aiFinishPending(payload.msg_id);
+    aiAddMessage('assistant', 'AI chat is offline: ' + (err && err.message ? err.message : 'connection failed'));
+  });
+}
+
 // ── Socket events ──
 socket.on('connect', function () {
   document.getElementById('reconnectBar').classList.remove('on');
@@ -1951,8 +2917,8 @@ socket.on('disconnect', function () {
     isLiveMode = false; _talkMode = 'hold';
     var _hb = document.getElementById('modeHoldBtn');
     var _lb = document.getElementById('modeLiveBtn');
-    if (_hb) { _hb.classList.add('active'); _hb.setAttribute('aria-pressed','false'); }
-    if (_lb) { _lb.classList.remove('active'); _lb.setAttribute('aria-pressed','true'); }
+    if (_hb) { _hb.classList.add('active'); _hb.setAttribute('aria-pressed','true'); }
+    if (_lb) { _lb.classList.remove('active'); _lb.setAttribute('aria-pressed','false'); }
     pttCircle.classList.remove('live-mode');
   }
   pttCircle.classList.add('disabled');
@@ -2074,6 +3040,23 @@ socket.on('status_update', function (data) {
   }
 });
 
+socket.on('ai_chat_typing', function (data) {
+  if (!data || data.on !== false) aiSetBusy(true);
+  else aiSetBusy(false);
+});
+
+socket.on('ai_chat_response', function (data) {
+  data = data || {};
+  aiFinishPending(data.msg_id || '');
+  aiAddMessage('assistant', data.text || data.reply || 'No response');
+});
+
+socket.on('ai_chat_error', function (data) {
+  data = data || {};
+  aiFinishPending(data.msg_id || '');
+  aiAddMessage('assistant', data.error || data.msg || 'AI chat error');
+});
+
 // ── Realtime zone sync ──
 socket.on('zone_upserted', function(data) {
   var isOwn = data.device_id === _deviceId;
@@ -2117,7 +3100,7 @@ socket.on('zone_upserted', function(data) {
     }
     geoPersist();
   }
-  if (userLat && userLng) {
+  if (userLat !== null && userLng !== null) {
     _geoLastCheckLat = null; _geoLastCheckLng = null;
     geoCheckAll(userLat, userLng);
   }
@@ -2224,6 +3207,7 @@ function toggleLiveMode() {
 
 async function startLive() {
   if (isLive || !isLiveMode || !myRoom) return;
+  if (typeof MediaRecorder === 'undefined') { showToast('MediaRecorder not supported'); setTalkMode('hold'); return; }
   unlockAudio();
 
   try {
@@ -2252,6 +3236,7 @@ async function startLive() {
 
   mediaRec.ondataavailable = function(e) {
     if (!e.data || e.data.size < 50 || !isLive) return;
+    if (_livePendingReads >= _MAX_LIVE_PENDING_READS) return;
     var seq = _liveChunkSeq++;
     var streamId = _liveStreamId;
 
@@ -2263,18 +3248,24 @@ async function startLive() {
       : new Blob([_liveInitData, e.data], { type: mime });
 
     var reader = new FileReader();
+    _livePendingReads++;
     reader.onload = function() {
       if (!isLive || _liveStreamId !== streamId) return;
-      var result = reader.result;
+      var result = reader.result || '';
+      if (typeof result !== 'string') return;
       var comma  = result.indexOf(',');
       var b64    = comma !== -1 ? result.slice(comma + 1) : result;
-      socket.emit('voice_chunk', { audio: b64, mime: mime, stream_id: streamId, seq: seq });
+      if (socket && socket.connected) {
+        socket.emit('voice_chunk', { audio: b64, mime: mime, stream_id: streamId, seq: seq });
+      }
     };
+    reader.onerror = function() {};
+    reader.onloadend = function() { _livePendingReads = Math.max(0, _livePendingReads - 1); };
     reader.readAsDataURL(chunkToSend);
   };
 
   mediaRec.onerror = function() { stopLive(); };
-  mediaRec.start(300);
+  mediaRec.start(_LIVE_TIMESLICE_MS);
 
   pttCircle.style.willChange = 'transform';
   pttCircle.classList.add('live');
@@ -2308,6 +3299,7 @@ function stopLive() {
   var endedStreamId = _liveStreamId;
   _liveStreamId = null;
   _liveInitData = null;
+  _livePendingReads = 0;
 
   clearInterval(recTimerID); recTimerID = null;
   circTimer.textContent = '0:00';
@@ -2443,6 +3435,7 @@ function _handleLiveCircleTap() {
 async function startRecording() {
   if (isLiveMode) return;
   if (!myRoom || isRecording) return;
+  if (typeof MediaRecorder === 'undefined') { showToast('Recording not supported in this browser'); return; }
   unlockAudio();
 
   try {
