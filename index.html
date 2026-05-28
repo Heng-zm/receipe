@@ -110,7 +110,7 @@ body::after {
   transition:transform 0.3s var(--ease-expo), opacity 0.22s var(--ease-out);
   pointer-events:none;
 }
-.install-bar.on { transform:translateY(0) scale(1); opacity:1; pointer-events:all; }
+.install-bar.on { transform:translateY(0 scale(1) scale(1); opacity:1; pointer-events:all; }
 .install-bar-icon {
   width:36px; height:36px; border-radius:10px; flex-shrink:0;
   background:rgba(255,159,10,0.1); border:1px solid rgba(255,159,10,0.2);
@@ -1079,6 +1079,7 @@ body::after {
     <div class="sheet-sub">Share the same name with friends</div>
     <input class="sheet-input" id="channelInput" placeholder="CHANNEL-01" maxlength="30" autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
     <button class="sheet-btn primary" id="channelJoinBtn">Join</button>
+    <button class="sheet-btn primary" id="channelAiBtn" style="background: linear-gradient(180deg, #bf5af2 0%, #9e36e2 100%); color: #fff; margin-top: 4px; box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset;">Talk to AI Assistant</button>
     <button class="sheet-btn secondary" id="channelCancelBtn">Cancel</button>
   </div>
 </div>
@@ -1156,7 +1157,6 @@ var socket = io(SERVER_URL, {
 
 // ── App state ──
 var myName       = localStorage.getItem('wt_name') || '';
-// Stable per-device ID — generated once, stored in localStorage
 var _deviceId    = (function() {
   var id = localStorage.getItem('wt_device_id');
   if (!id) {
@@ -1175,14 +1175,14 @@ var userMarker   = null;
 var userLat      = null;
 var userLng      = null;
 var locationStr  = '';
-var _locPermission = 'unknown'; // 'unknown' | 'granted' | 'denied' | 'unavailable'
+var _locPermission = 'unknown';
 
 // ── Recording state ──
 var mediaRec     = null;
 var recChunks    = [];
-var recStream    = null;   // active MediaStream passed to MediaRecorder
-var _micStream   = null;   // persistent shared mic stream — kept alive across recordings
-var _micPermission = 'unknown'; // 'unknown'|'granted'|'denied'
+var recStream    = null;
+var _micStream   = null;
+var _micPermission = 'unknown';
 var recStartTime = 0;
 var recDuration  = 0;
 var recTimerID   = null;
@@ -1191,21 +1191,19 @@ var isCancelling = false;
 var touchStartY  = 0;
 
 // ── Live mode state ──
-var isLiveMode   = false;  // live voice enabled
-var isLive       = false;  // currently streaming live
-var _liveStreamId = null;  // unique ID for this live session
-var _liveChunkSeq = 0;     // chunk sequence number for receiver ordering
-var _liveInitData = null;  // WebM init segment (chunk 0) — prepended to all chunks so each is decodable
-// Receiver: per-sender chunk queues for smooth playback
-var _liveRxQueues = {};    // sid → { chunks:[], playing:bool, lastSeq:-1, timeoutId:null }
+var isLiveMode   = false;
+var isLive       = false;
+var _liveStreamId = null;
+var _liveChunkSeq = 0;
+var _liveInitData = null;
+var _liveRxQueues = {};
 
 // ── Audio viz (rAF-based) ──
 var analyser  = null;
 var vizRAF    = null;
 var vizData   = null;
-// Shared AudioContext — created once on first user gesture, reused for session
 var sharedCtx = null;
-var _mediaStreamSrc = null; // saved to allow explicit disconnect in stopVolMeter
+var _mediaStreamSrc = null;
 
 // ── DOM refs ──
 var pttCircle    = document.getElementById('pttCircle');
@@ -1240,14 +1238,14 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
   if (_namePart) _namePart.textContent = myName; else usernameText.textContent = '@' + myName;
   mapUserText.textContent  = '@' + myName;
   pttHint.textContent = 'Select a channel';
-  pttHint.classList.remove('hidden'); // show hint immediately — helps discoverability
+  pttHint.classList.remove('hidden');
 
   var _urlParams = new URLSearchParams(window.location.search);
   var urlRoom = _urlParams.get('room');
-  var urlMode = _urlParams.get('mode'); // 'live' or null
+  var urlMode = _urlParams.get('mode');
   if (urlRoom) {
     var _urlRoomHandler = function() {
-      socket.off('connect', _urlRoomHandler); // fire once only
+      socket.off('connect', _urlRoomHandler);
       joinChannel(urlRoom);
       if (urlMode === 'live') {
         _talkMode = 'live';
@@ -1266,16 +1264,16 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
   geoLoadData();
   getLocation();
   wireUI();
-  _checkMicPermission(); // pre-check without prompting — updates _micPermission
+  _checkMicPermission();
   setTimeout(_updateShareBtn, 0);
   _registerSW();
 })();
 
 // ── PWA: Service Worker + Install Prompt ─────────────────────────────────
-var _deferredInstallPrompt = null;  // holds the beforeinstallprompt event
+var _deferredInstallPrompt = null;
 
 function _registerSW() {
-  if (!('serviceWorker' in navigator)) return; // not supported
+  if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.register('sw.js', { scope: '/' })
     .then(function(reg) {
       console.log('[PWA] SW registered, scope:', reg.scope);
@@ -1306,7 +1304,7 @@ function _onNewSWReady(worker) {
 }
 
 window.addEventListener('beforeinstallprompt', function(e) {
-  e.preventDefault(); // suppress automatic browser mini-infobar
+  e.preventDefault();
   _deferredInstallPrompt = e;
   _maybeShowInstallBar();
 });
@@ -1319,9 +1317,9 @@ window.addEventListener('appinstalled', function() {
 });
 
 function _maybeShowInstallBar() {
-  if (!_deferredInstallPrompt) return;              // no prompt available
-  if (localStorage.getItem('wt_pwa_dismissed')) return;  // user dismissed
-  if (localStorage.getItem('wt_pwa_installed'))   return;  // already installed
+  if (!_deferredInstallPrompt) return;
+  if (localStorage.getItem('wt_pwa_dismissed')) return;
+  if (localStorage.getItem('wt_pwa_installed'))   return;
   setTimeout(function() {
     var bar = document.getElementById('installBar');
     if (bar) bar.classList.add('on');
@@ -1381,6 +1379,12 @@ function wireUI() {
   document.getElementById('channelInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') doJoin(); });
   document.getElementById('channelJoinBtn').addEventListener('click', doJoin);
 
+  // AI assistant button click handler
+  document.getElementById('channelAiBtn').addEventListener('click', function() {
+    closeChannelSheet();
+    joinChannel('AI-BOT');
+  });
+
   document.getElementById('nameOverlay').addEventListener('click', function (e) { if (e.target === this) this.classList.remove('open'); });
   document.getElementById('nameCancelBtn').addEventListener('click', function () { document.getElementById('nameOverlay').classList.remove('open'); });
   document.getElementById('nameInput').addEventListener('input', function () { this.value = this.value.toUpperCase(); });
@@ -1408,7 +1412,7 @@ function wireUI() {
   document.addEventListener('keydown', function (e) { if (e.code === 'Space' && !e.repeat) startRecording(); });
   document.addEventListener('keyup',   function (e) { if (e.code === 'Space') stopRecording(false); });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) channelPill.classList.remove('has-unread'); });
-  window.addEventListener('pagehide', _releaseMicStream);  // release mic on tab close / navigate away
+  window.addEventListener('pagehide', _releaseMicStream);
   var _audioUnlockHandler = function() {
     unlockAudio();
     document.removeEventListener('touchstart', _audioUnlockHandler, { capture: true });
@@ -1558,6 +1562,7 @@ function _onLocSuccess(pos) {
   geoCheckAll(userLat, userLng);
 }
 
+// Unified geolocation watchdog error fallback
 function _onLocError(err) {
   if (err && err.code === 1) {
     _locPermission = 'denied';
@@ -1756,10 +1761,7 @@ function saveName() {
   showToast('Name updated');
 }
 
-// ════════════════════════════════════
-// GEOFENCE SYSTEM
-// ════════════════════════════════════
-
+// ── Geofence System ──
 var _DEG2RAD     = Math.PI / 180;
 var GEO_MIN_MOVE_M = 10;
 var GEO_COLORS   = ['#007aff','#30d158','#ff453a','#ffd60a','#bf5af2','#ff9f0a','#64d2ff','#ff375f'];
@@ -1983,7 +1985,7 @@ function geoInit() {
 
 function geoPersist() {
   var data = geoZones.map(function(z) {
-    return { id:z.id, deviceId:z.deviceId, createdBy:z.createdBy||'', name:z.name, channel:z.channel, lat:z.lat, lng:z.lng, radius:z.radius, color:z.color, autoJoin:z.autoJoin, expiresAt:z.expiresAt||null };
+    return { id:z.id, deviceId:z.deviceId, createdBy:z.createdBy||'', name:z.name, channel:z.channel, lat:z.lng, lng:z.lng, radius:z.radius, color:z.color, autoJoin:z.autoJoin, expiresAt:z.expiresAt||null };
   });
   localStorage.setItem('wt_geo_zones', JSON.stringify(data));
 }
@@ -2454,8 +2456,8 @@ socket.on('disconnect', function () {
     isLiveMode = false; _talkMode = 'hold';
     var _hb = document.getElementById('modeHoldBtn');
     var _lb = document.getElementById('modeLiveBtn');
-    if (_hb) { _hb.classList.add('active'); _hb.setAttribute('aria-pressed','true'); }
-    if (_lb) { _lb.classList.remove('active'); _lb.setAttribute('aria-pressed','false'); }
+    if (_hb) { _hb.classList.add('active'); _hb.setAttribute('aria-pressed','false'); }
+    if (_lb) { _lb.classList.remove('active'); _lb.setAttribute('aria-pressed','true'); }
     pttCircle.classList.remove('live-mode');
   }
   pttCircle.classList.add('disabled');
@@ -2488,8 +2490,14 @@ socket.on('room_state', function (data) {
     setStatus(numPeers() > 0 ? names+extra+' online' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
     if (!isLive) startLive().catch(function() { setTalkMode('hold'); });
   } else {
-    setStatus(numPeers() > 0 ? names+extra+' online' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
-    pttHint.textContent = 'Hold to transmit';
+    if (myRoom === 'AI-BOT') {
+      setStatus('AI Assistant is online', 'ok');
+      chDot.className = 'ch-dot online';
+      pttHint.textContent = 'Hold to transmit';
+    } else {
+      setStatus(numPeers() > 0 ? names+extra+' online' : 'Waiting for others...', numPeers() > 0 ? 'ok' : 'warn');
+      pttHint.textContent = 'Hold to transmit';
+    }
   }
 });
 socket.on('peer_joined', function (data) {
@@ -2563,6 +2571,13 @@ socket.on('error', function (data) {
   } else if (code === 'RATE_LIMITED') {
     showToast('Slow down — too many messages');
   } else { showToast(data.msg || 'Server error'); }
+});
+
+// Real-time status tracker
+socket.on('status_update', function (data) {
+  if (data && data.msg) {
+    setStatus(data.msg, data.cls || '');
+  }
 });
 
 // ── Realtime zone sync ──
