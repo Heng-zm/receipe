@@ -4523,16 +4523,94 @@ function screenSetShare(state) {
   screenUpdateUI();
 }
 
+function screenNormalizeSdp(sdp) {
+  if (!sdp) return '';
+  sdp = String(sdp);
+
+  // Some proxies/templates double-escape SDP line breaks. Browsers need real lines.
+  if ((sdp.indexOf('\\r\\n') !== -1 || sdp.indexOf('\\n') !== -1) && sdp.indexOf('\n') === -1) {
+    sdp = sdp.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\r/g, '\n');
+  }
+
+  // Remove hidden characters that make Chrome report a normal-looking line as invalid.
+  sdp = sdp.replace(/^\uFEFF/, '').replace(/\u0000/g, '');
+
+  // If the server accidentally HTML-escaped the SDP, decode it once.
+  if (sdp.indexOf('&') !== -1 && /&(amp|lt|gt|quot|#39);/i.test(sdp)) {
+    var ta = document.createElement('textarea');
+    ta.innerHTML = sdp;
+    sdp = ta.value;
+  }
+
+  // Normalize to CRLF because SDP is line-oriented.
+  var lines = sdp.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  var out = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].replace(/[ \t]+$/g, '');
+    if (line) out.push(line);
+  }
+  return out.join('\r\n') + '\r\n';
+}
+
+function screenStripBadSsrcMsidLines(sdp) {
+  sdp = screenNormalizeSdp(sdp);
+  var lines = sdp.replace(/\r\n/g, '\n').split('\n');
+  var out = [];
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+
+    // Chrome can reject some generated/relayed legacy Plan-B SSRC msid lines:
+    // a=ssrc:1234 msid:stream-id track-id
+    // Modern Unified Plan SDP still works without these optional legacy lines.
+    if (/^a=ssrc:\d+\s+msid:[^\s]+\s+[^\s]+$/i.test(line)) continue;
+
+    out.push(line);
+  }
+
+  return out.filter(Boolean).join('\r\n') + '\r\n';
+}
+
+async function screenSetRemoteDescriptionSafe(pc, desc, side) {
+  var clean = {
+    type: (desc && desc.type) || 'offer',
+    sdp: screenNormalizeSdp(desc && desc.sdp)
+  };
+
+  try {
+    await pc.setRemoteDescription(clean);
+    return;
+  } catch (err) {
+    var msg = err && (err.message || String(err));
+    var canRetry = msg && /Invalid SDP line/i.test(msg) && /a=ssrc:\d+\s+msid:/i.test(msg);
+
+    if (!canRetry) throw err;
+
+    console.warn('screen SDP parse failed; retrying without legacy SSRC msid lines on ' + (side || 'peer') + ':', err);
+    clean.sdp = screenStripBadSsrcMsidLines(clean.sdp);
+    await pc.setRemoteDescription(clean);
+  }
+}
+
+function screenLocalDescriptionPayload(pc) {
+  var d = pc && pc.localDescription;
+  return {
+    type: d ? d.type : '',
+    sdp: d ? screenNormalizeSdp(d.sdp) : ''
+  };
+}
+
 async function screenHandleViewerReady(data) {
   if (!_screenSharing || !_screenStream || !data || !data.viewer_sid) return;
   var viewerSid = data.viewer_sid;
   var pc = screenGetViewerPc(viewerSid);
   var offer = await pc.createOffer({ offerToReceiveAudio: false, offerToReceiveVideo: false });
   await pc.setLocalDescription(offer);
+  var localOffer = screenLocalDescriptionPayload(pc);
   socket.emit('screen_offer', {
     to: viewerSid,
-    type: pc.localDescription.type,
-    sdp: pc.localDescription.sdp,
+    type: localOffer.type,
+    sdp: localOffer.sdp,
     stream_id: _screenStreamId
   });
   screenSetStatus('Connecting viewer @' + (data.viewer_name || viewerSid.slice(0, 6)), 'warn');
@@ -4554,14 +4632,15 @@ async function screenHandleOffer(data) {
       screenUpdateUI();
     };
   }
-  await _screenPresenterPc.setRemoteDescription({ type: data.type || 'offer', sdp: data.sdp });
+  await screenSetRemoteDescriptionSafe(_screenPresenterPc, { type: data.type || 'offer', sdp: data.sdp }, 'viewer-offer');
   screenFlushIce(data.from, _screenPresenterPc);
   var answer = await _screenPresenterPc.createAnswer();
   await _screenPresenterPc.setLocalDescription(answer);
+  var localAnswer = screenLocalDescriptionPayload(_screenPresenterPc);
   socket.emit('screen_answer', {
     to: data.from,
-    type: _screenPresenterPc.localDescription.type,
-    sdp: _screenPresenterPc.localDescription.sdp,
+    type: localAnswer.type,
+    sdp: localAnswer.sdp,
     stream_id: data.stream_id || ((_screenShare || {}).stream_id || '')
   });
   screenUpdateUI();
@@ -4571,7 +4650,7 @@ async function screenHandleAnswer(data) {
   if (!data || !data.from || !data.sdp) return;
   var pc = _screenViewerPcs[data.from];
   if (!pc) return;
-  await pc.setRemoteDescription({ type: data.type || 'answer', sdp: data.sdp });
+  await screenSetRemoteDescriptionSafe(pc, { type: data.type || 'answer', sdp: data.sdp }, 'presenter-answer');
   screenFlushIce(data.from, pc);
 }
 
