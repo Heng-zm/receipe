@@ -1589,7 +1589,7 @@ input:focus-visible,
       <button class="screen-action secondary" id="screenWatchBtn" disabled>Watch Active</button>
       <button class="screen-action ghost" id="screenLeaveBtn" disabled>Leave View</button>
     </div>
-    <div class="screen-help">Screen video goes peer-to-peer with WebRTC. The server only relays small signaling messages, so voice and chat stay fast.</div>
+    <div class="screen-help" id="screenHelp">Screen video goes peer-to-peer with WebRTC. The server only relays small signaling messages, so voice and chat stay fast.</div>
   </section>
 </div>
 
@@ -4257,6 +4257,7 @@ var _screenShare = null;
 var _screenSharing = false;
 var _screenStream = null;
 var _screenStreamId = '';
+var _screenCaptureKind = 'screen';
 var _screenViewerPcs = {};
 var _screenPresenterPc = null;
 var _screenWatchingSid = '';
@@ -4299,8 +4300,66 @@ function screenWireUI() {
   setTimeout(screenRequestState, 300);
 }
 
+function screenIsSecureCaptureContext() {
+  // Screen/camera capture APIs only work on HTTPS or localhost.
+  return window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+}
+
+function screenHasRtcSupport() {
+  return !!window.RTCPeerConnection;
+}
+
+function screenCanCaptureDisplay() {
+  return !!(
+    screenHasRtcSupport() &&
+    screenIsSecureCaptureContext() &&
+    navigator.mediaDevices &&
+    typeof navigator.mediaDevices.getDisplayMedia === 'function'
+  );
+}
+
+function screenCanCaptureCamera() {
+  return !!(
+    screenHasRtcSupport() &&
+    screenIsSecureCaptureContext() &&
+    navigator.mediaDevices &&
+    typeof navigator.mediaDevices.getUserMedia === 'function'
+  );
+}
+
+function screenIsProbablyMobile() {
+  if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') {
+    return navigator.userAgentData.mobile;
+  }
+  return /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent || '');
+}
+
+function screenGetCaptureMode() {
+  if (screenCanCaptureDisplay()) return 'screen';
+  if (screenCanCaptureCamera()) return 'camera';
+  return 'none';
+}
+
+function screenCanStartCapture() {
+  return screenGetCaptureMode() !== 'none';
+}
+
+function screenCaptureWord(kind) {
+  return kind === 'camera' ? 'camera' : 'screen';
+}
+
+function screenCaptureUnsupportedMessage(forStart) {
+  if (!screenHasRtcSupport()) return 'WebRTC is not supported on this browser';
+  if (!screenIsSecureCaptureContext()) return 'Open this app with HTTPS to use screen/camera sharing';
+  if (forStart && screenCanCaptureCamera()) return 'Screen capture is not available here. Use Share Camera on this mobile browser.';
+  if (forStart) return 'This browser cannot capture screen or camera';
+  return 'WebRTC viewing is not supported on this browser';
+}
+
 function screenHasSupport() {
-  return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && window.RTCPeerConnection);
+  // Backward-compatible name used by older code. Watching only needs WebRTC;
+  // starting a share is checked separately by screenCanStartCapture().
+  return screenHasRtcSupport();
 }
 
 function showScreenView() {
@@ -4360,24 +4419,43 @@ function screenUpdateUI() {
   var remoteVideo = document.getElementById('screenRemoteVideo');
   var localVideo = document.getElementById('screenLocalVideo');
   var localPreview = document.getElementById('screenLocalPreview');
+  var help = document.getElementById('screenHelp');
 
   var connected = !!(socket && socket.connected);
   var hasRoom = !!myRoom;
-  var support = screenHasSupport();
+  var canWatch = screenHasRtcSupport();
+  var captureMode = screenGetCaptureMode();
+  var canStart = captureMode !== 'none';
+  var mobile = screenIsProbablyMobile();
   var active = !!_screenShare;
   var activeMine = active && _screenShare.sender_sid === socket.id;
+  var activeKind = active ? screenCaptureWord(_screenShare.kind || 'screen') : 'screen';
   var watching = !!_screenPresenterPc;
 
-  if (subtitle) subtitle.textContent = hasRoom ? ('Channel #' + myRoom) : 'Join a channel before sharing';
-  if (startBtn) startBtn.disabled = !connected || !hasRoom || !support || _screenSharing || (active && !activeMine);
+  if (subtitle) {
+    if (!hasRoom) subtitle.textContent = 'Join a channel before sharing';
+    else if (captureMode === 'camera' && mobile) subtitle.textContent = 'Channel #' + myRoom + ' · mobile camera fallback';
+    else subtitle.textContent = 'Channel #' + myRoom;
+  }
+
+  if (startBtn) {
+    startBtn.disabled = !connected || !hasRoom || !canStart || _screenSharing || (active && !activeMine);
+    startBtn.textContent = captureMode === 'camera' ? 'Share Camera' : 'Start Share';
+    startBtn.title = captureMode === 'camera'
+      ? 'Mobile browsers usually cannot capture the screen; this shares your camera instead.'
+      : 'Share your screen';
+  }
   if (stopBtn) stopBtn.disabled = !_screenSharing;
-  if (watchBtn) watchBtn.disabled = !connected || !hasRoom || !active || activeMine || watching;
+  if (watchBtn) {
+    watchBtn.disabled = !connected || !hasRoom || !canWatch || !active || activeMine || watching;
+    watchBtn.title = canWatch ? 'Watch the active share' : screenCaptureUnsupportedMessage(false);
+  }
   if (leaveBtn) leaveBtn.disabled = !watching;
 
   if (badge) badge.classList.toggle('live', _screenSharing || active);
   if (badgeText) {
-    if (_screenSharing) badgeText.textContent = 'You are sharing';
-    else if (active) badgeText.textContent = '@' + (_screenShare.sender_name || 'someone') + ' is sharing';
+    if (_screenSharing) badgeText.textContent = 'You are sharing ' + screenCaptureWord(_screenCaptureKind);
+    else if (active) badgeText.textContent = '@' + (_screenShare.sender_name || 'someone') + ' is sharing ' + activeKind;
     else badgeText.textContent = hasRoom ? 'No active share' : 'No channel';
   }
 
@@ -4389,49 +4467,118 @@ function screenUpdateUI() {
   var hasVideo = !!_screenRemoteStream || !!_screenStream;
   if (placeholder) placeholder.classList.toggle('hidden', hasVideo);
   if (phTitle && phSub) {
-    if (!support) {
-      phTitle.textContent = 'Screen sharing not supported';
-      phSub.textContent = 'Use desktop Chrome, Edge, or another browser with getDisplayMedia on HTTPS.';
+    if (!canWatch) {
+      phTitle.textContent = 'WebRTC not supported';
+      phSub.textContent = 'Use a modern browser with WebRTC support to watch screen sharing.';
     } else if (!hasRoom) {
       phTitle.textContent = 'Join a channel first';
       phSub.textContent = 'Screen sharing follows your current WalkieTalk channel.';
     } else if (_screenSharing) {
-      phTitle.textContent = 'You are sharing';
-      phSub.textContent = 'Your screen preview appears here while viewers connect.';
+      var localKind = screenCaptureWord(_screenCaptureKind);
+      phTitle.textContent = 'You are sharing ' + localKind;
+      phSub.textContent = 'Your ' + localKind + ' preview appears here while viewers connect.';
     } else if (active) {
-      phTitle.textContent = 'Active screen available';
+      phTitle.textContent = 'Active ' + activeKind + ' available';
       phSub.textContent = 'Tap Watch Active to connect to @' + (_screenShare.sender_name || 'the presenter') + '.';
+    } else if (!canStart) {
+      phTitle.textContent = 'Capture not available';
+      phSub.textContent = screenCaptureUnsupportedMessage(true) + '. You can still watch another user when they share.';
+    } else if (captureMode === 'camera' && mobile) {
+      phTitle.textContent = 'Mobile screen capture is limited';
+      phSub.textContent = 'Your browser cannot capture the phone screen, so Start uses camera sharing instead. You can still watch desktop screen shares.';
     } else {
       phTitle.textContent = 'No screen connected';
       phSub.textContent = 'Start sharing your screen, or watch another user when they share in this channel.';
     }
   }
 
-  if (!support) screenSetStatus('Browser does not support screen capture', 'err');
+  if (help) {
+    if (captureMode === 'camera' && mobile) {
+      help.textContent = 'Mobile browser fallback: true phone screen capture needs a native app. This web version shares your camera and can watch other users\' screen shares.';
+    } else {
+      help.textContent = 'Screen video goes peer-to-peer with WebRTC. The server only relays small signaling messages, so voice and chat stay fast.';
+    }
+  }
+
+  if (!canWatch) screenSetStatus(screenCaptureUnsupportedMessage(false), 'err');
   else if (!connected) screenSetStatus('Socket disconnected', 'err');
   else if (!hasRoom) screenSetStatus('Join a channel first', 'warn');
-  else if (_screenSharing) screenSetStatus('Sharing to #' + myRoom, 'ok');
-  else if (watching && _screenRemoteStream) screenSetStatus('Watching live screen', 'ok');
-  else if (active && !activeMine) screenSetStatus('Active share available', 'warn');
+  else if (_screenSharing) screenSetStatus('Sharing ' + screenCaptureWord(_screenCaptureKind) + ' to #' + myRoom, 'ok');
+  else if (watching && _screenRemoteStream) screenSetStatus('Watching live ' + activeKind, 'ok');
+  else if (active && !activeMine) screenSetStatus('Active ' + activeKind + ' available', 'warn');
+  else if (captureMode === 'camera' && mobile) screenSetStatus('Mobile fallback: camera share available', 'warn');
   else if (!active) screenSetStatus('Ready', '');
 }
 
 async function screenStartShare() {
   if (!myRoom) { showToast('Join a channel first'); screenUpdateUI(); return; }
   if (!socket || !socket.connected) { showToast('Server disconnected'); screenUpdateUI(); return; }
-  if (!screenHasSupport()) { showToast('Screen sharing not supported on this browser'); screenUpdateUI(); return; }
+
+  var captureMode = screenGetCaptureMode();
+  if (captureMode === 'none') {
+    var noCaptureMsg = screenCaptureUnsupportedMessage(true);
+    showToast(noCaptureMsg);
+    screenSetStatus(noCaptureMsg, 'err');
+    screenUpdateUI();
+    return;
+  }
   if (_screenSharing) return;
 
   screenLeaveView();
   var stream;
+  _screenCaptureKind = captureMode === 'camera' ? 'camera' : 'screen';
+
   try {
-    stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { cursor: 'always', frameRate: { ideal: 15, max: 30 } },
-      audio: true
-    });
+    if (_screenCaptureKind === 'screen') {
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            cursor: 'always',
+            frameRate: { ideal: 15, max: 30 },
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 }
+          },
+          audio: true
+        });
+      } catch (err) {
+        if (err && (err.name === 'NotAllowedError' || err.name === 'AbortError')) throw err;
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            frameRate: { ideal: 15, max: 30 },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+      }
+    } else {
+      // Mobile browser fallback. Normal iOS/Android browsers usually cannot expose
+      // the phone screen to getDisplayMedia(), but they can publish camera video.
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            frameRate: { ideal: 15, max: 30 },
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 }
+          },
+          audio: false
+        });
+      } catch (err) {
+        if (err && (err.name === 'NotAllowedError' || err.name === 'AbortError')) throw err;
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            frameRate: { ideal: 15, max: 30 },
+            width: { ideal: 960 },
+            height: { ideal: 540 }
+          },
+          audio: false
+        });
+      }
+    }
   } catch (err) {
-    if (err && (err.name === 'NotAllowedError' || err.name === 'AbortError')) throw err;
-    stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    _screenCaptureKind = 'screen';
+    throw err;
   }
 
   _screenStream = stream;
@@ -4447,12 +4594,12 @@ async function screenStartShare() {
 
   socket.emit('screen_share_start', {
     stream_id: _screenStreamId,
-    kind: 'screen',
-    title: 'WalkieTalk screen',
+    kind: _screenCaptureKind,
+    title: _screenCaptureKind === 'camera' ? 'WalkieTalk camera' : 'WalkieTalk screen',
     has_audio: stream.getAudioTracks().length > 0
   });
 
-  showToast('Screen sharing started');
+  showToast(_screenCaptureKind === 'camera' ? 'Camera sharing started' : 'Screen sharing started');
   screenUpdateUI();
 }
 
@@ -4467,6 +4614,7 @@ function screenStopShare(reason, notifyServer) {
   }
   _screenStream = null;
   _screenSharing = false;
+  _screenCaptureKind = 'screen';
 
   if (notifyServer && socket && socket.connected && myRoom) {
     socket.emit('screen_share_stop', { stream_id: _screenStreamId, reason: reason });
@@ -4525,6 +4673,25 @@ function screenGetViewerPc(viewerSid) {
   return pc;
 }
 
+function screenAddRemoteTracks(event) {
+  var stream = event && event.streams && event.streams[0] ? event.streams[0] : null;
+  if (!_screenRemoteStream) _screenRemoteStream = new MediaStream();
+
+  if (stream && stream.getTracks) {
+    stream.getTracks().forEach(function(track) {
+      if (!_screenRemoteStream.getTracks().some(function(t) { return t.id === track.id; })) {
+        _screenRemoteStream.addTrack(track);
+      }
+    });
+  } else if (event && event.track) {
+    if (!_screenRemoteStream.getTracks().some(function(t) { return t.id === event.track.id; })) {
+      _screenRemoteStream.addTrack(event.track);
+    }
+  }
+
+  screenUpdateUI();
+}
+
 async function screenWatchActive() {
   if (!_screenShare) { showToast('No active screen share'); screenRequestState(); return; }
   if (_screenShare.sender_sid === socket.id) { showToast('You are the presenter'); return; }
@@ -4535,14 +4702,7 @@ async function screenWatchActive() {
   _screenPresenterPc = screenCreatePc(_screenWatchingSid, 'viewer');
   _screenRemoteStream = new MediaStream();
 
-  _screenPresenterPc.ontrack = function(event) {
-    event.streams[0].getTracks().forEach(function(track) {
-      if (!_screenRemoteStream.getTracks().some(function(t) { return t.id === track.id; })) {
-        _screenRemoteStream.addTrack(track);
-      }
-    });
-    screenUpdateUI();
-  };
+  _screenPresenterPc.ontrack = screenAddRemoteTracks;
 
   socket.emit('screen_viewer_ready', { stream_id: _screenShare.stream_id });
   screenSetStatus('Connecting to @' + (_screenShare.sender_name || 'presenter') + '...', 'warn');
@@ -4723,9 +4883,12 @@ function screenHandleIce(data) {
 }
 
 function screenHandleFatal(err) {
-  var msg = err && err.name === 'NotAllowedError' ? 'Screen permission denied'
-          : err && err.name === 'AbortError' ? 'Screen sharing cancelled'
-          : (err && err.message ? err.message : 'Screen share failed');
+  var rawMsg = err && err.message ? err.message : '';
+  var msg = err && err.name === 'NotAllowedError' ? 'Permission denied'
+          : err && err.name === 'AbortError' ? 'Sharing cancelled'
+          : /getDisplayMedia|not supported|undefined/i.test(rawMsg) && screenCanCaptureCamera()
+            ? 'Screen capture is not available on this mobile browser. Use Share Camera instead.'
+          : (rawMsg || 'Screen share failed');
   console.warn('screen share error:', err);
   showToast(msg);
   screenSetStatus(msg, err && (err.name === 'NotAllowedError' || err.name === 'AbortError') ? 'warn' : 'err');
