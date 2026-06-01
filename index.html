@@ -1811,7 +1811,7 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
 var _deferredInstallPrompt = null;
 
 function _registerSW() {
-  if (!('serviceWorker' in navigator)) return;
+  if (!('serviceWorker' in navigator) || !navigator.serviceWorker || !navigator.serviceWorker.register) return;
   navigator.serviceWorker.register('sw.js', { scope: '/' })
     .then(function(reg) {
       console.log('[PWA] SW registered, scope:', reg.scope);
@@ -1903,6 +1903,17 @@ function _listen(idOrEl, eventName, handler, opts) {
   node.addEventListener(eventName, handler, opts);
   return node;
 }
+function _isEditableTarget(target) {
+  if (!target) return false;
+  var tag = (target.tagName || '').toLowerCase();
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
+}
+function _hasOpenSheet() {
+  return !!document.querySelector('.overlay.open');
+}
+function _shouldIgnorePttHotkey(e) {
+  return !e || e.altKey || e.ctrlKey || e.metaKey || _isEditableTarget(e.target) || _hasOpenSheet();
+}
 function wireUI() {
   _listen('btnGrid', 'click', openChannelSheet);
   _listen('modeHoldBtn', 'click', function(){ setTalkMode('hold'); });
@@ -1961,8 +1972,16 @@ function wireUI() {
     if (geoNewZone) { geoNewZone.radius = parseInt(this.value); geoUpdatePreview(); }
   });
 
-  document.addEventListener('keydown', function (e) { if (e.code === 'Space' && !e.repeat) startRecording(); });
-  document.addEventListener('keyup',   function (e) { if (e.code === 'Space') stopRecording(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.code !== 'Space' || e.repeat || _shouldIgnorePttHotkey(e)) return;
+    e.preventDefault();
+    startRecording();
+  });
+  document.addEventListener('keyup', function (e) {
+    if (e.code !== 'Space' || _shouldIgnorePttHotkey(e)) return;
+    e.preventDefault();
+    stopRecording(false);
+  });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) channelPill.classList.remove('has-unread'); });
   window.addEventListener('pagehide', _releaseMicStream);
   var _audioUnlockHandler = function() {
@@ -1976,6 +1995,7 @@ function wireUI() {
 
 // ── PTT wiring ──
 function wirePTT(el, isMapBtn) {
+  if (!el) return;
   el.addEventListener('mousedown',  function (e) { e.preventDefault(); unlockAudio(); if (!_handleLiveCircleTap()) startRecording(); });
   el.addEventListener('mouseup',    function () { if (!isLiveMode) stopRecording(false); });
   el.addEventListener('mouseleave', function () { if (!isLiveMode && isRecording) stopRecording(false); });
@@ -2019,19 +2039,22 @@ function wirePTT(el, isMapBtn) {
 }
 
 // ── Views ──
-var _mainView = document.getElementById('mainView');
-var _mapView  = document.getElementById('mapView');
-var _aiView   = document.getElementById('aiView');
+var _mainView   = document.getElementById('mainView');
+var _mapView    = document.getElementById('mapView');
+var _aiView     = document.getElementById('aiView');
+var _screenView = document.getElementById('screenView');
 function showMain() {
   _mainView.classList.remove('hidden');
   _mapView.classList.add('hidden');
   if (_aiView) _aiView.classList.add('hidden');
+  if (_screenView) _screenView.classList.add('hidden');
   setNavActive('navTalk');
 }
 function showMapView() {
   _mainView.classList.add('hidden');
   _mapView.classList.remove('hidden');
   if (_aiView) _aiView.classList.add('hidden');
+  if (_screenView) _screenView.classList.add('hidden');
   setNavActive('navMap');
   setTimeout(function() {
     initMap();
@@ -2042,6 +2065,7 @@ function showAiView() {
   _mainView.classList.add('hidden');
   _mapView.classList.add('hidden');
   if (_aiView) _aiView.classList.remove('hidden');
+  if (_screenView) _screenView.classList.add('hidden');
   setNavActive('navAI');
   aiRender();
   setTimeout(function() { var input = document.getElementById('aiInput'); if (input) input.focus(); }, 180);
@@ -2052,11 +2076,13 @@ function setNavActive(id) {
     navTalk: document.getElementById('navTalk'),
     navMap: document.getElementById('navMap'),
     navAI: document.getElementById('navAI'),
+    navScreen: document.getElementById('navScreen'),
     navChannel: document.getElementById('navChannel')
   };
   if (_navBtns.navTalk) _navBtns.navTalk.classList.toggle('active', id === 'navTalk');
   if (_navBtns.navMap) _navBtns.navMap.classList.toggle('active', id === 'navMap');
   if (_navBtns.navAI) _navBtns.navAI.classList.toggle('active', id === 'navAI');
+  if (_navBtns.navScreen) _navBtns.navScreen.classList.toggle('active', id === 'navScreen');
   if (_navBtns.navChannel) _navBtns.navChannel.classList.toggle('active', id === 'navChannel');
 }
 
@@ -3206,7 +3232,7 @@ socket.on('disconnect', function () {
   _qualityScore = -1;
   if (qualityBtn) {
     qualityBtn.className = 'quality-btn q-none';
-    qualityTip.textContent = '—';
+    if (qualityTip) qualityTip.textContent = '—';
     if (qb1) qb1.className = qb2.className = qb3.className = 'qbar';
     _hideQualityDetail();
   }
@@ -4176,6 +4202,7 @@ socket.on('quality_ping', function(data) {
 });
 
 socket.on('quality_update', function(data) {
+  if (!data || !qualityBtn || !qualityTip || !qb1 || !qb2 || !qb3) return;
   var score   = data.score      || 0;
   var latency = data.latency_ms || 0;
   var jitter  = data.jitter_ms  || 0;
@@ -4191,24 +4218,27 @@ socket.on('quality_update', function(data) {
   qb2.className = 'qbar' + (score > 35 ? ' lit' : '');
   qb3.className = 'qbar' + (score > 70 ? ' lit' : '');
 
-  qdScore.textContent   = score + ' / 100';
-  qdLatency.textContent = latency + ' ms';
-  qdJitter.textContent  = jitter  + ' ms';
-  qdDrop.textContent    = drop    + '%';
+  if (qdScore) qdScore.textContent = score + ' / 100';
+  if (qdLatency) qdLatency.textContent = latency + ' ms';
+  if (qdJitter) qdJitter.textContent = jitter + ' ms';
+  if (qdDrop) qdDrop.textContent = drop + '%';
 
-  qdScore.style.color = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--amber)' : 'var(--red)';
+  if (qdScore) qdScore.style.color = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--amber)' : 'var(--red)';
 });
 
-qualityBtn.addEventListener('click', function(e) {
-  e.stopPropagation();
-  if (_qualityScore < 0) return;
-  _qualityDetail ? _hideQualityDetail() : _showQualityDetail();
-});
+if (qualityBtn) {
+  qualityBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (_qualityScore < 0) return;
+    _qualityDetail ? _hideQualityDetail() : _showQualityDetail();
+  });
+}
 
 document.addEventListener('click', function() { _hideQualityDetail(); });
 document.addEventListener('touchstart', function() { _hideQualityDetail(); }, { passive: true });
 
 function _showQualityDetail() {
+  if (!qualityDetail) return;
   _qualityDetail = true;
   qualityDetail.classList.add('on');
   clearTimeout(_qualityPopTimer);
@@ -4216,13 +4246,13 @@ function _showQualityDetail() {
 }
 function _hideQualityDetail() {
   _qualityDetail = false;
-  qualityDetail.classList.remove('on');
+  if (qualityDetail) qualityDetail.classList.remove('on');
   clearTimeout(_qualityPopTimer);
 }
 // ══════════════════════════════════════════════════════════
 // SCREEN SHARING — WebRTC peer-to-peer video + Socket.IO signaling
 // ══════════════════════════════════════════════════════════
-var _screenView = document.getElementById('screenView');
+// _screenView is declared with the other view refs above.
 var _screenShare = null;
 var _screenSharing = false;
 var _screenStream = null;
@@ -4233,6 +4263,7 @@ var _screenWatchingSid = '';
 var _screenPendingIce = {};
 var _screenRemoteStream = null;
 var _screenUiReady = false;
+var _screenStateRequestTimer = null;
 var _screenRtcConfig = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -4278,8 +4309,6 @@ function showScreenView() {
   if (_aiView) _aiView.classList.add('hidden');
   if (_screenView) _screenView.classList.remove('hidden');
   setNavActive('navScreen');
-  var navScreen = document.getElementById('navScreen');
-  if (navScreen) navScreen.classList.add('active');
   screenRequestState();
   screenUpdateUI();
 }
@@ -4291,9 +4320,12 @@ function screenHideViewOnly() {
 }
 
 function screenRequestState() {
-  if (socket && socket.connected && myRoom) {
-    socket.emit('screen_share_state', {});
-  }
+  if (!socket || !socket.connected || !myRoom) return;
+  if (_screenStateRequestTimer) return;
+  _screenStateRequestTimer = setTimeout(function() {
+    _screenStateRequestTimer = null;
+    if (socket && socket.connected && myRoom) socket.emit('screen_share_state', {});
+  }, 80);
 }
 
 function screenSetStatus(msg, cls) {
@@ -4446,6 +4478,7 @@ function screenStopShare(reason, notifyServer) {
 
 function screenLeaveView() {
   screenClosePc(_screenPresenterPc);
+  if (_screenWatchingSid) delete _screenPendingIce[_screenWatchingSid];
   _screenPresenterPc = null;
   _screenWatchingSid = '';
   _screenRemoteStream = null;
@@ -4482,7 +4515,8 @@ function screenCreatePc(targetSid, role) {
 }
 
 function screenGetViewerPc(viewerSid) {
-  if (_screenViewerPcs[viewerSid]) return _screenViewerPcs[viewerSid];
+  if (_screenViewerPcs[viewerSid] && _screenViewerPcs[viewerSid].signalingState !== 'closed') return _screenViewerPcs[viewerSid];
+  if (_screenViewerPcs[viewerSid]) screenClosePc(_screenViewerPcs[viewerSid]);
   var pc = screenCreatePc(viewerSid, 'presenter');
   if (_screenStream) {
     _screenStream.getTracks().forEach(function(track) { pc.addTrack(track, _screenStream); });
@@ -4574,7 +4608,7 @@ function screenStripBadSsrcMsidLines(sdp) {
 async function screenSetRemoteDescriptionSafe(pc, desc, side) {
   var clean = {
     type: (desc && desc.type) || 'offer',
-    sdp: screenNormalizeSdp(desc && desc.sdp)
+    sdp: screenStripBadSsrcMsidLines(desc && desc.sdp)
   };
 
   try {
@@ -4582,7 +4616,7 @@ async function screenSetRemoteDescriptionSafe(pc, desc, side) {
     return;
   } catch (err) {
     var msg = err && (err.message || String(err));
-    var canRetry = msg && /Invalid SDP line/i.test(msg) && /a=ssrc:\d+\s+msid:/i.test(msg);
+    var canRetry = msg && (/Invalid SDP line/i.test(msg) || /Failed to parse SessionDescription/i.test(msg));
 
     if (!canRetry) throw err;
 
