@@ -1026,6 +1026,233 @@ input:focus-visible,
   .ai-subtitle { max-width: 220px; }
 }
 
+/* ════════════ SCREEN SHARING FEATURE ════════════ */
+#screenView {
+  background:
+    radial-gradient(circle at 50% -18%, rgba(90,200,245,0.12), transparent 34%),
+    radial-gradient(circle at 100% 18%, rgba(191,90,242,0.08), transparent 28%),
+    var(--bg);
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) var(--pad-x) calc(env(safe-area-inset-bottom, 0px) + 12px);
+  gap: 14px;
+}
+.screen-topbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 54px;
+}
+.screen-back {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.055);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.12s var(--ease-spring), background 0.15s var(--ease-out);
+}
+.screen-back:active { transform: scale(0.92); background: rgba(255,255,255,0.1); }
+.screen-title-wrap { flex: 1; min-width: 0; }
+.screen-kicker {
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--teal);
+  font-weight: 800;
+  font-family: var(--mono);
+}
+.screen-title {
+  font-size: clamp(22px, 7vw, 34px);
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+}
+.screen-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.screen-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: 28px;
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.032));
+  border: 1px solid rgba(255,255,255,0.085);
+  box-shadow: var(--shadow-strong);
+  overflow: hidden;
+}
+.screen-video-wrap {
+  flex: 1;
+  min-height: 220px;
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(90,200,245,0.08), rgba(191,90,242,0.06)),
+    #050508;
+  border: 1px solid rgba(255,255,255,0.075);
+}
+.screen-video-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px);
+  background-size: 38px 38px;
+  opacity: 0.36;
+}
+.screen-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  display: none;
+}
+.screen-video.on { display: block; }
+.screen-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 24px;
+  color: rgba(255,255,255,0.58);
+}
+.screen-placeholder.hidden { display: none; }
+.screen-placeholder-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(90,200,245,0.10);
+  border: 1px solid rgba(90,200,245,0.18);
+  color: var(--teal);
+}
+.screen-placeholder-title { font-size: 17px; font-weight: 750; color: var(--white); }
+.screen-placeholder-sub { font-size: 12.5px; max-width: 280px; line-height: 1.45; color: var(--dim); }
+.screen-local-preview {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: min(170px, 34vw);
+  aspect-ratio: 16 / 10;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.16);
+  box-shadow: 0 10px 34px rgba(0,0,0,0.45);
+  background: #000;
+  display: none;
+}
+.screen-local-preview.on { display: block; }
+.screen-local-preview video { width: 100%; height: 100%; object-fit: cover; }
+.screen-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.screen-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.055);
+  border: 1px solid rgba(255,255,255,0.075);
+  color: rgba(255,255,255,0.72);
+  font-size: 12px;
+  font-weight: 650;
+}
+.screen-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.24);
+}
+.screen-badge.live .screen-badge-dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.screen-status {
+  font-size: 12px;
+  color: var(--dim);
+  min-height: 18px;
+}
+.screen-status.ok { color: var(--green); font-weight: 700; }
+.screen-status.warn { color: var(--amber); font-weight: 700; }
+.screen-status.err { color: var(--red); font-weight: 700; }
+.screen-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.screen-action {
+  min-height: 52px;
+  border: none;
+  border-radius: 17px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.12s var(--ease-spring), opacity 0.12s var(--ease-out), filter 0.12s var(--ease-out);
+}
+.screen-action:active { transform: scale(0.97); }
+.screen-action:disabled { opacity: 0.32; cursor: default; filter: grayscale(0.7); }
+.screen-action.primary { background: linear-gradient(180deg, #72d7ff, var(--teal)); color: #001018; }
+.screen-action.danger { background: linear-gradient(180deg, #ff6b62, var(--red)); color: #fff; }
+.screen-action.secondary { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.82); border: 1px solid rgba(255,255,255,0.08); }
+.screen-action.ghost { background: rgba(255,255,255,0.035); color: rgba(255,255,255,0.54); border: 1px solid rgba(255,255,255,0.055); }
+.screen-help {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: rgba(255,255,255,0.42);
+  padding: 0 4px 2px;
+}
+.nav-btn.screen-live::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: calc(50% - 20px);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+@media (max-width: 480px) {
+  #screenView { padding-inline: 10px; }
+  .screen-card { border-radius: 24px; }
+  .screen-video-wrap { min-height: 260px; border-radius: 20px; }
+  .screen-actions { grid-template-columns: 1fr; }
+  .screen-action { min-height: 50px; }
+  .screen-local-preview { width: 42vw; }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  #screenView { gap: 8px; }
+  .screen-title { font-size: 22px; }
+  .screen-card { flex-direction: row; }
+  .screen-video-wrap { min-height: 0; }
+  .screen-actions { width: 180px; flex-shrink: 0; align-content: start; }
+  .screen-help { display: none; }
+}
+
 </style>
 </head>
 <body>
@@ -1222,6 +1449,13 @@ input:focus-visible,
       </svg>
       <span class="nav-label">AI</span>
     </button>
+    <button class="nav-btn" id="navScreen" title="Screen Share">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8 21h8M12 16v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span class="nav-label">Screen</span>
+    </button>
     <button class="nav-btn" id="navChannel">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
         <path d="M2 5h20M2 12h20M2 19h20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -1314,6 +1548,49 @@ input:focus-visible,
       </form>
     </section>
   </div>
+</div>
+
+<!-- ════════════ SCREEN SHARE VIEW ════════════ -->
+<div class="view hidden" id="screenView">
+  <div class="screen-topbar">
+    <button class="screen-back" id="screenBackBtn" aria-label="Back to Talk" title="Back">
+      <svg width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1L1 8L8 15"/></svg>
+    </button>
+    <div class="screen-title-wrap">
+      <div class="screen-kicker">WebRTC</div>
+      <div class="screen-title">Screen Share</div>
+      <div class="screen-subtitle" id="screenSubtitle">Join a channel before sharing</div>
+    </div>
+  </div>
+  <section class="screen-card" aria-label="Screen sharing">
+    <div class="screen-video-wrap">
+      <video class="screen-video" id="screenRemoteVideo" autoplay playsinline></video>
+      <div class="screen-placeholder" id="screenPlaceholder">
+        <div class="screen-placeholder-icon">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="12" rx="2"/>
+            <path d="M8 21h8M12 16v5"/>
+          </svg>
+        </div>
+        <div class="screen-placeholder-title" id="screenPlaceholderTitle">No screen connected</div>
+        <div class="screen-placeholder-sub" id="screenPlaceholderSub">Start sharing your screen, or watch another user when they share in this channel.</div>
+      </div>
+      <div class="screen-local-preview" id="screenLocalPreview">
+        <video id="screenLocalVideo" autoplay muted playsinline></video>
+      </div>
+    </div>
+    <div class="screen-badge-row">
+      <div class="screen-badge" id="screenBadge"><span class="screen-badge-dot"></span><span id="screenBadgeText">Idle</span></div>
+      <div class="screen-status" id="screenStatus">Ready</div>
+    </div>
+    <div class="screen-actions">
+      <button class="screen-action primary" id="screenStartBtn">Start Share</button>
+      <button class="screen-action danger" id="screenStopBtn" disabled>Stop Share</button>
+      <button class="screen-action secondary" id="screenWatchBtn" disabled>Watch Active</button>
+      <button class="screen-action ghost" id="screenLeaveBtn" disabled>Leave View</button>
+    </div>
+    <div class="screen-help">Screen video goes peer-to-peer with WebRTC. The server only relays small signaling messages, so voice and chat stay fast.</div>
+  </section>
 </div>
 
 <!-- Channel sheet -->
@@ -3942,6 +4219,460 @@ function _hideQualityDetail() {
   qualityDetail.classList.remove('on');
   clearTimeout(_qualityPopTimer);
 }
+// ══════════════════════════════════════════════════════════
+// SCREEN SHARING — WebRTC peer-to-peer video + Socket.IO signaling
+// ══════════════════════════════════════════════════════════
+var _screenView = document.getElementById('screenView');
+var _screenShare = null;
+var _screenSharing = false;
+var _screenStream = null;
+var _screenStreamId = '';
+var _screenViewerPcs = {};
+var _screenPresenterPc = null;
+var _screenWatchingSid = '';
+var _screenPendingIce = {};
+var _screenRemoteStream = null;
+var _screenUiReady = false;
+var _screenRtcConfig = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ]
+};
+
+function screenWireUI() {
+  if (_screenUiReady) return;
+  _screenUiReady = true;
+  _listen('navScreen', 'click', showScreenView);
+  _listen('screenBackBtn', 'click', showMain);
+  _listen('screenStartBtn', 'click', function(){ screenStartShare().catch(screenHandleFatal); });
+  _listen('screenStopBtn', 'click', function(){ screenStopShare('stopped', true); });
+  _listen('screenWatchBtn', 'click', function(){ screenWatchActive().catch(screenHandleFatal); });
+  _listen('screenLeaveBtn', 'click', screenLeaveView);
+
+  ['navTalk', 'navMap', 'navAI', 'navChannel', 'btnGrid', 'btnMap'].forEach(function(id) {
+    var node = document.getElementById(id);
+    if (node) node.addEventListener('click', screenHideViewOnly);
+  });
+
+  var originalJoinChannel = joinChannel;
+  joinChannel = function(room) {
+    if (_screenSharing) screenStopShare('room_change', true);
+    screenLeaveView();
+    _screenShare = null;
+    screenUpdateUI();
+    return originalJoinChannel(room);
+  };
+
+  screenUpdateUI();
+  setTimeout(screenRequestState, 300);
+}
+
+function screenHasSupport() {
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && window.RTCPeerConnection);
+}
+
+function showScreenView() {
+  if (_mainView) _mainView.classList.add('hidden');
+  if (_mapView) _mapView.classList.add('hidden');
+  if (_aiView) _aiView.classList.add('hidden');
+  if (_screenView) _screenView.classList.remove('hidden');
+  setNavActive('navScreen');
+  var navScreen = document.getElementById('navScreen');
+  if (navScreen) navScreen.classList.add('active');
+  screenRequestState();
+  screenUpdateUI();
+}
+
+function screenHideViewOnly() {
+  if (_screenView) _screenView.classList.add('hidden');
+  var navScreen = document.getElementById('navScreen');
+  if (navScreen) navScreen.classList.remove('active');
+}
+
+function screenRequestState() {
+  if (socket && socket.connected && myRoom) {
+    socket.emit('screen_share_state', {});
+  }
+}
+
+function screenSetStatus(msg, cls) {
+  var el = document.getElementById('screenStatus');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.className = 'screen-status' + (cls ? ' ' + cls : '');
+}
+
+function screenSetVideo(el, stream, on) {
+  if (!el) return;
+  if (el.srcObject !== stream) el.srcObject = stream || null;
+  el.classList.toggle('on', !!on);
+  if (stream && on) {
+    var p = el.play && el.play();
+    if (p && p.catch) p.catch(function(){});
+  }
+}
+
+function screenUpdateUI() {
+  var subtitle = document.getElementById('screenSubtitle');
+  var placeholder = document.getElementById('screenPlaceholder');
+  var phTitle = document.getElementById('screenPlaceholderTitle');
+  var phSub = document.getElementById('screenPlaceholderSub');
+  var badge = document.getElementById('screenBadge');
+  var badgeText = document.getElementById('screenBadgeText');
+  var startBtn = document.getElementById('screenStartBtn');
+  var stopBtn = document.getElementById('screenStopBtn');
+  var watchBtn = document.getElementById('screenWatchBtn');
+  var leaveBtn = document.getElementById('screenLeaveBtn');
+  var navScreen = document.getElementById('navScreen');
+  var remoteVideo = document.getElementById('screenRemoteVideo');
+  var localVideo = document.getElementById('screenLocalVideo');
+  var localPreview = document.getElementById('screenLocalPreview');
+
+  var connected = !!(socket && socket.connected);
+  var hasRoom = !!myRoom;
+  var support = screenHasSupport();
+  var active = !!_screenShare;
+  var activeMine = active && _screenShare.sender_sid === socket.id;
+  var watching = !!_screenPresenterPc;
+
+  if (subtitle) subtitle.textContent = hasRoom ? ('Channel #' + myRoom) : 'Join a channel before sharing';
+  if (startBtn) startBtn.disabled = !connected || !hasRoom || !support || _screenSharing || (active && !activeMine);
+  if (stopBtn) stopBtn.disabled = !_screenSharing;
+  if (watchBtn) watchBtn.disabled = !connected || !hasRoom || !active || activeMine || watching;
+  if (leaveBtn) leaveBtn.disabled = !watching;
+
+  if (badge) badge.classList.toggle('live', _screenSharing || active);
+  if (badgeText) {
+    if (_screenSharing) badgeText.textContent = 'You are sharing';
+    else if (active) badgeText.textContent = '@' + (_screenShare.sender_name || 'someone') + ' is sharing';
+    else badgeText.textContent = hasRoom ? 'No active share' : 'No channel';
+  }
+
+  if (navScreen) navScreen.classList.toggle('screen-live', _screenSharing || active);
+  if (localPreview) localPreview.classList.toggle('on', !!_screenStream);
+  screenSetVideo(localVideo, _screenStream, !!_screenStream);
+  screenSetVideo(remoteVideo, _screenRemoteStream, !!_screenRemoteStream && !_screenSharing);
+
+  var hasVideo = !!_screenRemoteStream || !!_screenStream;
+  if (placeholder) placeholder.classList.toggle('hidden', hasVideo);
+  if (phTitle && phSub) {
+    if (!support) {
+      phTitle.textContent = 'Screen sharing not supported';
+      phSub.textContent = 'Use desktop Chrome, Edge, or another browser with getDisplayMedia on HTTPS.';
+    } else if (!hasRoom) {
+      phTitle.textContent = 'Join a channel first';
+      phSub.textContent = 'Screen sharing follows your current WalkieTalk channel.';
+    } else if (_screenSharing) {
+      phTitle.textContent = 'You are sharing';
+      phSub.textContent = 'Your screen preview appears here while viewers connect.';
+    } else if (active) {
+      phTitle.textContent = 'Active screen available';
+      phSub.textContent = 'Tap Watch Active to connect to @' + (_screenShare.sender_name || 'the presenter') + '.';
+    } else {
+      phTitle.textContent = 'No screen connected';
+      phSub.textContent = 'Start sharing your screen, or watch another user when they share in this channel.';
+    }
+  }
+
+  if (!support) screenSetStatus('Browser does not support screen capture', 'err');
+  else if (!connected) screenSetStatus('Socket disconnected', 'err');
+  else if (!hasRoom) screenSetStatus('Join a channel first', 'warn');
+  else if (_screenSharing) screenSetStatus('Sharing to #' + myRoom, 'ok');
+  else if (watching && _screenRemoteStream) screenSetStatus('Watching live screen', 'ok');
+  else if (active && !activeMine) screenSetStatus('Active share available', 'warn');
+  else if (!active) screenSetStatus('Ready', '');
+}
+
+async function screenStartShare() {
+  if (!myRoom) { showToast('Join a channel first'); screenUpdateUI(); return; }
+  if (!socket || !socket.connected) { showToast('Server disconnected'); screenUpdateUI(); return; }
+  if (!screenHasSupport()) { showToast('Screen sharing not supported on this browser'); screenUpdateUI(); return; }
+  if (_screenSharing) return;
+
+  screenLeaveView();
+  var stream;
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { cursor: 'always', frameRate: { ideal: 15, max: 30 } },
+      audio: true
+    });
+  } catch (err) {
+    if (err && (err.name === 'NotAllowedError' || err.name === 'AbortError')) throw err;
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+  }
+
+  _screenStream = stream;
+  _screenSharing = true;
+  _screenStreamId = 'screen_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  _screenRemoteStream = null;
+
+  stream.getTracks().forEach(function(track) {
+    track.onended = function() {
+      if (_screenSharing) screenStopShare('ended', true);
+    };
+  });
+
+  socket.emit('screen_share_start', {
+    stream_id: _screenStreamId,
+    kind: 'screen',
+    title: 'WalkieTalk screen',
+    has_audio: stream.getAudioTracks().length > 0
+  });
+
+  showToast('Screen sharing started');
+  screenUpdateUI();
+}
+
+function screenStopShare(reason, notifyServer) {
+  reason = reason || 'stopped';
+  Object.keys(_screenViewerPcs).forEach(function(sid) { screenClosePc(_screenViewerPcs[sid]); });
+  _screenViewerPcs = {};
+  _screenPendingIce = {};
+
+  if (_screenStream) {
+    _screenStream.getTracks().forEach(function(t) { try { t.stop(); } catch(e) {} });
+  }
+  _screenStream = null;
+  _screenSharing = false;
+
+  if (notifyServer && socket && socket.connected && myRoom) {
+    socket.emit('screen_share_stop', { stream_id: _screenStreamId, reason: reason });
+  }
+  _screenStreamId = '';
+  _screenShare = null;
+  screenUpdateUI();
+}
+
+function screenLeaveView() {
+  screenClosePc(_screenPresenterPc);
+  _screenPresenterPc = null;
+  _screenWatchingSid = '';
+  _screenRemoteStream = null;
+  var remoteVideo = document.getElementById('screenRemoteVideo');
+  if (remoteVideo) remoteVideo.srcObject = null;
+  screenUpdateUI();
+}
+
+function screenClosePc(pc) {
+  if (!pc) return;
+  try { pc.onicecandidate = null; pc.ontrack = null; pc.onconnectionstatechange = null; pc.close(); } catch(e) {}
+}
+
+function screenCreatePc(targetSid, role) {
+  var pc = new RTCPeerConnection(_screenRtcConfig);
+  pc.onicecandidate = function(event) {
+    if (!event.candidate || !socket || !socket.connected) return;
+    socket.emit('screen_ice_candidate', {
+      to: targetSid,
+      stream_id: _screenStreamId || ((_screenShare || {}).stream_id || ''),
+      candidate: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate
+    });
+  };
+  pc.onconnectionstatechange = function() {
+    var state = pc.connectionState || pc.iceConnectionState || '';
+    if (state === 'failed' || state === 'disconnected') {
+      screenSetStatus(role === 'viewer' ? 'Screen connection interrupted' : 'Viewer connection interrupted', 'warn');
+    }
+    if (state === 'connected') {
+      screenSetStatus(role === 'viewer' ? 'Watching live screen' : 'Viewer connected', 'ok');
+    }
+  };
+  return pc;
+}
+
+function screenGetViewerPc(viewerSid) {
+  if (_screenViewerPcs[viewerSid]) return _screenViewerPcs[viewerSid];
+  var pc = screenCreatePc(viewerSid, 'presenter');
+  if (_screenStream) {
+    _screenStream.getTracks().forEach(function(track) { pc.addTrack(track, _screenStream); });
+  }
+  _screenViewerPcs[viewerSid] = pc;
+  return pc;
+}
+
+async function screenWatchActive() {
+  if (!_screenShare) { showToast('No active screen share'); screenRequestState(); return; }
+  if (_screenShare.sender_sid === socket.id) { showToast('You are the presenter'); return; }
+  if (!screenHasSupport()) { showToast('WebRTC not supported'); return; }
+
+  screenLeaveView();
+  _screenWatchingSid = _screenShare.sender_sid;
+  _screenPresenterPc = screenCreatePc(_screenWatchingSid, 'viewer');
+  _screenRemoteStream = new MediaStream();
+
+  _screenPresenterPc.ontrack = function(event) {
+    event.streams[0].getTracks().forEach(function(track) {
+      if (!_screenRemoteStream.getTracks().some(function(t) { return t.id === track.id; })) {
+        _screenRemoteStream.addTrack(track);
+      }
+    });
+    screenUpdateUI();
+  };
+
+  socket.emit('screen_viewer_ready', { stream_id: _screenShare.stream_id });
+  screenSetStatus('Connecting to @' + (_screenShare.sender_name || 'presenter') + '...', 'warn');
+  screenUpdateUI();
+}
+
+function screenSetShare(state) {
+  _screenShare = state || null;
+  if (!_screenShare) {
+    screenLeaveView();
+  }
+  screenUpdateUI();
+}
+
+async function screenHandleViewerReady(data) {
+  if (!_screenSharing || !_screenStream || !data || !data.viewer_sid) return;
+  var viewerSid = data.viewer_sid;
+  var pc = screenGetViewerPc(viewerSid);
+  var offer = await pc.createOffer({ offerToReceiveAudio: false, offerToReceiveVideo: false });
+  await pc.setLocalDescription(offer);
+  socket.emit('screen_offer', {
+    to: viewerSid,
+    type: pc.localDescription.type,
+    sdp: pc.localDescription.sdp,
+    stream_id: _screenStreamId
+  });
+  screenSetStatus('Connecting viewer @' + (data.viewer_name || viewerSid.slice(0, 6)), 'warn');
+}
+
+async function screenHandleOffer(data) {
+  if (!data || !data.from || !data.sdp) return;
+  if (_screenSharing) return;
+  if (!_screenPresenterPc || _screenWatchingSid !== data.from) {
+    _screenWatchingSid = data.from;
+    _screenPresenterPc = screenCreatePc(_screenWatchingSid, 'viewer');
+    _screenRemoteStream = new MediaStream();
+    _screenPresenterPc.ontrack = function(event) {
+      event.streams[0].getTracks().forEach(function(track) {
+        if (!_screenRemoteStream.getTracks().some(function(t) { return t.id === track.id; })) {
+          _screenRemoteStream.addTrack(track);
+        }
+      });
+      screenUpdateUI();
+    };
+  }
+  await _screenPresenterPc.setRemoteDescription({ type: data.type || 'offer', sdp: data.sdp });
+  screenFlushIce(data.from, _screenPresenterPc);
+  var answer = await _screenPresenterPc.createAnswer();
+  await _screenPresenterPc.setLocalDescription(answer);
+  socket.emit('screen_answer', {
+    to: data.from,
+    type: _screenPresenterPc.localDescription.type,
+    sdp: _screenPresenterPc.localDescription.sdp,
+    stream_id: data.stream_id || ((_screenShare || {}).stream_id || '')
+  });
+  screenUpdateUI();
+}
+
+async function screenHandleAnswer(data) {
+  if (!data || !data.from || !data.sdp) return;
+  var pc = _screenViewerPcs[data.from];
+  if (!pc) return;
+  await pc.setRemoteDescription({ type: data.type || 'answer', sdp: data.sdp });
+  screenFlushIce(data.from, pc);
+}
+
+function screenNormalizeCandidate(candidate) {
+  if (!candidate) return null;
+  if (typeof candidate === 'string') return { candidate: candidate };
+  return candidate;
+}
+
+function screenAddIce(key, pc, candidate) {
+  candidate = screenNormalizeCandidate(candidate);
+  if (!candidate || !pc) return;
+  if (!pc.remoteDescription || !pc.remoteDescription.type) {
+    if (!_screenPendingIce[key]) _screenPendingIce[key] = [];
+    _screenPendingIce[key].push(candidate);
+    return;
+  }
+  pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(function(err) {
+    console.warn('screen addIceCandidate failed:', err);
+  });
+}
+
+function screenFlushIce(key, pc) {
+  var list = _screenPendingIce[key] || [];
+  delete _screenPendingIce[key];
+  list.forEach(function(candidate) { screenAddIce(key, pc, candidate); });
+}
+
+function screenHandleIce(data) {
+  if (!data || !data.from || !data.candidate) return;
+  if (_screenSharing) {
+    screenAddIce(data.from, _screenViewerPcs[data.from], data.candidate);
+  } else if (_screenPresenterPc && data.from === _screenWatchingSid) {
+    screenAddIce(data.from, _screenPresenterPc, data.candidate);
+  }
+}
+
+function screenHandleFatal(err) {
+  var msg = err && err.name === 'NotAllowedError' ? 'Screen permission denied'
+          : err && err.name === 'AbortError' ? 'Screen sharing cancelled'
+          : (err && err.message ? err.message : 'Screen share failed');
+  console.warn('screen share error:', err);
+  showToast(msg);
+  screenSetStatus(msg, err && (err.name === 'NotAllowedError' || err.name === 'AbortError') ? 'warn' : 'err');
+  if (_screenSharing) screenStopShare('error', true);
+  else screenUpdateUI();
+}
+
+screenWireUI();
+
+socket.on('connect', function() {
+  screenUpdateUI();
+  screenRequestState();
+});
+socket.on('disconnect', function() {
+  screenLeaveView();
+  if (_screenSharing) screenStopShare('disconnect', false);
+  screenUpdateUI();
+});
+socket.on('room_state', function(data) {
+  if (data && Object.prototype.hasOwnProperty.call(data, 'screen_share')) {
+    screenSetShare(data.screen_share || null);
+  } else {
+    setTimeout(screenRequestState, 200);
+  }
+});
+socket.on('screen_share_state', function(data) {
+  screenSetShare(data && data.screen_share ? data.screen_share : null);
+});
+socket.on('screen_share_started', function(data) {
+  screenSetShare(data || null);
+  if (data && data.sender_sid !== socket.id) showToast('@' + (data.sender_name || 'someone') + ' started screen sharing');
+});
+socket.on('screen_share_stopped', function(data) {
+  if (data && data.sender_sid === socket.id && _screenSharing) {
+    screenStopShare(data.reason || 'stopped', false);
+  } else if (data && _screenShare && data.stream_id && data.stream_id !== _screenShare.stream_id) {
+    return;
+  }
+  _screenShare = null;
+  screenLeaveView();
+  screenUpdateUI();
+  if (data && data.reason !== 'room_change') showToast('Screen sharing stopped');
+});
+socket.on('screen_viewer_ready', function(data) {
+  screenHandleViewerReady(data).catch(screenHandleFatal);
+});
+socket.on('screen_offer', function(data) {
+  screenHandleOffer(data).catch(screenHandleFatal);
+});
+socket.on('screen_answer', function(data) {
+  screenHandleAnswer(data).catch(screenHandleFatal);
+});
+socket.on('screen_ice_candidate', screenHandleIce);
+socket.on('screen_share_error', function(data) {
+  var msg = (data && (data.msg || data.error)) || 'Screen share error';
+  showToast(msg);
+  screenSetStatus(msg, data && data.code === 'SCREEN_BUSY' ? 'warn' : 'err');
+  if (data && data.screen_share) screenSetShare(data.screen_share);
+});
+
 </script>
 </body>
 </html>
