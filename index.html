@@ -255,6 +255,8 @@ body::after {
 .map-topbar-fab.add-zone { background:var(--amber); box-shadow:0 2px 10px rgba(255,159,10,0.3); color:#000; }
 .map-topbar-fab.list-zones { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.06); }
 #mapContainer { flex:1; min-height:0; position:relative; z-index:1; }
+.leaflet-control-attribution { background:rgba(5,5,7,0.72) !important; color:rgba(255,255,255,0.55) !important; font-size:9px !important; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+.leaflet-control-attribution a { color:rgba(255,255,255,0.72) !important; }
 .map-bottom { position:relative; z-index:20; flex-shrink:0; background:rgba(5,5,7,0.92); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 10px); display:flex; align-items:center; gap:12px; border-top:1px solid rgba(255,255,255,0.03); }
 .map-info-row { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
 .map-location-text { font-size:11.5px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--white); }
@@ -1545,6 +1547,14 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
           <line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="11" y2="8"/><line x1="2" y1="12" x2="9" y2="12"/>
         </svg>
       </button>
+      <button class="map-topbar-fab list-zones" id="mapStyleBtn" title="Switch map style" aria-label="Switch map style">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M2.2 5.2 8 2.4l5.8 2.8L8 8 2.2 5.2Z"/>
+          <path d="M2.2 8 8 10.8 13.8 8" opacity=".75"/>
+          <path d="M2.2 10.8 8 13.6l5.8-2.8" opacity=".5"/>
+        </svg>
+        <span class="map-style-label" style="position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:700;color:rgba(255,255,255,0.45);letter-spacing:.4px;line-height:1">STD</span>
+      </button>
       <button class="map-topbar-fab add-zone" id="geoAddBtn" title="Add zone">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="2" stroke-linecap="round">
           <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
@@ -2132,6 +2142,7 @@ function wireUI() {
   // Geofence UI wiring
   _listen('geoAddBtn', 'click', geoStartDraw);
   _listen('geoListBtn', 'click', geoOpenList);
+  _listen('mapStyleBtn', 'click', toggleMapStyle);
   _listen('geoListCloseBtn', 'click', geoCloseList);
   _listen('geoListOverlay', 'click', function(e){ if(e.target===this) geoCloseList(); });
   _listen('geoOverlay', 'click', function(e){ if(e.target===this) geoCancelDraw(); });
@@ -2444,6 +2455,90 @@ function reverseGeocode(lat, lng) {
 }
 
 // ── Map ──
+// Mapbox public token. For production, restrict this token by allowed website URL
+// inside the Mapbox dashboard because browser tokens are visible to users.
+var MAPBOX_ACCESS_TOKEN = 'pk.eyJ1Ijoib3BlbnN0cmVldGNhbSIsImEiOiJja252Ymh4ZnIwNHdkMnd0ZzF5NDVmdnR5In0.dYxz3TzZPTPzd_ibMeGK2g';
+var MAPBOX_STYLE_IDS = {
+  standard:  'standard',
+  satellite: 'standard-satellite'
+};
+var MAPBOX_STYLE_LABELS = {
+  standard:  'Standard',
+  satellite: 'Standard Satellite'
+};
+var mapTileLayer = null;
+var mapStyleKey = (function() {
+  var saved = _safeStorageGet('wt_map_style_v2') || 'standard';
+  return saved === 'satellite' ? 'satellite' : 'standard';
+})();
+
+function _mapboxTileUrl(styleKey) {
+  var styleId = MAPBOX_STYLE_IDS[styleKey] || MAPBOX_STYLE_IDS.standard;
+  return 'https://api.mapbox.com/styles/v1/mapbox/' + styleId +
+         '/tiles/256/{z}/{x}/{y}?access_token=' + encodeURIComponent(MAPBOX_ACCESS_TOKEN);
+}
+
+function _mapboxAttribution() {
+  return '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> ' +
+         '&copy; <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">Mapbox</a>';
+}
+
+function _updateMapStyleButton() {
+  var btn = document.getElementById('mapStyleBtn');
+  if (!btn) return;
+  var label = MAPBOX_STYLE_LABELS[mapStyleKey] || MAPBOX_STYLE_LABELS.standard;
+  btn.title = 'Mapbox ' + label + ' — tap to switch';
+  btn.setAttribute('aria-label', 'Mapbox ' + label + '. Tap to switch style.');
+  var small = btn.querySelector('.map-style-label');
+  if (small) small.textContent = mapStyleKey === 'satellite' ? 'SAT' : 'STD';
+}
+
+function applyMapStyle(styleKey) {
+  styleKey = styleKey === 'satellite' ? 'satellite' : 'standard';
+  mapStyleKey = styleKey;
+  _safeStorageSet('wt_map_style_v2', mapStyleKey);
+  _updateMapStyleButton();
+
+  if (!mapInstance || typeof L === 'undefined') return;
+
+  var oldLayer = mapTileLayer;
+  var nextLayer = L.tileLayer(_mapboxTileUrl(mapStyleKey), {
+    maxZoom: 20,
+    tileSize: 256,
+    detectRetina: true,
+    crossOrigin: true,
+    attribution: _mapboxAttribution()
+  });
+
+  nextLayer.once('load', function() {
+    if (oldLayer && oldLayer !== nextLayer && mapInstance && mapInstance.hasLayer(oldLayer)) {
+      mapInstance.removeLayer(oldLayer);
+    }
+    try { mapInstance.invalidateSize({ animate: false }); } catch (_) {}
+  });
+
+  nextLayer.on('tileerror', function() {
+    showToast('Mapbox map failed to load');
+  });
+
+  mapTileLayer = nextLayer;
+  nextLayer.addTo(mapInstance);
+
+  // Fallback cleanup in case the browser serves cached tiles before the load handler fires.
+  if (oldLayer && oldLayer !== nextLayer) {
+    setTimeout(function() {
+      if (mapInstance && mapInstance.hasLayer(oldLayer)) {
+        try { mapInstance.removeLayer(oldLayer); } catch (_) {}
+      }
+    }, 1800);
+  }
+}
+
+function toggleMapStyle() {
+  applyMapStyle(mapStyleKey === 'satellite' ? 'standard' : 'satellite');
+  showToast('Mapbox ' + (MAPBOX_STYLE_LABELS[mapStyleKey] || 'Standard'));
+}
+
 function initMap() {
   if (mapReady) return;
   mapReady = true;
@@ -2466,27 +2561,24 @@ function initMap() {
   s.onerror = function() { showToast('Map failed to load'); mapReady = false; };
   document.head.appendChild(s);
 }
+
 function buildMap() {
-  if (mapInstance) { try { mapInstance.invalidateSize({ animate: false }); } catch (_) {} return; }
+  if (mapInstance) {
+    try { mapInstance.invalidateSize({ animate: false }); } catch (_) {}
+    _updateMapStyleButton();
+    return;
+  }
   if (typeof L === 'undefined') { mapReady = false; return; }
+
   var lat = userLat || 11.5564, lng = userLng || 104.9282;
   mapInstance = L.map('mapContainer', {
     zoomControl: false,
-    attributionControl: false,
+    attributionControl: true,
     fadeAnimation: true,
     zoomAnimation: true,
   }).setView([lat, lng], 14);
 
-  var tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    subdomains: 'abcd',
-    crossOrigin: true,
-  });
-  tileLayer.addTo(mapInstance);
-
-  tileLayer.once('load', function() {
-    mapInstance.invalidateSize({ animate: false });
-  });
+  applyMapStyle(mapStyleKey);
 
   var icon = L.divIcon({
     className: '',
@@ -2502,6 +2594,7 @@ function buildMap() {
   if (myRoom) talkHereBtn.disabled = false;
   geoInit();
 }
+
 function updateMapMarker(center) {
   if (!mapInstance || !userMarker) return;
   userMarker.setLatLng([userLat, userLng]);
