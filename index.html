@@ -4970,7 +4970,7 @@ function screenStripBadSsrcMsidLines(sdp) {
   return out.join('\r\n') + '\r\n';
 }
 
-async async function screenSetRemoteDescriptionSafe(pc, desc, side) {
+async function screenSetRemoteDescriptionSafe(pc, desc, side) {
   var type = (desc && desc.type) || 'offer';
   var normalized = screenNormalizeSdp(desc && desc.sdp);
   var stripped = screenStripBadSsrcMsidLines(normalized);
@@ -5016,7 +5016,7 @@ async function screenHandleViewerReady(data) {
   screenSetStatus('Connecting viewer @' + (data.viewer_name || viewerSid.slice(0, 6)), 'warn');
 }
 
-async async function screenHandleOffer(data) {
+async function screenHandleOffer(data) {
   if (!data || !data.from || !data.sdp) return;
   if (_screenSharing) return;
   if (!_screenPresenterPc || _screenWatchingSid !== data.from) {
