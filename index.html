@@ -1317,6 +1317,23 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
   .ai-toolbar { gap: 8px; }
 }
 
+
+/* Mapbox GL controls: match WalkieTalk dark UI */
+.mapboxgl-ctrl-logo,
+.mapboxgl-ctrl-attrib { opacity: 0.72; }
+.mapboxgl-ctrl-group {
+  background: rgba(8,8,12,0.78) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.35) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.mapboxgl-ctrl-group button { min-width: 32px; min-height: 32px; }
+.mapboxgl-ctrl-group button + button { border-top-color: rgba(255,255,255,0.08) !important; }
+.mapboxgl-ctrl button.mapboxgl-ctrl-zoom-in .mapboxgl-ctrl-icon,
+.mapboxgl-ctrl button.mapboxgl-ctrl-zoom-out .mapboxgl-ctrl-icon,
+.mapboxgl-ctrl button.mapboxgl-ctrl-compass .mapboxgl-ctrl-icon { filter: invert(1) opacity(0.85); }
+
 </style>
 </head>
 <body>
@@ -2274,7 +2291,7 @@ function showMapView() {
   setNavActive('navMap');
   setTimeout(function() {
     initMap();
-    if (mapInstance) mapInstance.invalidateSize({ animate: false });
+    if (mapInstance) _mapResize();
   }, 320);
 }
 function showAiView() {
@@ -2458,10 +2475,19 @@ function reverseGeocode(lat, lng) {
 }
 
 // ── Map ──
-// Mapbox token is loaded from the backend ENV endpoint.
+// Mapbox Standard and Mapbox Standard Satellite must be rendered by Mapbox GL JS.
+// Do not request them through /styles/v1/.../tiles/... raster tile URLs; that causes HTTP 400.
 // Backend endpoint expected:
-//   GET /config/mapbox -> { ok:true, token:"<public-mapbox-token>", styles:{standard:"mapbox://styles/mapbox/standard", standard_satellite:"mapbox://styles/mapbox/standard-satellite"} }
-// Do not hardcode the Mapbox token in this frontend file.
+//   GET /config/mapbox -> {
+//     ok: true,
+//     token: "<public-pk-token>",
+//     styles: {
+//       standard: "mapbox://styles/mapbox/standard",
+//       standard_satellite: "mapbox://styles/mapbox/standard-satellite"
+//     },
+//     default_style: "standard"
+//   }
+// Keep the public pk token in backend ENV. Do not hardcode it in this frontend file.
 var MAPBOX_CONFIG_ENDPOINT = _cleanServerUrl(
   window.WT_MAPBOX_CONFIG_URL || (SERVER_URL + '/config/mapbox')
 );
@@ -2474,76 +2500,104 @@ var MAPBOX_STYLE_LABELS = {
   standard:  'Standard',
   satellite: 'Standard Satellite'
 };
-var mapTileLayer = null;
+var MAPBOX_GL_JS_URL  = window.WT_MAPBOX_GL_JS_URL  || 'https://api.mapbox.com/mapbox-gl-js/v3.14.0/mapbox-gl.js';
+var MAPBOX_GL_CSS_URL = window.WT_MAPBOX_GL_CSS_URL || 'https://api.mapbox.com/mapbox-gl-js/v3.14.0/mapbox-gl.css';
 var mapStyleKey = (function() {
   var saved = _safeStorageGet('wt_map_style_v2') || 'standard';
   return saved === 'satellite' ? 'satellite' : 'standard';
 })();
 var _mapboxConfigPromise = null;
 var _mapboxConfigLoaded = false;
-var _mapboxLastTileErrorAt = 0;
-var _leafletAssetPromise = null;
+var _mapboxGlAssetPromise = null;
+var _mapboxLastErrorAt = 0;
+var _mapboxNavControlAdded = false;
 
 function _normalizeMapStyleKey(value) {
   value = String(value || '').toLowerCase().replace(/[_\s-]+/g, '_');
   return value === 'satellite' || value === 'standard_satellite' ? 'satellite' : 'standard';
 }
 
-function _mapboxAttribution() {
-  return '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> ' +
-         '&copy; <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">Mapbox</a>';
-}
-
-function _osmAttribution() {
-  return '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
-}
-
-function _mapboxStyleParts(styleValue) {
-  var style = String(styleValue || '').trim();
-  if (!style) style = MAPBOX_STYLE_URLS.standard;
-
-  // mapbox://styles/{owner}/{style_id}
-  var match = style.match(/^mapbox:\/\/styles\/([^/]+)\/([^/?#]+)/i);
-  if (match) {
-    return { owner: encodeURIComponent(match[1]), styleId: encodeURIComponent(match[2]) };
-  }
-
-  // styles/{owner}/{style_id}
-  match = style.match(/^styles\/([^/]+)\/([^/?#]+)/i);
-  if (match) {
-    return { owner: encodeURIComponent(match[1]), styleId: encodeURIComponent(match[2]) };
-  }
-
-  // plain built-in style id: "standard" or "standard-satellite"
-  style = style.replace(/^mapbox:/i, '').replace(/^\/+/, '');
-  if (!style || /[^a-z0-9._-]/i.test(style)) style = 'standard';
-  return { owner: 'mapbox', styleId: encodeURIComponent(style) };
-}
-
-function _mapboxTileUrl(styleKey) {
-  if (!MAPBOX_ACCESS_TOKEN) return '';
+function _mapboxStyleUrl(styleKey) {
   styleKey = _normalizeMapStyleKey(styleKey);
-  var styleValue = MAPBOX_STYLE_URLS[styleKey] || MAPBOX_STYLE_URLS.standard;
-  var parts = _mapboxStyleParts(styleValue);
-  return 'https://api.mapbox.com/styles/v1/' + parts.owner + '/' + parts.styleId +
-         '/tiles/256/{z}/{x}/{y}?access_token=' + encodeURIComponent(MAPBOX_ACCESS_TOKEN);
+  var style = String(MAPBOX_STYLE_URLS[styleKey] || MAPBOX_STYLE_URLS.standard || '').trim();
+  if (!style) style = styleKey === 'satellite' ? 'mapbox://styles/mapbox/standard-satellite' : 'mapbox://styles/mapbox/standard';
+
+  if (/^mapbox:\/\/styles\//i.test(style) || /^https?:\/\//i.test(style)) {
+    return style;
+  }
+
+  style = style.replace(/^mapbox:/i, '').replace(/^styles\//i, '').replace(/^\/+/g, '');
+  if (style === 'satellite' || style === 'standard_satellite') style = 'standard-satellite';
+  if (!style || /[^a-z0-9._-]/i.test(style)) style = 'standard';
+
+  if (style.indexOf('/') >= 0) {
+    return 'mapbox://styles/' + style;
+  }
+  return 'mapbox://styles/mapbox/' + style;
+}
+
+function _osmFallbackStyle() {
+  return {
+    version: 8,
+    sources: {
+      osm: {
+        type: 'raster',
+        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        attribution: '&copy; OpenStreetMap contributors'
+      }
+    },
+    layers: [
+      { id: 'osm-raster', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 19 }
+    ]
+  };
 }
 
 function _friendlyMapboxError(err) {
   var msg = _friendlyNetworkError(err);
   if (/MAPBOX_ACCESS_TOKEN/i.test(msg)) return 'Mapbox token missing on backend ENV';
+  if (/HTTP 400/i.test(msg)) return 'Mapbox style request failed — use Mapbox GL style URLs, not tile URLs';
+  if (/HTTP 401|HTTP 403/i.test(msg)) return 'Mapbox token rejected — check token restrictions';
   if (/HTTP 404/i.test(msg)) return 'Backend /config/mapbox endpoint not found';
   if (/HTTP 503/i.test(msg)) return 'Mapbox token not configured on backend';
   return msg;
 }
 
+function _updateMapStyleButton(extraLabel) {
+  var btn = document.getElementById('mapStyleBtn');
+  if (!btn) return;
+  var label = MAPBOX_STYLE_LABELS[mapStyleKey] || MAPBOX_STYLE_LABELS.standard;
+  btn.title = _mapboxConfigLoaded
+    ? 'Mapbox ' + label + ' — tap to switch'
+    : 'Mapbox config loading from backend ENV';
+  btn.setAttribute('aria-label', _mapboxConfigLoaded
+    ? 'Mapbox ' + label + '. Tap to switch style.'
+    : 'Mapbox config loading from backend ENV.');
+  var small = btn.querySelector('.map-style-label');
+  if (small) small.textContent = extraLabel || (mapStyleKey === 'satellite' ? 'SAT' : 'STD');
+}
+
+function _mapResize() {
+  if (!mapInstance) return;
+  try { mapInstance.resize(); } catch (_) {}
+}
+
+function _mapStyleReady() {
+  return !!(mapInstance && typeof mapInstance.isStyleLoaded === 'function' && mapInstance.isStyleLoaded());
+}
+
+function _afterMapStyleReady(fn) {
+  if (!mapInstance || typeof fn !== 'function') return;
+  if (_mapStyleReady()) {
+    setTimeout(fn, 0);
+  } else {
+    mapInstance.once('style.load', fn);
+  }
+}
+
 function loadMapboxConfig(force) {
   if (!force && _mapboxConfigLoaded && MAPBOX_ACCESS_TOKEN) {
-    return Promise.resolve({
-      ok: true,
-      token: MAPBOX_ACCESS_TOKEN,
-      styles: MAPBOX_STYLE_URLS
-    });
+    return Promise.resolve({ ok: true, token: MAPBOX_ACCESS_TOKEN, styles: MAPBOX_STYLE_URLS });
   }
   if (!force && _mapboxConfigPromise) return _mapboxConfigPromise;
 
@@ -2564,6 +2618,7 @@ function loadMapboxConfig(force) {
     if (token.indexOf('sk.') === 0) throw new Error('Do not send a secret sk.* Mapbox token to the browser');
 
     MAPBOX_ACCESS_TOKEN = token;
+    if (typeof mapboxgl !== 'undefined') mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
 
     var styles = data.styles || {};
     if (typeof styles.standard === 'string' && styles.standard.trim()) {
@@ -2592,33 +2647,50 @@ function loadMapboxConfig(force) {
   return _mapboxConfigPromise;
 }
 
-function _updateMapStyleButton(extraLabel) {
-  var btn = document.getElementById('mapStyleBtn');
-  if (!btn) return;
-  var label = MAPBOX_STYLE_LABELS[mapStyleKey] || MAPBOX_STYLE_LABELS.standard;
-  btn.title = _mapboxConfigLoaded
-    ? 'Mapbox ' + label + ' — tap to switch'
-    : 'Mapbox config loading from backend ENV';
-  btn.setAttribute('aria-label', _mapboxConfigLoaded
-    ? 'Mapbox ' + label + '. Tap to switch style.'
-    : 'Mapbox config loading from backend ENV.');
-  var small = btn.querySelector('.map-style-label');
-  if (small) small.textContent = extraLabel || (mapStyleKey === 'satellite' ? 'SAT' : 'STD');
-}
+function _loadMapboxGlAssets() {
+  if (typeof mapboxgl !== 'undefined') return Promise.resolve();
+  if (_mapboxGlAssetPromise) return _mapboxGlAssetPromise;
 
-function _addFallbackOsmLayer() {
-  if (!mapInstance || typeof L === 'undefined') return;
-  if (mapTileLayer && mapInstance.hasLayer(mapTileLayer)) return;
+  _mapboxGlAssetPromise = new Promise(function(resolve, reject) {
+    if (!document.querySelector('link[data-wt-mapbox-gl-css="1"]')) {
+      var css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = MAPBOX_GL_CSS_URL;
+      css.crossOrigin = 'anonymous';
+      css.setAttribute('data-wt-mapbox-gl-css', '1');
+      document.head.appendChild(css);
+    }
 
-  var fallback = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    detectRetina: true,
-    crossOrigin: true,
-    attribution: _osmAttribution()
+    if (typeof mapboxgl !== 'undefined') {
+      resolve();
+      return;
+    }
+
+    var existing = document.querySelector('script[data-wt-mapbox-gl-js="1"]');
+    if (existing) {
+      existing.addEventListener('load', function() { resolve(); }, { once: true });
+      existing.addEventListener('error', function() { reject(new Error('Mapbox GL JS failed to load')); }, { once: true });
+      return;
+    }
+
+    var s = document.createElement('script');
+    s.src = MAPBOX_GL_JS_URL;
+    s.async = true;
+    s.defer = true;
+    s.crossOrigin = 'anonymous';
+    s.referrerPolicy = 'no-referrer';
+    s.setAttribute('data-wt-mapbox-gl-js', '1');
+    s.onload = function() { resolve(); };
+    s.onerror = function() { reject(new Error('Mapbox GL JS failed to load')); };
+    document.head.appendChild(s);
+  }).then(function() {
+    if (typeof mapboxgl === 'undefined') throw new Error('Mapbox GL JS is unavailable');
+  }).catch(function(err) {
+    _mapboxGlAssetPromise = null;
+    throw err;
   });
-  mapTileLayer = fallback;
-  fallback.addTo(mapInstance);
-  _updateMapStyleButton('OSM');
+
+  return _mapboxGlAssetPromise;
 }
 
 function applyMapStyle(styleKey) {
@@ -2627,55 +2699,34 @@ function applyMapStyle(styleKey) {
   _safeStorageSet('wt_map_style_v2', mapStyleKey);
   _updateMapStyleButton(_mapboxConfigLoaded ? null : '...');
 
-  if (!mapInstance || typeof L === 'undefined') return Promise.resolve(false);
+  if (!mapInstance) {
+    return loadMapboxConfig(false).then(function() { return false; }).catch(function() { return false; });
+  }
 
   return loadMapboxConfig(false).then(function() {
-    var tileUrl = _mapboxTileUrl(mapStyleKey);
-    if (!tileUrl) throw new Error('Mapbox tile URL is empty');
-
-    var oldLayer = mapTileLayer;
-    var nextLayer = L.tileLayer(tileUrl, {
-      maxZoom: 20,
-      tileSize: 256,
-      detectRetina: true,
-      crossOrigin: true,
-      attribution: _mapboxAttribution()
+    if (!MAPBOX_ACCESS_TOKEN) throw new Error('MAPBOX_ACCESS_TOKEN is missing');
+    mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
+    mapInstance.setStyle(_mapboxStyleUrl(mapStyleKey));
+    _afterMapStyleReady(function() {
+      _mapResize();
+      if (typeof geoDrawAll === 'function') geoDrawAll();
     });
-
-    nextLayer.once('load', function() {
-      if (oldLayer && oldLayer !== nextLayer && mapInstance && mapInstance.hasLayer(oldLayer)) {
-        try { mapInstance.removeLayer(oldLayer); } catch (_) {}
-      }
-      try { mapInstance.invalidateSize({ animate: false }); } catch (_) {}
-    });
-
-    nextLayer.on('tileerror', function() {
-      var now = Date.now();
-      if (now - _mapboxLastTileErrorAt > 4000) {
-        _mapboxLastTileErrorAt = now;
-        showToast('Mapbox tile failed to load');
-      }
-    });
-
-    mapTileLayer = nextLayer;
-    nextLayer.addTo(mapInstance);
-
-    // Fallback cleanup in case cached tiles load before the load handler fires.
-    if (oldLayer && oldLayer !== nextLayer) {
-      setTimeout(function() {
-        if (mapInstance && mapInstance.hasLayer(oldLayer)) {
-          try { mapInstance.removeLayer(oldLayer); } catch (_) {}
-        }
-      }, 1800);
-    }
-
     _updateMapStyleButton();
     return true;
   }).catch(function(err) {
     var msg = _friendlyMapboxError(err);
     console.warn('Mapbox config/style failed:', err);
     showToast(msg);
-    _addFallbackOsmLayer();
+    try {
+      mapInstance.setStyle(_osmFallbackStyle());
+      _afterMapStyleReady(function() {
+        _mapResize();
+        if (typeof geoDrawAll === 'function') geoDrawAll();
+      });
+      _updateMapStyleButton('OSM');
+    } catch (e) {
+      console.warn('OSM fallback style failed:', e);
+    }
     return false;
   });
 }
@@ -2688,90 +2739,100 @@ function toggleMapStyle() {
 }
 
 function initMap() {
-  if (mapReady) return;
-  mapReady = true;
-
-  if (!_leafletAssetPromise) {
-    _leafletAssetPromise = new Promise(function(resolve, reject) {
-      if (!document.querySelector('link[href*="leaflet"]')) {
-        var css = document.createElement('link');
-        css.rel = 'stylesheet';
-        css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
-        css.crossOrigin = 'anonymous';
-        document.head.appendChild(css);
-      }
-
-      if (typeof L !== 'undefined') {
-        resolve();
-        return;
-      }
-
-      var existing = document.querySelector('script[data-wt-leaflet="1"]');
-      if (existing) {
-        existing.addEventListener('load', resolve, { once: true });
-        existing.addEventListener('error', reject, { once: true });
-        return;
-      }
-
-      var s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-      s.async = true;
-      s.defer = true;
-      s.crossOrigin = 'anonymous';
-      s.referrerPolicy = 'no-referrer';
-      s.setAttribute('data-wt-leaflet', '1');
-      s.onload = resolve;
-      s.onerror = reject;
-      document.head.appendChild(s);
-    });
+  if (mapReady) {
+    _mapResize();
+    _updateMapStyleButton();
+    return;
   }
+  mapReady = true;
+  _updateMapStyleButton('...');
 
-  _leafletAssetPromise
+  _loadMapboxGlAssets()
+    .then(function() {
+      return loadMapboxConfig(false).catch(function(err) {
+        console.warn('Mapbox config unavailable; using OSM fallback:', err);
+        showToast(_friendlyMapboxError(err));
+        return null;
+      });
+    })
     .then(buildMap)
-    .catch(function() {
-      showToast('Map failed to load');
+    .catch(function(err) {
+      console.warn('Map init failed:', err);
+      showToast('Map failed to load: ' + _friendlyNetworkError(err));
       mapReady = false;
-      _leafletAssetPromise = null;
     });
 }
 
 function buildMap() {
   if (mapInstance) {
-    try { mapInstance.invalidateSize({ animate: false }); } catch (_) {}
+    _mapResize();
     _updateMapStyleButton();
     return;
   }
-  if (typeof L === 'undefined') { mapReady = false; return; }
+  if (typeof mapboxgl === 'undefined') { mapReady = false; return; }
 
-  var lat = userLat || 11.5564, lng = userLng || 104.9282;
-  mapInstance = L.map('mapContainer', {
-    zoomControl: false,
+  var lat = userLat || 11.5564;
+  var lng = userLng || 104.9282;
+  var style = MAPBOX_ACCESS_TOKEN ? _mapboxStyleUrl(mapStyleKey) : _osmFallbackStyle();
+  if (MAPBOX_ACCESS_TOKEN) mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
+
+  mapInstance = new mapboxgl.Map({
+    container: 'mapContainer',
+    style: style,
+    center: [lng, lat],
+    zoom: 14,
+    pitch: 0,
+    bearing: 0,
     attributionControl: true,
-    fadeAnimation: true,
-    zoomAnimation: true,
-  }).setView([lat, lng], 14);
-
-  applyMapStyle(mapStyleKey);
-
-  var icon = L.divIcon({
-    className: '',
-    html: '<div style="width:14px;height:14px;border-radius:50%;background:#007aff;border:2.5px solid #fff;box-shadow:0 0 0 4px rgba(0,122,255,0.25)"></div>',
-    iconSize: [14, 14],
-    iconAnchor: [7, 7]
+    preserveDrawingBuffer: false
   });
-  userMarker = L.marker([lat, lng], { icon: icon, zIndexOffset: 1000 }).addTo(mapInstance);
 
-  mapInstance.invalidateSize({ animate: false });
-  setTimeout(function() { if (mapInstance) mapInstance.invalidateSize({ animate: false }); }, 100);
+  if (!_mapboxNavControlAdded && mapboxgl.NavigationControl) {
+    try {
+      mapInstance.addControl(new mapboxgl.NavigationControl({ showCompass: true, showZoom: true }), 'top-right');
+      _mapboxNavControlAdded = true;
+    } catch (_) {}
+  }
 
-  if (myRoom) talkHereBtn.disabled = false;
-  geoInit();
+  var userDot = document.createElement('div');
+  userDot.setAttribute('aria-label', 'Your location');
+  userDot.style.cssText = 'width:16px;height:16px;border-radius:50%;background:#007aff;border:3px solid #fff;box-shadow:0 0 0 5px rgba(0,122,255,0.25),0 2px 10px rgba(0,0,0,0.4);';
+  userMarker = new mapboxgl.Marker({ element: userDot, anchor: 'center' })
+    .setLngLat([lng, lat])
+    .addTo(mapInstance);
+
+  mapInstance.on('load', function() {
+    _mapResize();
+    if (myRoom) talkHereBtn.disabled = false;
+    geoInit();
+  });
+
+  mapInstance.on('style.load', function() {
+    _mapResize();
+    if (typeof geoDrawAll === 'function') geoDrawAll();
+  });
+
+  mapInstance.on('error', function(e) {
+    var now = Date.now();
+    if (now - _mapboxLastErrorAt > 5000) {
+      _mapboxLastErrorAt = now;
+      var msg = (e && e.error && e.error.message) ? e.error.message : 'Mapbox map error';
+      console.warn('Mapbox GL error:', e);
+      if (/401|403|token/i.test(msg)) showToast('Mapbox token rejected — check token restrictions');
+      else if (/400/i.test(msg)) showToast('Mapbox style failed — check style URL');
+    }
+  });
+
+  setTimeout(_mapResize, 100);
 }
 
 function updateMapMarker(center) {
-  if (!mapInstance || !userMarker) return;
-  userMarker.setLatLng([userLat, userLng]);
-  if (center) mapInstance.setView([userLat, userLng], 14);
+  if (!mapInstance || !userMarker || userLat === null || userLng === null) return;
+  userMarker.setLngLat([userLng, userLat]);
+  if (center) {
+    try { mapInstance.easeTo({ center: [userLng, userLat], zoom: Math.max(mapInstance.getZoom() || 14, 14), duration: 350 }); }
+    catch (_) { try { mapInstance.setCenter([userLng, userLat]); } catch (__) {} }
+  }
 }
 
 // ── Sheets ──
@@ -2842,12 +2903,306 @@ var _geoLastCheckLat = null;
 var _geoLastCheckLng = null;
 var _geoLastCodedLat = null;
 var _geoLastCodedLng = null;
+var _geoDrawClickHandler = null;
+var _geoMapEventsWired = false;
+
+var GEO_ZONE_SOURCE   = 'wt-geo-zones';
+var GEO_LABEL_SOURCE  = 'wt-geo-labels';
+var GEO_PREVIEW_SOURCE = 'wt-geo-preview';
+var GEO_ZONE_FILL_LAYER = 'wt-geo-zone-fill';
+var GEO_ZONE_LINE_LAYER = 'wt-geo-zone-line';
+var GEO_LABEL_DOT_LAYER = 'wt-geo-label-dot';
+var GEO_LABEL_TEXT_LAYER = 'wt-geo-label-text';
+var GEO_PREVIEW_FILL_LAYER = 'wt-geo-preview-fill';
+var GEO_PREVIEW_LINE_LAYER = 'wt-geo-preview-line';
 
 function geoDistance(lat1, lng1, lat2, lng2) {
   var d1 = (lat2-lat1)*_DEG2RAD, d2 = (lng2-lng1)*_DEG2RAD;
   var a  = Math.sin(d1/2)*Math.sin(d1/2) +
            Math.cos(lat1*_DEG2RAD)*Math.cos(lat2*_DEG2RAD)*Math.sin(d2/2)*Math.sin(d2/2);
   return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function _esc(s) {
+  return String(s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; });
+}
+
+function _emptyFeatureCollection() {
+  return { type: 'FeatureCollection', features: [] };
+}
+
+function _isFiniteCoord(lat, lng) {
+  return Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+}
+
+function _geoCircleCoordinates(lat, lng, radiusMeters, steps) {
+  lat = Number(lat); lng = Number(lng); radiusMeters = Math.max(1, Number(radiusMeters) || 1);
+  steps = steps || 72;
+  var earthRadius = 6371000;
+  var angular = radiusMeters / earthRadius;
+  var latRad = lat * _DEG2RAD;
+  var lngRad = lng * _DEG2RAD;
+  var coords = [];
+
+  for (var i = 0; i <= steps; i++) {
+    var bearing = (i / steps) * Math.PI * 2;
+    var lat2 = Math.asin(
+      Math.sin(latRad) * Math.cos(angular) +
+      Math.cos(latRad) * Math.sin(angular) * Math.cos(bearing)
+    );
+    var lng2 = lngRad + Math.atan2(
+      Math.sin(bearing) * Math.sin(angular) * Math.cos(latRad),
+      Math.cos(angular) - Math.sin(latRad) * Math.sin(lat2)
+    );
+    coords.push([lng2 / _DEG2RAD, lat2 / _DEG2RAD]);
+  }
+  return coords;
+}
+
+function _geoZoneFeature(z) {
+  return {
+    type: 'Feature',
+    id: z.id,
+    properties: {
+      id: z.id,
+      label: z.name || z.channel || 'ZONE',
+      channel: z.channel || '',
+      color: z.color || GEO_COLORS[0],
+      inside: !!geoInsideZones[z.id]
+    },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [_geoCircleCoordinates(z.lat, z.lng, z.radius, 80)]
+    }
+  };
+}
+
+function _geoLabelFeature(z) {
+  return {
+    type: 'Feature',
+    id: z.id,
+    properties: {
+      id: z.id,
+      label: z.name || z.channel || 'ZONE',
+      channel: z.channel || '',
+      color: z.color || GEO_COLORS[0]
+    },
+    geometry: { type: 'Point', coordinates: [Number(z.lng), Number(z.lat)] }
+  };
+}
+
+function _geoPreviewFeature() {
+  if (!geoPreviewCircle || !_isFiniteCoord(geoPreviewCircle.lat, geoPreviewCircle.lng)) return _emptyFeatureCollection();
+  return {
+    type: 'FeatureCollection',
+    features: [{
+      type: 'Feature',
+      properties: { color: geoPreviewCircle.color || geoSelectedColor },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [_geoCircleCoordinates(geoPreviewCircle.lat, geoPreviewCircle.lng, geoPreviewCircle.radius || 300, 80)]
+      }
+    }]
+  };
+}
+
+function _geoAddSourceIfMissing(id, data) {
+  if (!mapInstance || !_mapStyleReady()) return false;
+  if (!mapInstance.getSource(id)) {
+    mapInstance.addSource(id, { type: 'geojson', data: data || _emptyFeatureCollection() });
+  }
+  return true;
+}
+
+function _geoAddLayerIfMissing(layer) {
+  if (!mapInstance || !_mapStyleReady()) return false;
+  if (!mapInstance.getLayer(layer.id)) mapInstance.addLayer(layer);
+  return true;
+}
+
+function _geoEnsureLayers() {
+  if (!mapInstance || !_mapStyleReady()) return false;
+
+  _geoAddSourceIfMissing(GEO_ZONE_SOURCE, _emptyFeatureCollection());
+  _geoAddSourceIfMissing(GEO_LABEL_SOURCE, _emptyFeatureCollection());
+  _geoAddSourceIfMissing(GEO_PREVIEW_SOURCE, _emptyFeatureCollection());
+
+  _geoAddLayerIfMissing({
+    id: GEO_ZONE_FILL_LAYER,
+    type: 'fill',
+    source: GEO_ZONE_SOURCE,
+    paint: {
+      'fill-color': ['coalesce', ['get', 'color'], '#007aff'],
+      'fill-opacity': ['case', ['boolean', ['get', 'inside'], false], 0.10, 0.045]
+    }
+  });
+  _geoAddLayerIfMissing({
+    id: GEO_ZONE_LINE_LAYER,
+    type: 'line',
+    source: GEO_ZONE_SOURCE,
+    paint: {
+      'line-color': ['coalesce', ['get', 'color'], '#007aff'],
+      'line-width': ['case', ['boolean', ['get', 'inside'], false], 2.2, 1.2],
+      'line-opacity': ['case', ['boolean', ['get', 'inside'], false], 0.92, 0.58]
+    }
+  });
+  _geoAddLayerIfMissing({
+    id: GEO_LABEL_DOT_LAYER,
+    type: 'circle',
+    source: GEO_LABEL_SOURCE,
+    paint: {
+      'circle-radius': 4,
+      'circle-color': ['coalesce', ['get', 'color'], '#007aff'],
+      'circle-stroke-color': 'rgba(0,0,0,0.62)',
+      'circle-stroke-width': 2
+    }
+  });
+  _geoAddLayerIfMissing({
+    id: GEO_LABEL_TEXT_LAYER,
+    type: 'symbol',
+    source: GEO_LABEL_SOURCE,
+    layout: {
+      'text-field': ['coalesce', ['get', 'label'], 'ZONE'],
+      'text-size': 11,
+      'text-offset': [0.7, 0],
+      'text-anchor': 'left',
+      'text-allow-overlap': true,
+      'text-ignore-placement': true
+    },
+    paint: {
+      'text-color': '#ffffff',
+      'text-halo-color': 'rgba(0,0,0,0.84)',
+      'text-halo-width': 1.7,
+      'text-halo-blur': 0.4
+    }
+  });
+  _geoAddLayerIfMissing({
+    id: GEO_PREVIEW_FILL_LAYER,
+    type: 'fill',
+    source: GEO_PREVIEW_SOURCE,
+    paint: {
+      'fill-color': ['coalesce', ['get', 'color'], '#007aff'],
+      'fill-opacity': 0.065
+    }
+  });
+  _geoAddLayerIfMissing({
+    id: GEO_PREVIEW_LINE_LAYER,
+    type: 'line',
+    source: GEO_PREVIEW_SOURCE,
+    paint: {
+      'line-color': ['coalesce', ['get', 'color'], '#007aff'],
+      'line-width': 1.7,
+      'line-opacity': 0.8
+    }
+  });
+
+  _geoWireMapEvents();
+  return true;
+}
+
+function _geoWireMapEvents() {
+  if (!mapInstance || _geoMapEventsWired || !mapInstance.getLayer(GEO_ZONE_FILL_LAYER)) return;
+  _geoMapEventsWired = true;
+  mapInstance.on('click', GEO_ZONE_FILL_LAYER, function(e) {
+    var feature = e && e.features && e.features[0];
+    var id = feature && feature.properties && feature.properties.id;
+    var zone = id ? geoZones.find(function(z){ return z.id === id; }) : null;
+    if (zone) geoShowBanner(zone);
+  });
+  mapInstance.on('mouseenter', GEO_ZONE_FILL_LAYER, function() { try { mapInstance.getCanvas().style.cursor = 'pointer'; } catch (_) {} });
+  mapInstance.on('mouseleave', GEO_ZONE_FILL_LAYER, function() { try { mapInstance.getCanvas().style.cursor = ''; } catch (_) {} });
+}
+
+function _geoRefreshSources() {
+  if (!mapInstance) return;
+  if (!_mapStyleReady()) {
+    _afterMapStyleReady(_geoRefreshSources);
+    return;
+  }
+  _geoEnsureLayers();
+
+  var zoneFeatures = [];
+  var labelFeatures = [];
+  geoZones.forEach(function(z) {
+    if (!z || z._mapHidden || !_isFiniteCoord(z.lat, z.lng)) return;
+    z.lat = Number(z.lat); z.lng = Number(z.lng); z.radius = Number(z.radius) || 300;
+    zoneFeatures.push(_geoZoneFeature(z));
+    labelFeatures.push(_geoLabelFeature(z));
+  });
+
+  var zSrc = mapInstance.getSource(GEO_ZONE_SOURCE);
+  if (zSrc && zSrc.setData) zSrc.setData({ type: 'FeatureCollection', features: zoneFeatures });
+  var lSrc = mapInstance.getSource(GEO_LABEL_SOURCE);
+  if (lSrc && lSrc.setData) lSrc.setData({ type: 'FeatureCollection', features: labelFeatures });
+  _geoRefreshPreview();
+}
+
+function _geoRefreshPreview() {
+  if (!mapInstance || !_mapStyleReady()) return;
+  var src = mapInstance.getSource(GEO_PREVIEW_SOURCE);
+  if (src && src.setData) src.setData(_geoPreviewFeature());
+}
+
+function _geoCircleHandle(zone) {
+  return {
+    __wtGeoCircle: true,
+    zoneId: zone.id,
+    setStyle: function(style) {
+      if (style) {
+        if (style.color) zone.color = style.color;
+        if (style.fillColor) zone.color = style.fillColor;
+      }
+      _geoRefreshSources();
+    },
+    setRadius: function(radius) {
+      radius = Number(radius);
+      if (Number.isFinite(radius) && radius > 0) zone.radius = radius;
+      _geoRefreshSources();
+    }
+  };
+}
+
+function _geoMarkerHandle(zone) {
+  return { __wtGeoMarker: true, zoneId: zone.id };
+}
+
+function _geoRemoveZoneGraphics(zone) {
+  if (!zone) return;
+  zone.circle = null;
+  zone.marker = null;
+  zone._mapHidden = true;
+  _geoRefreshSources();
+}
+
+function _geoRestoreZoneGraphics(zone) {
+  if (!zone) return;
+  zone._mapHidden = false;
+  zone.circle = _geoCircleHandle(zone);
+  zone.marker = _geoMarkerHandle(zone);
+}
+
+function _geoSetPreview(lat, lng, radius, color) {
+  geoPreviewCircle = {
+    lat: Number(lat),
+    lng: Number(lng),
+    radius: Number(radius) || 300,
+    color: color || geoSelectedColor,
+    setRadius: function(r) {
+      this.radius = Number(r) || 300;
+      if (geoNewZone) geoNewZone.radius = this.radius;
+      _geoRefreshPreview();
+    },
+    setStyle: function(style) {
+      if (style && (style.color || style.fillColor)) this.color = style.color || style.fillColor;
+      _geoRefreshPreview();
+    }
+  };
+  _geoRefreshPreview();
+}
+
+function _geoClearPreview() {
+  geoPreviewCircle = null;
+  _geoRefreshPreview();
 }
 
 function sbFetchZones(onSuccess, onError) {
@@ -2932,37 +3287,39 @@ function geoLoadData() {
       if (existing) {
         existing.name      = z.name || z.channel;
         existing.channel   = z.channel;
-        existing.radius    = z.radius;
+        existing.lat       = Number(z.lat);
+        existing.lng       = Number(z.lng);
+        existing.radius    = Number(z.radius) || 300;
         existing.color     = z.color || GEO_COLORS[0];
         existing.autoJoin  = z.autoJoin !== false;
         existing.expiresAt = z.expiresAt || existing.expiresAt || null;
+        existing._mapHidden = false;
         newZones.push(existing);
         delete existingById[z.id];
       } else {
         newZones.push({
           id: z.id, deviceId: z.deviceId || '', createdBy: z.createdBy || '',
           name: z.name || z.channel, channel: z.channel,
-          lat: z.lat, lng: z.lng, radius: z.radius,
+          lat: Number(z.lat), lng: Number(z.lng), radius: Number(z.radius) || 300,
           color: z.color || GEO_COLORS[0], autoJoin: z.autoJoin !== false,
           expiresAt: z.expiresAt || null,
-          circle: null, marker: null, bannerEl: null
+          circle: null, marker: null, bannerEl: null, _mapHidden: false
         });
       }
     });
 
     Object.values(existingById).forEach(function(z) {
-      if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
-      if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
+      _geoRemoveZoneGraphics(z);
       if (z.bannerEl) { z.bannerEl.remove(); z.bannerEl = null; }
     });
     geoZones = newZones;
 
     geoPersist();
+    geoDrawAll();
     if (userLat !== null && userLng !== null) {
       _geoLastCheckLat = null; _geoLastCheckLng = null;
       geoCheckAll(userLat, userLng);
     }
-    if (mapInstance) geoDrawAll();
     _updateMapZoneBadge();
   }
 
@@ -2979,10 +3336,13 @@ function geoLoadData() {
 }
 
 function geoDrawAll() {
-  geoZones.forEach(function(z) {
-    if (!z.circle) _geoDrawZone(z);
+  if (!mapInstance) return;
+  _afterMapStyleReady(function() {
+    _geoEnsureLayers();
+    geoZones.forEach(function(z) { _geoRestoreZoneGraphics(z); });
+    _geoRefreshSources();
+    _geoBuildColorPicker();
   });
-  _geoBuildColorPicker();
 }
 
 function _geoBuildColorPicker() {
@@ -2992,11 +3352,16 @@ function _geoBuildColorPicker() {
     var sw = document.createElement('div');
     sw.className = 'geo-color-swatch' + (c === geoSelectedColor ? ' selected' : '');
     sw.style.background = c;
+    sw.setAttribute('role', 'button');
+    sw.setAttribute('tabindex', '0');
     sw.addEventListener('click', function() {
       geoSelectedColor = c;
       row.querySelectorAll('.geo-color-swatch').forEach(function(s){ s.classList.remove('selected'); });
       sw.classList.add('selected');
-      if (geoPreviewCircle) { geoPreviewCircle.setStyle({ color: c, fillColor: c }); }
+      if (geoPreviewCircle && geoPreviewCircle.setStyle) { geoPreviewCircle.setStyle({ color: c, fillColor: c }); }
+    });
+    sw.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sw.click(); }
     });
     row.appendChild(sw);
   });
@@ -3014,30 +3379,9 @@ function _geoLabelHtml(color, name, channel) {
 }
 
 function _geoDrawZone(z) {
-  if (!mapInstance || z.circle) return;
-  var color  = z.color || GEO_COLORS[0];
-  var inside = !!geoInsideZones[z.id];
-
-  z.circle = L.circle([z.lat, z.lng], {
-    radius:      z.radius,
-    color:       color,
-    fillColor:   color,
-    fillOpacity: inside ? 0.08 : 0.04,
-    weight:      inside ? 1.5  : 1,
-    dashArray:   null,
-    opacity:     inside ? 0.9   : 0.55
-  }).addTo(mapInstance);
-
-  var labelHtml = _geoLabelHtml(color, z.name, z.channel);
-
-  var labelIcon = L.divIcon({
-    className: '',
-    html: labelHtml,
-    iconAnchor: [0, 6],
-    iconSize:   null
-  });
-  z.marker = L.marker([z.lat, z.lng], { icon: labelIcon, interactive: false }).addTo(mapInstance);
-  z.circle.on('click', (function(zone){ return function() { geoShowBanner(zone); }; })(z));
+  if (!mapInstance || !z) return;
+  _geoRestoreZoneGraphics(z);
+  _geoRefreshSources();
 }
 
 function geoInit() {
@@ -3051,21 +3395,18 @@ function geoPersist() {
   _safeStorageSet('wt_geo_zones', JSON.stringify(data));
 }
 
-function _esc(s) {
-  return String(s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; });
-}
-
 function geoAddZoneToMap(z) {
   var zone = {
     id: z.id, deviceId: z.deviceId || _deviceId, createdBy: z.createdBy || '',
     name: z.name || z.channel, channel: z.channel,
-    lat: z.lat, lng: z.lng, radius: z.radius,
+    lat: Number(z.lat), lng: Number(z.lng), radius: Number(z.radius) || 300,
     color: z.color || GEO_COLORS[0], autoJoin: z.autoJoin !== false,
     expiresAt: z.expiresAt || null,
-    circle: null, marker: null, bannerEl: null
+    circle: null, marker: null, bannerEl: null, _mapHidden: false
   };
   geoZones.push(zone);
   if (mapInstance) _geoDrawZone(zone);
+  _updateMapZoneBadge();
 }
 
 function geoDeleteZone(id) {
@@ -3076,24 +3417,19 @@ function geoDeleteZone(id) {
     showToast('You can only delete your own zones');
     return;
   }
-  if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
-  if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
+  _geoRemoveZoneGraphics(z);
   if (z.bannerEl) { z.bannerEl.remove(); z.bannerEl = null; }
   geoZones.splice(idx, 1);
   delete geoInsideZones[id];
   geoPersist();
   sbDeleteZone(id);
+  _geoRefreshSources();
   _updateMapZoneBadge();
 }
 
 function _geoStyleZone(zone, inside) {
-  if (!zone.circle) return;
-  zone.circle.setStyle({
-    fillOpacity: inside ? 0.08 : 0.04,
-    weight:      inside ? 1.5  : 1,
-    opacity:     inside ? 0.9  : 0.55,
-    dashArray:   null
-  });
+  if (!zone) return;
+  _geoRefreshSources();
 }
 
 function _zoneExpiryLabel(expiresAt) {
@@ -3122,25 +3458,22 @@ function geoShowBanner(zone) {
     el = document.createElement('div');
     el.className = 'geo-banner';
     el.dataset.zoneId = zone.id;
-
     var isMine = zone.deviceId === _deviceId;
-
     el.innerHTML =
       '<div class="geo-banner-accent" style="background:' + zone.color + '"></div>' +
       '<div class="geo-banner-body">' +
         '<div class="geo-banner-info">' +
           '<span class="geo-banner-title" id="gbname_' + zone.id + '">' + _esc(zone.name) + '</span>' +
           '<span class="geo-banner-ch">#' + _esc(zone.channel) + '</span>' +
-          (isMine ? '<span class="geo-banner-mine"></span>' : '') +
+          (isMine ? '' : '<span class="geo-banner-ch">by @' + _esc(zone.createdBy || 'someone') + '</span>') +
         '</div>' +
         '<span class="geo-banner-dist" id="gbdist_' + zone.id + '"></span>' +
         '<span class="geo-banner-expiry" id="gbexp_' + zone.id + '"></span>' +
       '</div>' +
       '<button class="geo-banner-action" id="gbaction_' + zone.id + '"></button>' +
       '<button class="geo-banner-dismiss" id="gbdismiss_' + zone.id + '" aria-label="Dismiss">✕</button>';
-
     el.addEventListener('click', function(e) {
-      if (e.target.closest('.geo-banner-action') || e.target.closest('.geo-banner-dismiss')) return;
+      if (e.target.tagName === 'BUTTON') return;
       joinChannel(zone.channel); showMain();
     });
     el.querySelector('#gbaction_' + zone.id).addEventListener('click', function(e) {
@@ -3152,13 +3485,12 @@ function geoShowBanner(zone) {
       e.stopPropagation();
       geoHideBanner(zone);
     });
-
     banners.appendChild(el);
     zone.bannerEl = el;
-    requestAnimationFrame(function(){ requestAnimationFrame(function(){ el.classList.add('on'); }); });
     _updateMapZoneBadge();
   }
   geoUpdateBanner(zone);
+  requestAnimationFrame(function(){ el.classList.add('on'); });
 }
 
 function geoUpdateBanner(zone, precomputedDist) {
@@ -3280,40 +3612,50 @@ function geoStartDraw() {
     return;
   }
 
-  geoDrawMode   = true;
-  geoNewZone    = { lat: null, lng: null, radius: 300, color: geoSelectedColor, autoJoin: true };
+  geoDrawMode = true;
+  geoNewZone  = { lat: null, lng: null, radius: 300, color: geoSelectedColor, autoJoin: true };
   document.getElementById('geoDrawHint').classList.add('on');
-  mapInstance.once('click', function(e) {
-    geoDrawMode    = false;
-    geoNewZone.lat = e.latlng.lat;
-    geoNewZone.lng = e.latlng.lng;
+
+  if (_geoDrawClickHandler && mapInstance) {
+    try { mapInstance.off('click', _geoDrawClickHandler); } catch (_) {}
+  }
+
+  _geoDrawClickHandler = function(e) {
+    geoDrawMode = false;
+    var lngLat = e && e.lngLat ? e.lngLat : null;
+    if (!lngLat) return;
+    geoNewZone.lat = lngLat.lat;
+    geoNewZone.lng = lngLat.lng;
     document.getElementById('geoDrawHint').classList.remove('on');
-    if (geoPreviewCircle) mapInstance.removeLayer(geoPreviewCircle);
-    geoPreviewCircle = L.circle([geoNewZone.lat, geoNewZone.lng], {
-      radius: 300, color: geoSelectedColor, fillColor: geoSelectedColor,
-      fillOpacity: 0.06, weight: 1.5, dashArray: null, opacity: 0.75
-    }).addTo(mapInstance);
-    document.getElementById('geoSheetSub').textContent = e.latlng.lat.toFixed(4) + ', ' + e.latlng.lng.toFixed(4);
+    _geoSetPreview(geoNewZone.lat, geoNewZone.lng, 300, geoSelectedColor);
+    document.getElementById('geoSheetSub').textContent = geoNewZone.lat.toFixed(4) + ', ' + geoNewZone.lng.toFixed(4);
     document.getElementById('geoZoneName').value    = '';
     document.getElementById('geoZoneChannel').value = myRoom || '';
     document.getElementById('geoRadiusSlider').value = '300';
     document.getElementById('geoRadiusLabel').textContent = '300 m';
     document.getElementById('geoAutoJoin').checked = true;
     document.getElementById('geoOverlay').classList.add('open');
-  });
+    _geoDrawClickHandler = null;
+  };
+  mapInstance.once('click', _geoDrawClickHandler);
 }
 
 function geoUpdatePreview() {
   if (!geoPreviewCircle || !geoNewZone) return;
-  geoPreviewCircle.setRadius(parseInt(document.getElementById('geoRadiusSlider').value) || 300);
+  var r = parseInt(document.getElementById('geoRadiusSlider').value) || 300;
+  geoNewZone.radius = r;
+  geoPreviewCircle.setRadius(r);
 }
 
 function geoCancelDraw() {
   geoDrawMode = false;
   document.getElementById('geoDrawHint').classList.remove('on');
   document.getElementById('geoOverlay').classList.remove('open');
-  if (geoPreviewCircle) { mapInstance.removeLayer(geoPreviewCircle); geoPreviewCircle = null; }
-  if (mapInstance) mapInstance.off('click');
+  _geoClearPreview();
+  if (_geoDrawClickHandler && mapInstance) {
+    try { mapInstance.off('click', _geoDrawClickHandler); } catch (_) {}
+    _geoDrawClickHandler = null;
+  }
 }
 
 function geoSaveZone() {
@@ -3335,7 +3677,7 @@ function geoSaveZone() {
   var saveBtn = document.getElementById('geoSaveBtn');
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
 
-  if (geoPreviewCircle) { mapInstance.removeLayer(geoPreviewCircle); geoPreviewCircle = null; }
+  _geoClearPreview();
   document.getElementById('geoOverlay').classList.remove('open');
   geoNewZone = null;
 
@@ -3377,7 +3719,7 @@ function geoOpenList() {
       var byStr    = (!z.deviceId || z.deviceId === _deviceId) ? '' : (z.createdBy ? ' · by @' + z.createdBy : '');
       var expLabel = _zoneExpiryLabel(z.expiresAt);
       var expStr   = expLabel ? ' · ' + expLabel : '';
-      mt.textContent = '#' + z.channel + ' · ' + z.radius + 'm radius' + byStr + expStr;
+      mt.textContent = distStr + '#' + z.channel + ' · ' + z.radius + 'm radius' + byStr + expStr;
       if (expLabel && expLabel !== 'expired') {
         mt.style.color = _zoneExpiryColor(z.expiresAt) === 'var(--amber)' ? 'var(--amber)' : '';
       }
@@ -3824,6 +4166,7 @@ socket.on('ai_chat_error', function (data) {
 
 // ── Realtime zone sync ──
 socket.on('zone_upserted', function(data) {
+  data = data || {};
   var isOwn = data.device_id === _deviceId;
   if (isOwn) return;
 
@@ -3833,13 +4176,14 @@ socket.on('zone_upserted', function(data) {
     createdBy: data.created_by || '',
     name:      data.name,
     channel:   data.channel,
-    lat:       data.lat,
-    lng:       data.lng,
-    radius:    data.radius,
-    color:     data.color,
-    autoJoin:  data.auto_join,
+    lat:       Number(data.lat),
+    lng:       Number(data.lng),
+    radius:    Number(data.radius) || 300,
+    color:     data.color || GEO_COLORS[0],
+    autoJoin:  data.auto_join !== false,
     expiresAt: data.expires_at || null
   };
+  if (!z.id || !z.channel || !Number.isFinite(z.lat) || !Number.isFinite(z.lng)) return;
 
   var idx = geoZones.findIndex(function(x){ return x.id === z.id; });
   if (idx === -1) {
@@ -3848,42 +4192,41 @@ socket.on('zone_upserted', function(data) {
     showToast('New zone: ' + z.name + ' by @' + (z.createdBy || 'someone'));
   } else {
     var existing = geoZones[idx];
-    existing.name     = z.name;
-    existing.channel  = z.channel;
-    existing.radius   = z.radius;
-    existing.color    = z.color;
-    existing.autoJoin = z.autoJoin;
-    if (existing.circle && mapInstance) {
-      existing.circle.setStyle({ color: z.color, fillColor: z.color });
-      existing.circle.setRadius(z.radius);
-    }
-    if (existing.marker && mapInstance) {
-      mapInstance.removeLayer(existing.marker);
-      var labelHtml = _geoLabelHtml(z.color, z.name, z.channel);
-      var icon = L.divIcon({ className:'', html: labelHtml, iconAnchor:[0,6], iconSize:null });
-      existing.marker = L.marker([existing.lat, existing.lng], { icon: icon, interactive: false }).addTo(mapInstance);
-    }
+    existing.name      = z.name || z.channel;
+    existing.channel   = z.channel;
+    existing.lat       = z.lat;
+    existing.lng       = z.lng;
+    existing.radius    = z.radius;
+    existing.color     = z.color;
+    existing.autoJoin  = z.autoJoin;
+    existing.createdBy = z.createdBy;
+    existing.expiresAt = z.expiresAt;
+    existing._mapHidden = false;
+    _geoRestoreZoneGraphics(existing);
+    _geoRefreshSources();
     geoPersist();
   }
   if (userLat !== null && userLng !== null) {
     _geoLastCheckLat = null; _geoLastCheckLng = null;
     geoCheckAll(userLat, userLng);
   }
+  _updateMapZoneBadge();
 });
 
 socket.on('zone_deleted', function(data) {
+  data = data || {};
   var idx = geoZones.findIndex(function(x){ return x.id === data.id; });
   if (idx === -1) return;
 
   var z = geoZones[idx];
   var isOwn = z.deviceId === _deviceId;
 
-  if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
-  if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
+  _geoRemoveZoneGraphics(z);
   if (z.bannerEl) { z.bannerEl.remove(); z.bannerEl = null; }
   geoZones.splice(idx, 1);
   delete geoInsideZones[data.id];
   geoPersist();
+  _geoRefreshSources();
   _updateMapZoneBadge();
 
   if (data.expired && isOwn) {
@@ -3903,19 +4246,32 @@ setInterval(function() {
       seen[z.id] = true;
       if (!existingById[z.id]) {
         geoAddZoneToMap(z);
+      } else {
+        var existing = existingById[z.id];
+        existing.name      = z.name || z.channel;
+        existing.channel   = z.channel;
+        existing.lat       = Number(z.lat);
+        existing.lng       = Number(z.lng);
+        existing.radius    = Number(z.radius) || 300;
+        existing.color     = z.color || GEO_COLORS[0];
+        existing.autoJoin  = z.autoJoin !== false;
+        existing.createdBy = z.createdBy || existing.createdBy || '';
+        existing.expiresAt = z.expiresAt || null;
+        existing._mapHidden = false;
       }
     });
     var toRemove = geoZones.filter(function(z){ return !seen[z.id]; });
     toRemove.forEach(function(z) {
       var i = geoZones.findIndex(function(x){ return x.id === z.id; });
       if (i === -1) return;
-      if (z.circle && mapInstance) mapInstance.removeLayer(z.circle);
-      if (z.marker && mapInstance) mapInstance.removeLayer(z.marker);
+      _geoRemoveZoneGraphics(z);
       if (z.bannerEl) { z.bannerEl.remove(); z.bannerEl = null; }
       geoZones.splice(i, 1);
       delete geoInsideZones[z.id];
     });
     geoPersist();
+    geoDrawAll();
+    _updateMapZoneBadge();
   }, function(){});
 }, 60000);
 
