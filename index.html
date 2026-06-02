@@ -1739,15 +1739,17 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
 // ── Safe storage + network helpers ────────────────────────────────────────
 function _safeStorageGet(key, fallback) {
   try {
-    var value = window.localStorage ? window._safeStorageGet(key) : null;
-    return value === null || value === undefined ? (fallback || '') : value;
+    if (!window.localStorage) return fallback === undefined ? '' : fallback;
+    var value = window.localStorage.getItem(String(key));
+    return value === null || value === undefined ? (fallback === undefined ? '' : fallback) : value;
   } catch (_) {
-    return fallback || '';
+    return fallback === undefined ? '' : fallback;
   }
 }
 function _safeStorageSet(key, value) {
   try {
-    if (window.localStorage) window._safeStorageSet(key, value);
+    if (!window.localStorage) return false;
+    window.localStorage.setItem(String(key), String(value));
     return true;
   } catch (_) {
     return false;
@@ -1755,7 +1757,8 @@ function _safeStorageSet(key, value) {
 }
 function _safeStorageRemove(key) {
   try {
-    if (window.localStorage) window._safeStorageRemove(key);
+    if (!window.localStorage) return false;
+    window.localStorage.removeItem(String(key));
     return true;
   } catch (_) {
     return false;
@@ -2455,12 +2458,17 @@ function reverseGeocode(lat, lng) {
 }
 
 // ── Map ──
-// Mapbox public token. For production, restrict this token by allowed website URL
-// inside the Mapbox dashboard because browser tokens are visible to users.
-var MAPBOX_ACCESS_TOKEN = 'pk.eyJ1Ijoib3BlbnN0cmVldGNhbSIsImEiOiJja252Ymh4ZnIwNHdkMnd0ZzF5NDVmdnR5In0.dYxz3TzZPTPzd_ibMeGK2g';
-var MAPBOX_STYLE_IDS = {
-  standard:  'standard',
-  satellite: 'standard-satellite'
+// Mapbox token is loaded from the backend ENV endpoint.
+// Backend endpoint expected:
+//   GET /config/mapbox -> { ok:true, token:"<public-mapbox-token>", styles:{standard:"mapbox://styles/mapbox/standard", standard_satellite:"mapbox://styles/mapbox/standard-satellite"} }
+// Do not hardcode the Mapbox token in this frontend file.
+var MAPBOX_CONFIG_ENDPOINT = _cleanServerUrl(
+  window.WT_MAPBOX_CONFIG_URL || (SERVER_URL + '/config/mapbox')
+);
+var MAPBOX_ACCESS_TOKEN = '';
+var MAPBOX_STYLE_URLS = {
+  standard:  'mapbox://styles/mapbox/standard',
+  satellite: 'mapbox://styles/mapbox/standard-satellite'
 };
 var MAPBOX_STYLE_LABELS = {
   standard:  'Standard',
@@ -2471,11 +2479,14 @@ var mapStyleKey = (function() {
   var saved = _safeStorageGet('wt_map_style_v2') || 'standard';
   return saved === 'satellite' ? 'satellite' : 'standard';
 })();
+var _mapboxConfigPromise = null;
+var _mapboxConfigLoaded = false;
+var _mapboxLastTileErrorAt = 0;
+var _leafletAssetPromise = null;
 
-function _mapboxTileUrl(styleKey) {
-  var styleId = MAPBOX_STYLE_IDS[styleKey] || MAPBOX_STYLE_IDS.standard;
-  return 'https://api.mapbox.com/styles/v1/mapbox/' + styleId +
-         '/tiles/256/{z}/{x}/{y}?access_token=' + encodeURIComponent(MAPBOX_ACCESS_TOKEN);
+function _normalizeMapStyleKey(value) {
+  value = String(value || '').toLowerCase().replace(/[_\s-]+/g, '_');
+  return value === 'satellite' || value === 'standard_satellite' ? 'satellite' : 'standard';
 }
 
 function _mapboxAttribution() {
@@ -2483,83 +2494,245 @@ function _mapboxAttribution() {
          '&copy; <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">Mapbox</a>';
 }
 
-function _updateMapStyleButton() {
+function _osmAttribution() {
+  return '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+}
+
+function _mapboxStyleParts(styleValue) {
+  var style = String(styleValue || '').trim();
+  if (!style) style = MAPBOX_STYLE_URLS.standard;
+
+  // mapbox://styles/{owner}/{style_id}
+  var match = style.match(/^mapbox:\/\/styles\/([^/]+)\/([^/?#]+)/i);
+  if (match) {
+    return { owner: encodeURIComponent(match[1]), styleId: encodeURIComponent(match[2]) };
+  }
+
+  // styles/{owner}/{style_id}
+  match = style.match(/^styles\/([^/]+)\/([^/?#]+)/i);
+  if (match) {
+    return { owner: encodeURIComponent(match[1]), styleId: encodeURIComponent(match[2]) };
+  }
+
+  // plain built-in style id: "standard" or "standard-satellite"
+  style = style.replace(/^mapbox:/i, '').replace(/^\/+/, '');
+  if (!style || /[^a-z0-9._-]/i.test(style)) style = 'standard';
+  return { owner: 'mapbox', styleId: encodeURIComponent(style) };
+}
+
+function _mapboxTileUrl(styleKey) {
+  if (!MAPBOX_ACCESS_TOKEN) return '';
+  styleKey = _normalizeMapStyleKey(styleKey);
+  var styleValue = MAPBOX_STYLE_URLS[styleKey] || MAPBOX_STYLE_URLS.standard;
+  var parts = _mapboxStyleParts(styleValue);
+  return 'https://api.mapbox.com/styles/v1/' + parts.owner + '/' + parts.styleId +
+         '/tiles/256/{z}/{x}/{y}?access_token=' + encodeURIComponent(MAPBOX_ACCESS_TOKEN);
+}
+
+function _friendlyMapboxError(err) {
+  var msg = _friendlyNetworkError(err);
+  if (/MAPBOX_ACCESS_TOKEN/i.test(msg)) return 'Mapbox token missing on backend ENV';
+  if (/HTTP 404/i.test(msg)) return 'Backend /config/mapbox endpoint not found';
+  if (/HTTP 503/i.test(msg)) return 'Mapbox token not configured on backend';
+  return msg;
+}
+
+function loadMapboxConfig(force) {
+  if (!force && _mapboxConfigLoaded && MAPBOX_ACCESS_TOKEN) {
+    return Promise.resolve({
+      ok: true,
+      token: MAPBOX_ACCESS_TOKEN,
+      styles: MAPBOX_STYLE_URLS
+    });
+  }
+  if (!force && _mapboxConfigPromise) return _mapboxConfigPromise;
+
+  _mapboxConfigPromise = wtFetchJSON(MAPBOX_CONFIG_ENDPOINT, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+    cache: 'no-store'
+  }, {
+    retries: 1,
+    timeout: 9000
+  }).then(function(data) {
+    if (!data || data.ok === false) {
+      throw new Error((data && (data.error || data.message)) || 'Mapbox config failed');
+    }
+
+    var token = String(data.token || data.access_token || data.mapbox_token || '').trim();
+    if (!token) throw new Error('MAPBOX_ACCESS_TOKEN is missing from backend response');
+    if (token.indexOf('sk.') === 0) throw new Error('Do not send a secret sk.* Mapbox token to the browser');
+
+    MAPBOX_ACCESS_TOKEN = token;
+
+    var styles = data.styles || {};
+    if (typeof styles.standard === 'string' && styles.standard.trim()) {
+      MAPBOX_STYLE_URLS.standard = styles.standard.trim();
+    }
+    if (typeof styles.standard_satellite === 'string' && styles.standard_satellite.trim()) {
+      MAPBOX_STYLE_URLS.satellite = styles.standard_satellite.trim();
+    } else if (typeof styles.satellite === 'string' && styles.satellite.trim()) {
+      MAPBOX_STYLE_URLS.satellite = styles.satellite.trim();
+    }
+
+    if (!_safeStorageGet('wt_map_style_v2') && data.default_style) {
+      mapStyleKey = _normalizeMapStyleKey(data.default_style);
+      _safeStorageSet('wt_map_style_v2', mapStyleKey);
+    }
+
+    _mapboxConfigLoaded = true;
+    _updateMapStyleButton();
+    return data;
+  }).catch(function(err) {
+    _mapboxConfigLoaded = false;
+    _mapboxConfigPromise = null;
+    throw err;
+  });
+
+  return _mapboxConfigPromise;
+}
+
+function _updateMapStyleButton(extraLabel) {
   var btn = document.getElementById('mapStyleBtn');
   if (!btn) return;
   var label = MAPBOX_STYLE_LABELS[mapStyleKey] || MAPBOX_STYLE_LABELS.standard;
-  btn.title = 'Mapbox ' + label + ' — tap to switch';
-  btn.setAttribute('aria-label', 'Mapbox ' + label + '. Tap to switch style.');
+  btn.title = _mapboxConfigLoaded
+    ? 'Mapbox ' + label + ' — tap to switch'
+    : 'Mapbox config loading from backend ENV';
+  btn.setAttribute('aria-label', _mapboxConfigLoaded
+    ? 'Mapbox ' + label + '. Tap to switch style.'
+    : 'Mapbox config loading from backend ENV.');
   var small = btn.querySelector('.map-style-label');
-  if (small) small.textContent = mapStyleKey === 'satellite' ? 'SAT' : 'STD';
+  if (small) small.textContent = extraLabel || (mapStyleKey === 'satellite' ? 'SAT' : 'STD');
+}
+
+function _addFallbackOsmLayer() {
+  if (!mapInstance || typeof L === 'undefined') return;
+  if (mapTileLayer && mapInstance.hasLayer(mapTileLayer)) return;
+
+  var fallback = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    detectRetina: true,
+    crossOrigin: true,
+    attribution: _osmAttribution()
+  });
+  mapTileLayer = fallback;
+  fallback.addTo(mapInstance);
+  _updateMapStyleButton('OSM');
 }
 
 function applyMapStyle(styleKey) {
-  styleKey = styleKey === 'satellite' ? 'satellite' : 'standard';
+  styleKey = _normalizeMapStyleKey(styleKey);
   mapStyleKey = styleKey;
   _safeStorageSet('wt_map_style_v2', mapStyleKey);
-  _updateMapStyleButton();
+  _updateMapStyleButton(_mapboxConfigLoaded ? null : '...');
 
-  if (!mapInstance || typeof L === 'undefined') return;
+  if (!mapInstance || typeof L === 'undefined') return Promise.resolve(false);
 
-  var oldLayer = mapTileLayer;
-  var nextLayer = L.tileLayer(_mapboxTileUrl(mapStyleKey), {
-    maxZoom: 20,
-    tileSize: 256,
-    detectRetina: true,
-    crossOrigin: true,
-    attribution: _mapboxAttribution()
-  });
+  return loadMapboxConfig(false).then(function() {
+    var tileUrl = _mapboxTileUrl(mapStyleKey);
+    if (!tileUrl) throw new Error('Mapbox tile URL is empty');
 
-  nextLayer.once('load', function() {
-    if (oldLayer && oldLayer !== nextLayer && mapInstance && mapInstance.hasLayer(oldLayer)) {
-      mapInstance.removeLayer(oldLayer);
-    }
-    try { mapInstance.invalidateSize({ animate: false }); } catch (_) {}
-  });
+    var oldLayer = mapTileLayer;
+    var nextLayer = L.tileLayer(tileUrl, {
+      maxZoom: 20,
+      tileSize: 256,
+      detectRetina: true,
+      crossOrigin: true,
+      attribution: _mapboxAttribution()
+    });
 
-  nextLayer.on('tileerror', function() {
-    showToast('Mapbox map failed to load');
-  });
-
-  mapTileLayer = nextLayer;
-  nextLayer.addTo(mapInstance);
-
-  // Fallback cleanup in case the browser serves cached tiles before the load handler fires.
-  if (oldLayer && oldLayer !== nextLayer) {
-    setTimeout(function() {
-      if (mapInstance && mapInstance.hasLayer(oldLayer)) {
+    nextLayer.once('load', function() {
+      if (oldLayer && oldLayer !== nextLayer && mapInstance && mapInstance.hasLayer(oldLayer)) {
         try { mapInstance.removeLayer(oldLayer); } catch (_) {}
       }
-    }, 1800);
-  }
+      try { mapInstance.invalidateSize({ animate: false }); } catch (_) {}
+    });
+
+    nextLayer.on('tileerror', function() {
+      var now = Date.now();
+      if (now - _mapboxLastTileErrorAt > 4000) {
+        _mapboxLastTileErrorAt = now;
+        showToast('Mapbox tile failed to load');
+      }
+    });
+
+    mapTileLayer = nextLayer;
+    nextLayer.addTo(mapInstance);
+
+    // Fallback cleanup in case cached tiles load before the load handler fires.
+    if (oldLayer && oldLayer !== nextLayer) {
+      setTimeout(function() {
+        if (mapInstance && mapInstance.hasLayer(oldLayer)) {
+          try { mapInstance.removeLayer(oldLayer); } catch (_) {}
+        }
+      }, 1800);
+    }
+
+    _updateMapStyleButton();
+    return true;
+  }).catch(function(err) {
+    var msg = _friendlyMapboxError(err);
+    console.warn('Mapbox config/style failed:', err);
+    showToast(msg);
+    _addFallbackOsmLayer();
+    return false;
+  });
 }
 
 function toggleMapStyle() {
-  applyMapStyle(mapStyleKey === 'satellite' ? 'standard' : 'satellite');
-  showToast('Mapbox ' + (MAPBOX_STYLE_LABELS[mapStyleKey] || 'Standard'));
+  var nextKey = mapStyleKey === 'satellite' ? 'standard' : 'satellite';
+  applyMapStyle(nextKey).then(function(ok) {
+    if (ok) showToast('Mapbox ' + (MAPBOX_STYLE_LABELS[mapStyleKey] || 'Standard'));
+  });
 }
 
 function initMap() {
   if (mapReady) return;
   mapReady = true;
 
-  if (!document.querySelector('link[href*="leaflet"]')) {
-    var css = document.createElement('link');
-    css.rel = 'stylesheet';
-    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
-    document.head.appendChild(css);
+  if (!_leafletAssetPromise) {
+    _leafletAssetPromise = new Promise(function(resolve, reject) {
+      if (!document.querySelector('link[href*="leaflet"]')) {
+        var css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+        css.crossOrigin = 'anonymous';
+        document.head.appendChild(css);
+      }
+
+      if (typeof L !== 'undefined') {
+        resolve();
+        return;
+      }
+
+      var existing = document.querySelector('script[data-wt-leaflet="1"]');
+      if (existing) {
+        existing.addEventListener('load', resolve, { once: true });
+        existing.addEventListener('error', reject, { once: true });
+        return;
+      }
+
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+      s.async = true;
+      s.defer = true;
+      s.crossOrigin = 'anonymous';
+      s.referrerPolicy = 'no-referrer';
+      s.setAttribute('data-wt-leaflet', '1');
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
   }
 
-  if (typeof L !== 'undefined') {
-    buildMap();
-    return;
-  }
-
-  var s = document.createElement('script');
-  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-  s.onload  = buildMap;
-  s.onerror = function() { showToast('Map failed to load'); mapReady = false; };
-  document.head.appendChild(s);
+  _leafletAssetPromise
+    .then(buildMap)
+    .catch(function() {
+      showToast('Map failed to load');
+      mapReady = false;
+      _leafletAssetPromise = null;
+    });
 }
 
 function buildMap() {
