@@ -1253,6 +1253,68 @@ input:focus-visible,
   .screen-help { display: none; }
 }
 
+
+
+/* ════════════ UI/UX + BUGFIX STYLE PACK v3 ════════════
+   Additive only: improves mobile touch targets, loading/error states,
+   screen-share visibility, AI chat readability, and offline feedback. */
+:root {
+  --danger-soft: rgba(255,69,58,0.12);
+  --ok-soft: rgba(48,209,88,0.12);
+  --warn-soft: rgba(255,159,10,0.12);
+}
+body.offline-state .reconnect-bar,
+body.socket-reconnecting .reconnect-bar { transform: translateY(0); }
+body.offline-state .reconnect-bar span::after { content: ' · offline'; color: var(--amber); }
+body.socket-connected .power-btn::after { background: var(--green); box-shadow: 0 0 8px var(--green); }
+body.socket-reconnecting .power-btn::after { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 8px var(--red); }
+.nav-btn.screen-live::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 22%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 8px var(--red);
+}
+.screen-status.err,
+.status-line.err { text-shadow: 0 0 12px rgba(255,69,58,0.16); }
+.screen-status.ok,
+.status-line.ok { text-shadow: 0 0 12px rgba(48,209,88,0.16); }
+.screen-status.warn,
+.status-line.warn { text-shadow: 0 0 12px rgba(255,159,10,0.14); }
+.ai-msg.assistant .ai-bubble { white-space: pre-wrap; word-break: break-word; }
+.ai-msg.user .ai-bubble { white-space: pre-wrap; word-break: break-word; }
+.ai-input textarea,
+#aiInput { font-size: 16px; line-height: 1.35; }
+.screen-action:disabled,
+.sheet-btn:disabled,
+.talk-here-btn:disabled,
+.mode-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+  filter: saturate(0.75);
+}
+.ptt-circle.disabled { pointer-events: none; }
+.channel-pill.has-unread { border-color: rgba(255,69,58,0.24); box-shadow: 0 0 0 1px rgba(255,69,58,0.08), var(--shadow-soft); }
+.reconnect-bar { min-height: 34px; }
+@media (hover: none) {
+  .ptt-circle:not(.disabled):hover,
+  .top-icon-btn:hover,
+  .power-btn:hover,
+  .quality-btn:hover,
+  .channel-pill:hover,
+  .username:hover { transform: none; }
+}
+@media (max-width: 430px) {
+  .screen-actions { gap: 8px; }
+  .screen-action { min-height: 48px; padding-inline: 10px; }
+  .ai-toolbar { gap: 8px; }
+}
+
 </style>
 </head>
 <body>
@@ -1663,8 +1725,117 @@ input:focus-visible,
 <script>
 'use strict';
 
+
+// ── Safe storage + network helpers ────────────────────────────────────────
+function _safeStorageGet(key, fallback) {
+  try {
+    var value = window.localStorage ? window._safeStorageGet(key) : null;
+    return value === null || value === undefined ? (fallback || '') : value;
+  } catch (_) {
+    return fallback || '';
+  }
+}
+function _safeStorageSet(key, value) {
+  try {
+    if (window.localStorage) window._safeStorageSet(key, value);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+function _safeStorageRemove(key) {
+  try {
+    if (window.localStorage) window._safeStorageRemove(key);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+function _sleep(ms) { return new Promise(function(resolve) { setTimeout(resolve, ms); }); }
+function _cleanServerUrl(url) {
+  url = String(url || '').trim();
+  return url ? url.replace(/\/+$/, '') : '';
+}
+function _friendlyNetworkError(err) {
+  if (!err) return 'network failed';
+  if (err.name === 'AbortError') return 'request timed out';
+  return err.message || String(err);
+}
+function wtFetchJSON(url, options, config) {
+  options = options || {};
+  config = config || {};
+  var retries = config.retries == null ? 2 : Math.max(0, Number(config.retries) || 0);
+  var timeout = config.timeout == null ? 12000 : Math.max(1000, Number(config.timeout) || 12000);
+  var attempt = 0;
+
+  function run() {
+    attempt += 1;
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = controller ? setTimeout(function() { controller.abort(); }, timeout) : null;
+    var opts = Object.assign({}, options);
+    opts.headers = Object.assign({}, options.headers || {});
+    if (controller) opts.signal = controller.signal;
+
+    return fetch(url, opts).then(function(r) {
+      if (timer) clearTimeout(timer);
+      return r.text().then(function(rawText) {
+        var body = {};
+        if (rawText) {
+          try { body = JSON.parse(rawText); }
+          catch (_) { body = { text: rawText }; }
+        }
+        if (!r.ok) {
+          var msg = body.error || body.detail || body.message || body.text || ('HTTP ' + r.status);
+          var error = new Error(msg);
+          error.status = r.status;
+          error.body = body;
+          throw error;
+        }
+        return body;
+      });
+    }).catch(function(err) {
+      if (timer) clearTimeout(timer);
+      var status = Number(err && err.status || 0);
+      var retryable = !status || status === 408 || status === 409 || status === 425 || status === 429 || status >= 500;
+      if (attempt <= retries + 1 && retryable) {
+        var delay = Math.min(1800, 280 * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 120);
+        return _sleep(delay).then(run);
+      }
+      throw err;
+    });
+  }
+  return run();
+}
+function wtSetConnectionState(state, message) {
+  var bar = document.getElementById('reconnectBar');
+  var power = document.getElementById('btnPower');
+  document.body.classList.toggle('socket-connected', state === 'connected');
+  document.body.classList.toggle('socket-reconnecting', state === 'reconnecting');
+  document.body.classList.toggle('socket-offline', state === 'offline');
+  document.body.classList.toggle('offline-state', !navigator.onLine);
+  if (bar) bar.classList.toggle('on', state !== 'connected');
+  if (power) {
+    power.classList.toggle('connected', state === 'connected');
+    power.classList.toggle('disconnected', state !== 'connected');
+  }
+  if (message) setStatus(message, state === 'connected' ? 'ok' : 'err');
+}
+function wtHandleOnlineState() {
+  if (!navigator.onLine) {
+    wtSetConnectionState('offline', 'Device offline');
+    showToast('You are offline');
+  } else if (socket && !socket.connected) {
+    wtSetConnectionState('reconnecting', 'Reconnecting...');
+    try { socket.connect(); } catch (_) {}
+  }
+}
+window.addEventListener('online', wtHandleOnlineState);
+window.addEventListener('offline', wtHandleOnlineState);
+
+
 // ── Config ──
-var SERVER_URL  = 'https://server-y327.onrender.com';
+var DEFAULT_SERVER_URL = 'https://server-y327.onrender.com';
+var SERVER_URL  = _cleanServerUrl(window.WT_SERVER_URL || _safeStorageGet('wt_server_url') || DEFAULT_SERVER_URL);
 var MAX_REC_SEC = 60;
 var MIN_REC_MS  = 500;
 var CIRC        = 864; // 2π × 137.5
@@ -1682,12 +1853,12 @@ var socket = io(SERVER_URL, {
 });
 
 // ── App state ──
-var myName       = localStorage.getItem('wt_name') || '';
+var myName       = _safeStorageGet('wt_name') || '';
 var _deviceId    = (function() {
-  var id = localStorage.getItem('wt_device_id');
+  var id = _safeStorageGet('wt_device_id');
   if (!id) {
     id = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
-    localStorage.setItem('wt_device_id', id);
+    _safeStorageSet('wt_device_id', id);
   }
   return id;
 })();
@@ -1768,7 +1939,7 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
     var adj  = ['swift','clear','brave','calm','sharp','quiet','bold','keen'];
     var noun = ['wave','link','beam','echo','pulse','relay','freq','node'];
     myName = adj[Math.floor(Math.random() * 8)] + noun[Math.floor(Math.random() * 8)];
-    localStorage.setItem('wt_name', myName);
+    _safeStorageSet('wt_name', myName);
   }
   var _namePart = document.getElementById('usernameNamePart');
   if (_namePart) _namePart.textContent = myName; else usernameText.textContent = '@' + myName;
@@ -1805,6 +1976,7 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
   _checkMicPermission();
   setTimeout(_updateShareBtn, 0);
   _registerSW();
+  wtHandleOnlineState();
 })();
 
 // ── PWA: Service Worker + Install Prompt ─────────────────────────────────
@@ -1851,13 +2023,13 @@ window.addEventListener('appinstalled', function() {
   _deferredInstallPrompt = null;
   _hideInstallBar();
   showToast('WalkieTalk installed!');
-  localStorage.setItem('wt_pwa_installed', '1');
+  _safeStorageSet('wt_pwa_installed', '1');
 });
 
 function _maybeShowInstallBar() {
   if (!_deferredInstallPrompt) return;
-  if (localStorage.getItem('wt_pwa_dismissed')) return;
-  if (localStorage.getItem('wt_pwa_installed'))   return;
+  if (_safeStorageGet('wt_pwa_dismissed')) return;
+  if (_safeStorageGet('wt_pwa_installed'))   return;
   setTimeout(function() {
     var bar = document.getElementById('installBar');
     if (bar) bar.classList.add('on');
@@ -1879,7 +2051,7 @@ document.addEventListener('DOMContentLoaded', function() {
       _deferredInstallPrompt.prompt();
       _deferredInstallPrompt.userChoice.then(function(choice) {
         if (choice.outcome === 'accepted') {
-          localStorage.setItem('wt_pwa_installed', '1');
+          _safeStorageSet('wt_pwa_installed', '1');
         }
         _deferredInstallPrompt = null;
         _hideInstallBar();
@@ -1889,7 +2061,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   if (installDismiss) {
     installDismiss.addEventListener('click', function() {
-      localStorage.setItem('wt_pwa_dismissed', '1');
+      _safeStorageSet('wt_pwa_dismissed', '1');
       _hideInstallBar();
     });
   }
@@ -1983,7 +2155,11 @@ function wireUI() {
     stopRecording(false);
   });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) channelPill.classList.remove('has-unread'); });
-  window.addEventListener('pagehide', _releaseMicStream);
+  window.addEventListener('pagehide', function() {
+    _releaseMicStream();
+    if (_screenSharing) screenStopShare('pagehide', true);
+    if (isLive) stopLive();
+  });
   var _audioUnlockHandler = function() {
     unlockAudio();
     document.removeEventListener('touchstart', _audioUnlockHandler, { capture: true });
@@ -1996,46 +2172,72 @@ function wireUI() {
 // ── PTT wiring ──
 function wirePTT(el, isMapBtn) {
   if (!el) return;
-  el.addEventListener('mousedown',  function (e) { e.preventDefault(); unlockAudio(); if (!_handleLiveCircleTap()) startRecording(); });
-  el.addEventListener('mouseup',    function () { if (!isLiveMode) stopRecording(false); });
-  el.addEventListener('mouseleave', function () { if (!isLiveMode && isRecording) stopRecording(false); });
+  var pointerActive = false;
+  var pointerId = null;
 
-  el.addEventListener('touchstart', function (e) {
-    e.preventDefault();
-    touchStartY = e.touches[0].clientY;
-    if (isMapBtn) talkHereBtn.classList.add('pressed');
+  function begin(e) {
+    if (pointerActive) return;
+    if (e && e.cancelable) e.preventDefault();
+    if (!myRoom || !socket || !socket.connected) {
+      showToast(!myRoom ? 'Join a channel first' : 'Server disconnected');
+      return;
+    }
+    pointerActive = true;
+    pointerId = e && e.pointerId != null ? e.pointerId : null;
+    touchStartY = e && e.clientY != null ? e.clientY : 0;
+    unlockAudio();
+    if (isMapBtn && talkHereBtn) talkHereBtn.classList.add('pressed');
+    if (el.setPointerCapture && pointerId != null) {
+      try { el.setPointerCapture(pointerId); } catch (_) {}
+    }
     if (!_handleLiveCircleTap()) startRecording();
-  }, { passive: false });
-
-  if (!isMapBtn) {
-    el.addEventListener('touchmove', function (e) {
-      e.preventDefault();
-      if (!isRecording) return;
-      var dy = touchStartY - e.touches[0].clientY;
-      if (dy > 60 && !isCancelling) {
-        isCancelling = true;
-        pttCircle.classList.add('cancelling');
-        pttCircle.classList.remove('tx');
-        ripples.classList.remove('tx');
-      } else if (dy <= 60 && isCancelling) {
-        isCancelling = false;
-        pttCircle.classList.remove('cancelling');
-        pttCircle.classList.add('tx');
-        ripples.classList.add('tx');
-      }
-    }, { passive: false });
   }
 
-  el.addEventListener('touchend', function (e) {
-    if (e.cancelable) e.preventDefault();
-    if (isMapBtn) talkHereBtn.classList.remove('pressed');
-    stopRecording(false);
-  }, { passive: false });
+  function move(e) {
+    if (!pointerActive || isMapBtn || !isRecording) return;
+    if (e && e.cancelable) e.preventDefault();
+    var y = e && e.clientY != null ? e.clientY : touchStartY;
+    var dy = touchStartY - y;
+    if (dy > 60 && !isCancelling) {
+      isCancelling = true;
+      pttCircle.classList.add('cancelling');
+      pttCircle.classList.remove('tx');
+      ripples.classList.remove('tx');
+    } else if (dy <= 60 && isCancelling) {
+      isCancelling = false;
+      pttCircle.classList.remove('cancelling');
+      pttCircle.classList.add('tx');
+      ripples.classList.add('tx');
+    }
+  }
 
-  el.addEventListener('touchcancel', function () {
-    if (isMapBtn) talkHereBtn.classList.remove('pressed');
-    stopRecording(true);
-  });
+  function end(cancel) {
+    if (!pointerActive) return;
+    pointerActive = false;
+    if (isMapBtn && talkHereBtn) talkHereBtn.classList.remove('pressed');
+    if (el.releasePointerCapture && pointerId != null) {
+      try { el.releasePointerCapture(pointerId); } catch (_) {}
+    }
+    pointerId = null;
+    if (!isLiveMode) stopRecording(!!cancel);
+  }
+
+  if (window.PointerEvent) {
+    el.addEventListener('pointerdown', begin, { passive: false });
+    el.addEventListener('pointermove', move, { passive: false });
+    el.addEventListener('pointerup', function(){ end(false); });
+    el.addEventListener('pointercancel', function(){ end(true); });
+    el.addEventListener('lostpointercapture', function(){ end(false); });
+    return;
+  }
+
+  el.addEventListener('mousedown',  function (e) { begin(e); });
+  el.addEventListener('mouseup',    function () { end(false); });
+  el.addEventListener('mouseleave', function () { if (isRecording) end(false); });
+  el.addEventListener('touchstart', function (e) { begin(e.touches && e.touches[0] ? e.touches[0] : e); if (e.cancelable) e.preventDefault(); }, { passive: false });
+  el.addEventListener('touchmove', function (e) { move(e.touches && e.touches[0] ? e.touches[0] : e); if (e.cancelable) e.preventDefault(); }, { passive: false });
+  el.addEventListener('touchend', function (e) { if (e.cancelable) e.preventDefault(); end(false); }, { passive: false });
+  el.addEventListener('touchcancel', function () { end(true); });
 }
 
 // ── Views ──
@@ -2216,8 +2418,8 @@ function _startLocationWatch() {
 }
 function setLocationText(s) {
   locationStr = s;
-  locationText.textContent = s;
-  mapLocText.textContent   = s;
+  if (locationText) locationText.textContent = s;
+  if (mapLocText) mapLocText.textContent   = s;
   _updateMapTopbar();
 }
 var _geocodeController = null;
@@ -2265,6 +2467,8 @@ function initMap() {
   document.head.appendChild(s);
 }
 function buildMap() {
+  if (mapInstance) { try { mapInstance.invalidateSize({ animate: false }); } catch (_) {} return; }
+  if (typeof L === 'undefined') { mapReady = false; return; }
   var lat = userLat || 11.5564, lng = userLng || 104.9282;
   mapInstance = L.map('mapContainer', {
     zoomControl: false,
@@ -2344,7 +2548,7 @@ function saveName() {
     .replace(/\s+/g, '_').replace(/[^a-z0-9_\-]/g, '').slice(0, 32);
   if (!n) return;
   myName = n;
-  localStorage.setItem('wt_name', myName);
+  _safeStorageSet('wt_name', myName);
   var _namePart = document.getElementById('usernameNamePart');
   if (_namePart) _namePart.textContent = myName; else usernameText.textContent = '@' + myName;
   mapUserText.textContent  = '@' + myName;
@@ -2381,29 +2585,32 @@ function geoDistance(lat1, lng1, lat2, lng2) {
 }
 
 function sbFetchZones(onSuccess, onError) {
-  fetch(SERVER_URL + '/zones', { method: 'GET' })
-  .then(function(r) {
-    if (!r.ok) return r.text().then(function(t){ throw new Error(r.status + ': ' + t); });
-    return r.json();
-  })
+  wtFetchJSON(SERVER_URL + '/zones', { method: 'GET' }, { timeout: 12000, retries: 2 })
   .then(function(rows) {
+    if (!Array.isArray(rows)) rows = [];
     onSuccess(rows.map(function(r) {
       return {
         id:        r.id,
         deviceId:  r.device_id,
         name:      r.name,
         channel:   r.channel,
-        lat:       r.lat,
-        lng:       r.lng,
-        radius:    r.radius,
+        lat:       Number(r.lat),
+        lng:       Number(r.lng),
+        radius:    Number(r.radius),
         color:     r.color,
         autoJoin:  r.auto_join,
         createdBy: r.created_by || '',
         expiresAt: r.expires_at || null
       };
+    }).filter(function(z) {
+      return z.id && z.channel && Number.isFinite(z.lat) && Number.isFinite(z.lng) && Number.isFinite(z.radius);
     }));
   })
-  .catch(function(e) { console.warn('sbFetchZones:', e); if (onError) onError(e); });
+  .catch(function(e) {
+    console.warn('sbFetchZones:', e);
+    showToast('Zones sync failed: ' + _friendlyNetworkError(e));
+    if (onError) onError(e);
+  });
 }
 
 function sbUpsertZone(z, onDone, onError) {
@@ -2419,34 +2626,28 @@ function sbUpsertZone(z, onDone, onError) {
     auto_join:   z.autoJoin,
     created_by:  z.createdBy || myName
   };
-  fetch(SERVER_URL + '/zones', {
+  wtFetchJSON(SERVER_URL + '/zones', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
-  })
-  .then(function(r) {
-    if (!r.ok) return r.text().then(function(t){ throw new Error(r.status + ': ' + t); });
-    return r.json();
-  })
-  .then(function(data) {
-    if (onDone) onDone(data);
-  })
+  }, { timeout: 15000, retries: 2 })
+  .then(function(data) { if (onDone) onDone(data); })
   .catch(function(e) {
+    showToast('Could not save zone: ' + _friendlyNetworkError(e));
     if (onError) onError(e);
   });
 }
 
 function sbDeleteZone(id, onError) {
-  fetch(
+  wtFetchJSON(
     SERVER_URL + '/zones/' + encodeURIComponent(id) +
     '?device_id=' + encodeURIComponent(_deviceId),
-    { method: 'DELETE' }
+    { method: 'DELETE' },
+    { timeout: 12000, retries: 2 }
   )
-  .then(function(r) {
-    if (!r.ok) return r.text().then(function(t){ throw new Error(r.status + ': ' + t); });
-  })
   .catch(function(e) {
     console.error('sbDeleteZone failed:', e);
+    showToast('Could not delete zone: ' + _friendlyNetworkError(e));
     if (onError) onError(e);
   });
 }
@@ -2504,7 +2705,7 @@ function geoLoadData() {
     function() {
       _geoInitDone = false;
       try {
-        var saved = JSON.parse(localStorage.getItem('wt_geo_zones') || '[]');
+        var saved = JSON.parse(_safeStorageGet('wt_geo_zones') || '[]');
         _applyZones(saved);
       } catch(e) {}
     }
@@ -2581,7 +2782,7 @@ function geoPersist() {
   var data = geoZones.map(function(z) {
     return { id:z.id, deviceId:z.deviceId, createdBy:z.createdBy||'', name:z.name, channel:z.channel, lat:z.lat, lng:z.lng, radius:z.radius, color:z.color, autoJoin:z.autoJoin, expiresAt:z.expiresAt||null };
   });
-  localStorage.setItem('wt_geo_zones', JSON.stringify(data));
+  _safeStorageSet('wt_geo_zones', JSON.stringify(data));
 }
 
 function _esc(s) {
@@ -3014,18 +3215,24 @@ function _updateShareBtn() {
   btn.classList.toggle('no-channel', !myRoom);
 }
 function fallbackCopy(url) {
-  if (navigator.clipboard) { navigator.clipboard.writeText(url).then(function () { showToast('Link copied!'); }); return; }
-  var el = document.createElement('textarea'); el.value = url; el.style.cssText = 'position:fixed;opacity:0';
-  document.body.appendChild(el); el.select();
-  try { document.execCommand('copy'); showToast('Link copied!'); } catch(e) { showToast('Copy failed'); }
-  document.body.removeChild(el);
+  function legacyCopy() {
+    var el = document.createElement('textarea'); el.value = url; el.style.cssText = 'position:fixed;opacity:0;left:-9999px;top:-9999px';
+    document.body.appendChild(el); el.focus(); el.select();
+    try { document.execCommand('copy'); showToast('Link copied!'); } catch(e) { showToast('Copy failed'); }
+    document.body.removeChild(el);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(function () { showToast('Link copied!'); }).catch(legacyCopy);
+    return;
+  }
+  legacyCopy();
 }
 
 
 // ── AI Chat ──
 function aiLoadHistory() {
   try {
-    var raw = localStorage.getItem(_AI_HISTORY_KEY);
+    var raw = _safeStorageGet(_AI_HISTORY_KEY);
     var parsed = raw ? JSON.parse(raw) : [];
     aiMessages = Array.isArray(parsed) ? parsed.filter(function(m) {
       return m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string';
@@ -3033,7 +3240,7 @@ function aiLoadHistory() {
   } catch (e) { aiMessages = []; }
 }
 function aiSaveHistory() {
-  try { localStorage.setItem(_AI_HISTORY_KEY, JSON.stringify(aiMessages.slice(-_AI_MAX_HISTORY))); }
+  try { _safeStorageSet(_AI_HISTORY_KEY, JSON.stringify(aiMessages.slice(-_AI_MAX_HISTORY))); }
   catch (e) { /* storage may be full/private */ }
 }
 function aiClearHistory() {
@@ -3168,32 +3375,24 @@ function aiFinishPending(msgId) {
   aiSetBusy(false);
 }
 function aiSendViaHttp(payload) {
-  fetch(SERVER_URL + '/ai/chat', {
+  wtFetchJSON(SERVER_URL + '/ai/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
-  })
-  .then(function(r) {
-    return r.json().catch(function(){ return {}; }).then(function(body) {
-      if (!r.ok) throw new Error(body.error || body.detail || ('HTTP ' + r.status));
-      return body;
-    });
-  })
+  }, { timeout: 48000, retries: 1 })
   .then(function(body) {
     aiFinishPending(payload.msg_id);
-    aiAddMessage('assistant', body.text || body.reply || 'No response');
+    aiAddMessage('assistant', body.text || body.reply || body.response || 'No response');
   })
   .catch(function(err) {
     aiFinishPending(payload.msg_id);
-    aiAddMessage('assistant', 'AI chat is offline: ' + (err && err.message ? err.message : 'connection failed'));
+    aiAddMessage('assistant', 'AI chat is offline: ' + _friendlyNetworkError(err));
   });
 }
 
 // ── Socket events ──
 socket.on('connect', function () {
-  document.getElementById('reconnectBar').classList.remove('on');
-  document.getElementById('btnPower').classList.remove('disconnected');
-  document.getElementById('btnPower').classList.add('connected');
+  wtSetConnectionState('connected');
   document.body.classList.add('connected-state');
   _maybeShowInstallBar();
   if (!mapReady && typeof requestIdleCallback !== 'undefined') {
@@ -3210,11 +3409,8 @@ socket.on('connect', function () {
   geoLoadData();
 });
 socket.on('disconnect', function () {
-  document.getElementById('reconnectBar').classList.add('on');
-  document.getElementById('btnPower').classList.remove('connected');
-  document.getElementById('btnPower').classList.add('disconnected');
+  wtSetConnectionState('reconnecting', 'Connection lost...');
   document.body.classList.remove('connected-state');
-  setStatus('Connection lost...', 'err');
   if (isLive) stopLive();
   if (_talkMode === 'live') {
     isLiveMode = false; _talkMode = 'hold';
@@ -3237,7 +3433,7 @@ socket.on('disconnect', function () {
     _hideQualityDetail();
   }
 });
-socket.on('connect_error', function () { document.getElementById('reconnectBar').classList.add('on'); });
+socket.on('connect_error', function () { wtSetConnectionState('reconnecting', 'Reconnecting...'); });
 
 socket.on('room_state', function (data) {
   peers = {};
@@ -4721,27 +4917,34 @@ function screenNormalizeSdp(sdp) {
   if (!sdp) return '';
   sdp = String(sdp);
 
-  // Some proxies/templates double-escape SDP line breaks. Browsers need real lines.
   if ((sdp.indexOf('\\r\\n') !== -1 || sdp.indexOf('\\n') !== -1) && sdp.indexOf('\n') === -1) {
     sdp = sdp.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\r/g, '\n');
   }
 
-  // Remove hidden characters that make Chrome report a normal-looking line as invalid.
-  sdp = sdp.replace(/^\uFEFF/, '').replace(/\u0000/g, '');
-
-  // If the server accidentally HTML-escaped the SDP, decode it once.
   if (sdp.indexOf('&') !== -1 && /&(amp|lt|gt|quot|#39);/i.test(sdp)) {
     var ta = document.createElement('textarea');
     ta.innerHTML = sdp;
     sdp = ta.value;
   }
 
-  // Normalize to CRLF because SDP is line-oriented.
-  var lines = sdp.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  var lines = sdp
+    .replace(/^\uFEFF/, '')
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .split('\n');
+
   var out = [];
   for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].replace(/[ \t]+$/g, '');
-    if (line) out.push(line);
+    var line = lines[i].replace(/[ \t]+$/g, '').trim();
+    if (!line) continue;
+    if (line.length < 2 || line[1] !== '=' || 'vosiuepcbtrzkam'.indexOf(line[0]) === -1) continue;
+    out.push(line);
+  }
+
+  if (out.length && out[0] !== 'v=0') {
+    var v0 = out.indexOf('v=0');
+    if (v0 >= 0) out = out.slice(v0);
   }
   return out.join('\r\n') + '\r\n';
 }
@@ -4753,44 +4956,47 @@ function screenStripBadSsrcMsidLines(sdp) {
 
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
+    if (!line) continue;
 
-    // Chrome can reject some generated/relayed legacy Plan-B SSRC msid lines:
-    // a=ssrc:1234 msid:stream-id track-id
-    // Modern Unified Plan SDP still works without these optional legacy lines.
-    if (/^a=ssrc:\d+\s+msid:[^\s]+\s+[^\s]+$/i.test(line)) continue;
+    // Some browser/server combinations reject legacy Plan-B SSRC msid rows.
+    // They are optional for Unified Plan WebRTC, so dropping them is safer.
+    if (/^a=ssrc:\d+\s+msid:/i.test(line)) continue;
 
+    // Drop malformed SDP rows before setRemoteDescription throws.
+    if (line.length < 2 || line[1] !== '=' || 'vosiuepcbtrzkam'.indexOf(line[0]) === -1) continue;
     out.push(line);
   }
 
-  return out.filter(Boolean).join('\r\n') + '\r\n';
+  return out.join('\r\n') + '\r\n';
 }
 
-async function screenSetRemoteDescriptionSafe(pc, desc, side) {
-  var clean = {
-    type: (desc && desc.type) || 'offer',
-    sdp: screenStripBadSsrcMsidLines(desc && desc.sdp)
-  };
+async async function screenSetRemoteDescriptionSafe(pc, desc, side) {
+  var type = (desc && desc.type) || 'offer';
+  var normalized = screenNormalizeSdp(desc && desc.sdp);
+  var stripped = screenStripBadSsrcMsidLines(normalized);
+  var attempts = [normalized, stripped];
+  var lastErr = null;
 
-  try {
-    await pc.setRemoteDescription(clean);
-    return;
-  } catch (err) {
-    var msg = err && (err.message || String(err));
-    var canRetry = msg && (/Invalid SDP line/i.test(msg) || /Failed to parse SessionDescription/i.test(msg));
-
-    if (!canRetry) throw err;
-
-    console.warn('screen SDP parse failed; retrying without legacy SSRC msid lines on ' + (side || 'peer') + ':', err);
-    clean.sdp = screenStripBadSsrcMsidLines(clean.sdp);
-    await pc.setRemoteDescription(clean);
+  for (var i = 0; i < attempts.length; i++) {
+    var candidate = attempts[i];
+    if (!candidate || (i === 1 && candidate === attempts[0])) continue;
+    try {
+      await pc.setRemoteDescription({ type: type, sdp: candidate });
+      return;
+    } catch (err) {
+      lastErr = err;
+      console.warn('screen SDP setRemoteDescription failed on ' + (side || 'peer') + ' attempt ' + (i + 1) + ':', err);
+    }
   }
+
+  throw lastErr || new Error('Invalid remote description');
 }
 
 function screenLocalDescriptionPayload(pc) {
   var d = pc && pc.localDescription;
   return {
     type: d ? d.type : '',
-    sdp: d ? screenNormalizeSdp(d.sdp) : ''
+    sdp: d ? screenStripBadSsrcMsidLines(d.sdp) : ''
   };
 }
 
@@ -4810,21 +5016,14 @@ async function screenHandleViewerReady(data) {
   screenSetStatus('Connecting viewer @' + (data.viewer_name || viewerSid.slice(0, 6)), 'warn');
 }
 
-async function screenHandleOffer(data) {
+async async function screenHandleOffer(data) {
   if (!data || !data.from || !data.sdp) return;
   if (_screenSharing) return;
   if (!_screenPresenterPc || _screenWatchingSid !== data.from) {
     _screenWatchingSid = data.from;
     _screenPresenterPc = screenCreatePc(_screenWatchingSid, 'viewer');
     _screenRemoteStream = new MediaStream();
-    _screenPresenterPc.ontrack = function(event) {
-      event.streams[0].getTracks().forEach(function(track) {
-        if (!_screenRemoteStream.getTracks().some(function(t) { return t.id === track.id; })) {
-          _screenRemoteStream.addTrack(track);
-        }
-      });
-      screenUpdateUI();
-    };
+    _screenPresenterPc.ontrack = screenAddRemoteTracks;
   }
   await screenSetRemoteDescriptionSafe(_screenPresenterPc, { type: data.type || 'offer', sdp: data.sdp }, 'viewer-offer');
   screenFlushIce(data.from, _screenPresenterPc);
