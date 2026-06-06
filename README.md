@@ -26,9 +26,13 @@ Set Vercel project root to this `frontend/` folder.
 
 No build command is required.
 
+## UI update
 
-## UI updates
+The frontend has no `web/env.js`. Branding, manifest, and PWA title are **អាយកូម**. The channel sheet includes:
 
-- App title/logo text: `អាយកូម`.
-- Channel create/join sheet supports `សាធារណៈ / Public` and `ឯកជន / Private`.
-- Khmer-friendly Google font stack uses `Noto Sans Khmer` with a Google Sans-style fallback.
+- Public/private selector
+- Invite code/PIN inputs for private channels
+- Channel search
+- Khmer member count text `ចំនួនមនុស្ស`
+- Empty channel countdown
+- Auto reconnect and auto rejoin last channel

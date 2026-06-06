@@ -5,5 +5,13 @@
   "display": "standalone",
   "background_color": "#060608",
   "theme_color": "#060608",
-  "icons": []
+  "icons": [
+    {
+      "src": "icons/aikom-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "description": "អាយកូម - Push-to-talk channels"
 }

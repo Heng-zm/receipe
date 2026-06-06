@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="km">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -9,10 +9,13 @@
 <meta name="apple-mobile-web-app-title" content="អាយកូម">
 <meta name="theme-color" content="#060608">
 <link rel="manifest" href="manifest.json">
-<link class="apple-touch-icon" rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23060608'/%3E%3Crect x='200' y='80' width='112' height='180' rx='56' fill='none' stroke='%23ff9f0a' stroke-width='28'/%3E%3Cpath d='M128 240c0 70.7 57.3 128 128 128s128-57.3 128-128' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round' fill='none'/%3E%3Cline x1='256' y1='368' x2='256' y2='430' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round'/%3E%3Cline x1='196' y1='430' x2='316' y2='430' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="icons/aikom-icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&family=Noto+Sans+Khmer:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link class="apple-touch-icon" rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIzNSUiIGN5PSIyMCUiIHI9IjgwJSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMmEyMTE4Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMDYwNjA4Ii8+PC9yYWRpYWxHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHJ4PSIxMTIiIGZpbGw9InVybCgjZykiLz48cmVjdCB4PSI0MiIgeT0iNDIiIHdpZHRoPSI0MjgiIGhlaWdodD0iNDI4IiByeD0iOTIiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmOWYwYSIgc3Ryb2tlLW9wYWNpdHk9Ii4zNSIgc3Ryb2tlLXdpZHRoPSIxMCIvPjx0ZXh0IHg9IjI1NiIgeT0iMzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iTm90byBTYW5zIEtobWVyLCBBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNTIiIGZvbnQtd2VpZ2h0PSI4MDAiIGZpbGw9IiNmZmYiPuGeouGetjwvdGV4dD48cGF0aCBkPSJNMTYyIDM1NGgxODgiIHN0cm9rZT0iI2ZmOWYwYSIgc3Ryb2tlLXdpZHRoPSIyMCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+">
 <title>អាយកូម</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;500;600;700;800&display=swap');
 :root {
   --bg:        #040407;
   --bg-card:   #09090f;
@@ -34,7 +37,8 @@
   --circ: clamp(230px, 62vmin, 276px);
   --radius-card: 20px;
   --radius-btn:  14px;
-  --mono: 'SF Mono','Fira Code','Fira Mono','Roboto Mono',ui-monospace,monospace;
+  --font-ui:'Noto Sans Khmer','Noto Sans','Google Sans',-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',system-ui,sans-serif;
+  --mono:'SF Mono','Fira Code','Fira Mono','Roboto Mono',ui-monospace,monospace;
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-sheet:  cubic-bezier(0.32, 0.72, 0, 1);
@@ -43,7 +47,7 @@
   --ease-expo:   cubic-bezier(0.16, 1, 0.3, 1);
 }
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-html,body { width:100%; height:100%; background:var(--bg); color:var(--white); font-family:'Google Sans','Noto Sans Khmer',-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter',system-ui,sans-serif; overflow:hidden; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility; }
+html,body { width:100%; height:100%; background:var(--bg); color:var(--white); font-family:var(--font-ui); overflow:hidden; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility; }
 body::after {
   content:''; position:fixed; inset:0; z-index:999;
   background-image:url("data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PScwIDAgMjU2IDI1NicgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJz48ZmlsdGVyIGlkPSduJz48ZmVUdXJidWxlbmNlIHR5cGU9J2ZyYWN0YWxOb2lzZScgYmFzZUZyZXF1ZW5jeT0nMC45NScgbnVtT2N0YXZlcz0nMycgc3RpdGNoVGlsZXM9J3N0aXRjaCcvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPScxMDAlJyBoZWlnaHQ9JzEwMCUnIGZpbHRlcj0ndXJsKCNuKScgb3BhY2l0eT0nMC4wMicvPjwvc3ZnPg==");
@@ -88,9 +92,6 @@ body::after {
 .reconnect-bar.on { transform:translateY(0); }
 .topbar { display:flex; align-items:center; justify-content:space-between; padding:0 20px; flex-shrink:0; height:54px; position:relative; z-index:1; border-bottom:1px solid rgba(255,255,255,0.03); }
 .topbar-left { display:flex; align-items:center; }
-.brand-lockup { display:flex; align-items:center; gap:10px; min-width:0; }
-.brand-name { font-size:18px; line-height:1; font-weight:800; letter-spacing:-0.2px; color:var(--white); white-space:nowrap; font-family:'Google Sans','Noto Sans Khmer',system-ui,sans-serif; text-shadow:0 1px 0 rgba(0,0,0,.25); }
-.brand-mark { width:38px; height:38px; border:1px solid rgba(255,255,255,.08); border-radius:12px; background:linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.02)); box-shadow:inset 0 1px 0 rgba(255,255,255,.045), 0 8px 22px rgba(0,0,0,.32); }
 .topbar-right { display:flex; gap:8px; align-items:center; }
 .top-icon-btn { background:none; border:none; cursor:pointer; padding:6px 4px; display:flex; align-items:center; justify-content:center; border-radius:8px; opacity:0.8; transition:opacity 0.1s var(--ease-out), transform 0.1s var(--ease-spring); }
 .top-icon-btn:active { opacity:0.5; transform:scale(0.92); }
@@ -302,19 +303,28 @@ body::after {
 .channel-row-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.22); }
 .channel-row-count.online .channel-row-dot { background:var(--green); box-shadow:0 0 6px var(--green); }
 .channel-empty { border:1px dashed rgba(255,255,255,.09); border-radius:14px; padding:14px; text-align:center; color:rgba(255,255,255,.46); font-size:12px; line-height:1.45; }
-.channel-type-label { margin:10px 0 8px; font-size:11px; font-weight:800; color:rgba(255,255,255,.68); letter-spacing:.15px; }
-.channel-type-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0 12px; }
-.channel-type-option { min-height:58px; border:1px solid rgba(255,255,255,.085); border-radius:16px; background:rgba(255,255,255,.035); color:rgba(255,255,255,.72); display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer; font-family:inherit; text-align:left; transition:border-color .16s var(--ease-out), background .16s var(--ease-out), transform .1s var(--ease-spring), box-shadow .18s var(--ease-out); }
-.channel-type-option:active { transform:scale(.985); }
-.channel-type-option.active { border-color:rgba(255,159,10,.72); background:linear-gradient(135deg, rgba(255,159,10,.18), rgba(255,159,10,.055)); color:var(--white); box-shadow:0 0 0 1px rgba(255,159,10,.10), 0 8px 26px rgba(255,159,10,.07); }
-.channel-type-icon { width:32px; height:32px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:rgba(255,255,255,.06); color:rgba(255,255,255,.75); font-size:16px; }
-.channel-type-option.active .channel-type-icon { background:rgba(255,159,10,.16); color:var(--amber); }
-.channel-type-main { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.channel-type-title { font-size:12.5px; font-weight:800; line-height:1.15; }
-.channel-type-sub { font-size:10.5px; font-weight:650; color:rgba(255,255,255,.42); line-height:1.2; }
-.channel-type-option.active .channel-type-sub { color:rgba(255,159,10,.85); }
-.channel-row-meta .vis-private { color:var(--amber); }
-.channel-row-meta .vis-public { color:rgba(90,200,245,.92); }
+
+.topbar-left { gap:10px; min-width:0; }
+.app-logo-badge { width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center; border-radius:10px; background:linear-gradient(145deg, rgba(255,255,255,.08), rgba(255,255,255,.02)); border:1px solid rgba(255,159,10,.24); box-shadow:0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.08); color:#fff; font-weight:800; font-size:15px; letter-spacing:-.5px; }
+.brand-title { font-weight:800; font-size:19px; letter-spacing:-.3px; color:var(--white); white-space:nowrap; line-height:1; }
+.channel-search { width:100%; border:1px solid rgba(255,255,255,.075); border-radius:14px; background:rgba(255,255,255,.045); color:var(--white); outline:none; padding:12px 13px; font:600 13px var(--font-ui); margin:10px 0 8px; }
+.channel-search::placeholder { color:rgba(255,255,255,.32); }
+.channel-form-card { margin-top:12px; display:flex; flex-direction:column; gap:10px; padding:12px; border:1px solid rgba(255,255,255,.07); background:rgba(255,255,255,.03); border-radius:16px; }
+.channel-type-tabs { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.channel-type-btn { border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); color:rgba(255,255,255,.68); border-radius:14px; padding:11px 10px; cursor:pointer; font:700 12px var(--font-ui); text-align:center; transition:background .15s var(--ease-out), border-color .15s var(--ease-out), color .15s var(--ease-out), transform .1s var(--ease-spring); }
+.channel-type-btn:active { transform:scale(.98); }
+.channel-type-btn.active { color:#fff; border-color:rgba(255,159,10,.42); background:linear-gradient(135deg, rgba(255,159,10,.18), rgba(255,159,10,.08)); box-shadow:0 0 0 1px rgba(255,159,10,.06) inset; }
+.channel-private-fields { display:none; flex-direction:column; gap:8px; }
+.channel-private-fields.on { display:flex; }
+.channel-help { display:flex; align-items:flex-start; gap:7px; color:rgba(255,255,255,.42); font-size:11px; line-height:1.45; }
+.channel-invite-box { display:none; border:1px solid rgba(255,159,10,.22); background:rgba(255,159,10,.08); border-radius:14px; padding:10px 12px; color:rgba(255,255,255,.84); font-size:12px; line-height:1.45; }
+.channel-invite-box.on { display:block; }
+.channel-invite-code { display:inline-flex; margin-top:5px; padding:5px 8px; border-radius:9px; background:rgba(0,0,0,.24); color:var(--amber); font:800 12px var(--mono); letter-spacing:.4px; }
+.channel-row.private { border-color:rgba(255,159,10,.12); }
+.channel-row-meta.private { color:rgba(255,159,10,.78); }
+.channel-row-badges { flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
+.channel-expire { font-size:10px; color:rgba(255,159,10,.78); font-weight:700; white-space:nowrap; }
+
 
 .geo-toolbar { display:none; }
 .geo-fab     { display:none; }
@@ -1353,7 +1363,7 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
 }
 
 
-/* Mapbox GL controls: match អាយកូម dark UI */
+/* Mapbox GL controls: match WalkieTalk dark UI */
 .mapboxgl-ctrl-logo,
 .mapboxgl-ctrl-attrib { opacity: 0.72; }
 .mapboxgl-ctrl-group {
@@ -1378,7 +1388,7 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
 
   <div class="reconnect-bar" id="reconnectBar">
     <div class="spinner"></div>
-    <span>Reconnecting...</span>
+    <span>កំពុងភ្ជាប់ឡើងវិញ...</span>
   </div>
 
   <!-- PWA install prompt -->
@@ -1392,23 +1402,19 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
       </svg>
     </div>
     <div class="install-bar-text">
-      <div class="install-bar-title">Add to home screen</div>
-      <div class="install-bar-sub">Works offline · instant launch</div>
+      <div class="install-bar-title">ដំឡើង អាយកូម</div>
+      <div class="install-bar-sub">បើកលឿន · ប្រើជាទម្រង់ PWA</div>
     </div>
-    <button class="install-bar-btn" id="installBtn">Install</button>
+    <button class="install-bar-btn" id="installBtn">ដំឡើង</button>
     <button class="install-bar-dismiss" id="installDismiss" aria-label="Dismiss">✕</button>
   </div>
 
   <div class="topbar">
     <div class="topbar-left">
-      <div class="brand-lockup">
-        <button class="top-icon-btn brand-mark" id="btnGrid" title="Channels" aria-label="Open channels">
-          <svg width="32" height="18" viewBox="0 0 32 18" fill="none">
-            <text x="0" y="15" font-family="SF Mono,Fira Code,monospace" font-size="16" font-weight="700" fill="white" letter-spacing="-1">WT</text>
-          </svg>
-        </button>
-        <div class="brand-name">អាយកូម</div>
-      </div>
+      <button class="top-icon-btn" id="btnGrid" title="ឆានែល" aria-label="ឆានែល" style="opacity:0.95">
+        <span class="app-logo-badge" aria-hidden="true">អា</span>
+      </button>
+      <div class="brand-title">អាយកូម</div>
       <button class="top-icon-btn aux" id="btnMap" title="Map">
         <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
           <path d="M1 5l6-3 8 4 6-3v14l-6 3-8-4-6 3V5z" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none" opacity="0.85"/>
@@ -1481,7 +1487,7 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
     <div class="channel-pill ph" id="channelPill">
       <span class="unread-dot"></span>
       <span class="ch-dot" id="chDot"></span>
-      <span class="ch-name" id="chNameEl">Tap to join channel</span>
+      <span class="ch-name" id="chNameEl">ប៉ះដើម្បីចូលឆានែល</span>
       <span class="peer-ct" id="peerCt"></span>
     </div>
   </div>
@@ -1634,7 +1640,7 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
       <div class="ai-title-wrap">
         <div class="ai-kicker">Assistant</div>
         <div class="ai-title">Chat with AI</div>
-        <div class="ai-subtitle" id="aiSubtitle">Ask anything while you use អាយកូម</div>
+        <div class="ai-subtitle" id="aiSubtitle">Ask anything while you use WalkieTalk</div>
       </div>
       <button class="ai-icon-btn" id="aiClearBtn" aria-label="Clear AI chat" title="Clear chat">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/><path d="M10 11v6M14 11v6"/></svg>
@@ -1710,29 +1716,31 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
 <div class="overlay" id="channelOverlay">
   <div class="sheet channel-sheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-title">ឆានែល</div>
-    <div class="sheet-sub">ជ្រើស channel ឬបង្កើតថ្មី · ឆានែលទំនេរ expire បន្ទាប់ពី 15 នាទី</div>
+    <div class="sheet-title">ឆានែល អាយកូម</div>
+    <div class="sheet-sub">បង្កើត ឬចូលរួមឆានែល · ឆានែលទទេផុតកំណត់ក្នុង 15 នាទី</div>
+    <input class="channel-search" id="channelSearchInput" placeholder="ស្វែងរកឆានែល / Search channel" maxlength="40" autocomplete="off" spellcheck="false"/>
     <div class="channel-list-head">
       <div class="channel-list-title">បញ្ជីឆានែល · ចំនួនមនុស្ស</div>
       <button class="channel-refresh" id="channelRefreshBtn" type="button">Refresh</button>
     </div>
     <div class="channel-list" id="channelList">
-      <div class="channel-empty">Loading channels...</div>
+      <div class="channel-empty">កំពុងផ្ទុកឆានែល...</div>
     </div>
-    <input class="sheet-input" id="channelInput" placeholder="ឈ្មោះ CHANNEL" maxlength="30" autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
-    <div class="channel-type-label">ប្រភេទឆានែល</div>
-    <div class="channel-type-grid" id="channelTypeGrid" role="group" aria-label="Channel type">
-      <button class="channel-type-option active" type="button" data-channel-type="public" id="channelTypePublic">
-        <span class="channel-type-icon">🌐</span>
-        <span class="channel-type-main"><span class="channel-type-title">សាធារណៈ</span><span class="channel-type-sub">Public</span></span>
-      </button>
-      <button class="channel-type-option" type="button" data-channel-type="private" id="channelTypePrivate">
-        <span class="channel-type-icon">🔒</span>
-        <span class="channel-type-main"><span class="channel-type-title">ឯកជន</span><span class="channel-type-sub">Private</span></span>
-      </button>
+    <div class="channel-form-card">
+      <input class="sheet-input" id="channelInput" placeholder="ឈ្មោះឆានែល / CHANNEL NAME" maxlength="30" autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
+      <div class="channel-type-tabs" role="group" aria-label="Channel type">
+        <button class="channel-type-btn active" id="channelPublicBtn" type="button" data-visibility="public">សាធារណៈ<br><span>/ Public</span></button>
+        <button class="channel-type-btn" id="channelPrivateBtn" type="button" data-visibility="private">ឯកជន<br><span>/ Private</span></button>
+      </div>
+      <div class="channel-private-fields" id="channelPrivateFields">
+        <input class="sheet-input" id="channelSecretInput" placeholder="Invite code or PIN សម្រាប់ចូលឯកជន" maxlength="64" autocomplete="off" spellcheck="false"/>
+        <input class="sheet-input" id="channelPinInput" placeholder="Set PIN ថ្មី optional" inputmode="numeric" maxlength="12" autocomplete="off"/>
+        <div class="channel-help">🔒 Private channel ត្រូវការកូដអញ្ជើញ ឬ PIN មុនចូលរួម។ ម្ចាស់ឆានែលនឹងទទួល invite code ដោយស្វ័យប្រវត្តិ។</div>
+      </div>
+      <div class="channel-invite-box" id="channelInviteBox"></div>
+      <button class="sheet-btn primary" id="channelJoinBtn">បង្កើត / ចូលរួម</button>
+      <button class="sheet-btn secondary" id="channelCancelBtn">បោះបង់</button>
     </div>
-    <button class="sheet-btn primary" id="channelJoinBtn">Create / Join</button>
-    <button class="sheet-btn secondary" id="channelCancelBtn">Cancel</button>
   </div>
 </div>
 
@@ -1901,6 +1909,14 @@ function wtHandleOnlineState() {
 }
 window.addEventListener('online', wtHandleOnlineState);
 window.addEventListener('offline', wtHandleOnlineState);
+
+function wtWakeServer() {
+  if (wtWakeServer._busy) return;
+  wtWakeServer._busy = true;
+  fetch(SERVER_URL + '/webhook/keepalive', { method: 'GET', cache: 'no-store' })
+    .catch(function(){ return fetch(SERVER_URL + '/health', { method: 'GET', cache: 'no-store' }); })
+    .finally(function(){ setTimeout(function(){ wtWakeServer._busy = false; }, 3000); });
+}
 
 
 // ── Config ──
@@ -2112,7 +2128,6 @@ var _deviceId    = (function() {
   return id;
 })();
 var myRoom       = '';
-var myChannelVisibility = _cleanChannelVisibility(_safeStorageGet('wt_channel_visibility') || 'public');
 var peers        = {};
 var playQueue    = [];
 var queuePlaying = false;
@@ -2194,16 +2209,18 @@ var wBars = Array.from(document.querySelectorAll('[id^="wb"]')).sort(function(a,
   var _namePart = document.getElementById('usernameNamePart');
   if (_namePart) _namePart.textContent = myName; else usernameText.textContent = '@' + myName;
   mapUserText.textContent  = '@' + myName;
-  pttHint.textContent = 'Select a channel';
+  pttHint.textContent = 'ជ្រើសឆានែល';
   pttHint.classList.remove('hidden');
 
   var _urlParams = new URLSearchParams(window.location.search);
   var urlRoom = _urlParams.get('room');
   var urlMode = _urlParams.get('mode');
+  var urlInvite = _urlParams.get('invite') || _urlParams.get('code') || '';
+  var urlPin = _urlParams.get('pin') || '';
   if (urlRoom) {
     var _urlRoomHandler = function() {
       socket.off('connect', _urlRoomHandler);
-      joinChannel(urlRoom);
+      joinChannel(urlRoom, { invite_code: urlInvite, pin: urlPin, visibility: (urlInvite || urlPin) ? 'private' : '' });
       if (urlMode === 'live') {
         _talkMode = 'live';
         isLiveMode = true;
@@ -2270,7 +2287,7 @@ window.addEventListener('beforeinstallprompt', function(e) {
 window.addEventListener('appinstalled', function() {
   _deferredInstallPrompt = null;
   _hideInstallBar();
-  showToast('អាយកូម installed!');
+  showToast('បានដំឡើង អាយកូម រួចហើយ');
   _safeStorageSet('wt_pwa_installed', '1');
 });
 
@@ -2319,7 +2336,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function _el(id) { return document.getElementById(id); }
 function _listen(idOrEl, eventName, handler, opts) {
   var node = (typeof idOrEl === 'string') ? _el(idOrEl) : idOrEl;
-  if (!node) { console.warn('[អាយកូម] Missing UI element:', idOrEl); return null; }
+  if (!node) { console.warn('[WalkieTalk] Missing UI element:', idOrEl); return null; }
   node.addEventListener(eventName, handler, opts);
   return node;
 }
@@ -2355,10 +2372,11 @@ function wireUI() {
   _listen('channelInput', 'keydown', function (e) { if (e.key === 'Enter') doJoin(); });
   _listen('channelJoinBtn', 'click', doJoin);
   _listen('channelRefreshBtn', 'click', loadChannelList);
-  Array.from(document.querySelectorAll('.channel-type-option')).forEach(function(btn) {
-    _listen(btn, 'click', function() { setChannelVisibility(btn.getAttribute('data-channel-type') || 'public'); });
-  });
-  setChannelVisibility(myChannelVisibility, true);
+  _listen('channelSearchInput', 'input', function () { _channelSearch = this.value || ''; renderChannelList(_channelList); });
+  _listen('channelPublicBtn', 'click', function () { setChannelVisibility('public'); });
+  _listen('channelPrivateBtn', 'click', function () { setChannelVisibility('private'); });
+  _listen('channelSecretInput', 'keydown', function (e) { if (e.key === 'Enter') doJoin(); });
+  _listen('channelPinInput', 'keydown', function (e) { if (e.key === 'Enter') doJoin(); });
 
 
   _listen('nameOverlay', 'click', function (e) { if (e.target === this) this.classList.remove('open'); });
@@ -3046,32 +3064,36 @@ function updateMapMarker(center) {
 // ── Channel list ──
 var _channelList = [];
 var _channelListLoading = false;
+var _channelSearch = '';
+var _channelVisibility = 'public';
+var _pendingJoinRoom = '';
+var _pendingJoinPrevRoom = '';
+var _currentInviteCode = '';
+var _currentChannelVisibility = 'public';
 
-function _cleanChannelVisibility(value) {
-  value = String(value || '').trim().toLowerCase();
-  return value === 'private' ? 'private' : 'public';
+function cleanRoomName(value) {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9\-_]/g, '').slice(0, 40);
 }
-function setChannelVisibility(value, silent) {
-  myChannelVisibility = _cleanChannelVisibility(value);
-  _safeStorageSet('wt_channel_visibility', myChannelVisibility);
-  Array.from(document.querySelectorAll('.channel-type-option')).forEach(function(btn) {
-    btn.classList.toggle('active', _cleanChannelVisibility(btn.getAttribute('data-channel-type')) === myChannelVisibility);
-  });
-  if (!silent) showToast(myChannelVisibility === 'private' ? 'ឆានែលឯកជន / Private' : 'ឆានែលសាធារណៈ / Public');
+function cleanPIN(value) {
+  return String(value || '').replace(/[^0-9]/g, '').slice(0, 12);
 }
-function _channelVisibility(ch) {
-  return _cleanChannelVisibility(ch && (ch.visibility || ch.channel_type || ch.type || ch.privacy));
+function cleanInvite(value) {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9\-_]/g, '').slice(0, 64);
 }
-function _channelVisibilityText(value) {
-  value = _cleanChannelVisibility(value);
-  return value === 'private' ? '🔒 ឯកជន / Private' : '🌐 សាធារណៈ / Public';
+function setChannelVisibility(value) {
+  _channelVisibility = value === 'private' ? 'private' : 'public';
+  var pub = document.getElementById('channelPublicBtn');
+  var pri = document.getElementById('channelPrivateBtn');
+  var fields = document.getElementById('channelPrivateFields');
+  if (pub) pub.classList.toggle('active', _channelVisibility === 'public');
+  if (pri) pri.classList.toggle('active', _channelVisibility === 'private');
+  if (fields) fields.classList.toggle('on', _channelVisibility === 'private');
 }
-
 function loadChannelList() {
   if (_channelListLoading) return;
   _channelListLoading = true;
   var listEl = document.getElementById('channelList');
-  if (listEl && !_channelList.length) renderChannelList([], 'Loading channels...');
+  if (listEl && !_channelList.length) renderChannelList([], 'កំពុងផ្ទុកឆានែល...');
   fetch(SERVER_URL + '/channels', {
     method: 'GET',
     headers: wtDeviceHeaders({ 'Accept': 'application/json' })
@@ -3083,92 +3105,143 @@ function loadChannelList() {
     });
   }).catch(function(err) {
     console.warn('loadChannelList:', err);
-    renderChannelList(_channelList, _channelList.length ? '' : 'No channels yet. Create one below.');
+    renderChannelList(_channelList, _channelList.length ? '' : 'មិនអាចទាញបញ្ជីឆានែលបានទេ');
   }).finally(function() {
     _channelListLoading = false;
   });
 }
-
 function renderChannelList(channels, message) {
   var list = document.getElementById('channelList');
   if (!list) return;
   channels = Array.isArray(channels) ? channels.slice() : [];
+  var q = String(_channelSearch || '').trim().toUpperCase();
+  if (q) {
+    channels = channels.filter(function(ch) {
+      return String(ch.name || '').toUpperCase().indexOf(q) !== -1 || String(ch.visibility || '').toUpperCase().indexOf(q) !== -1;
+    });
+  }
   if (!channels.length) {
-    list.innerHTML = '<div class="channel-empty">' + _esc(message || 'No channels yet. Create one below.') + '</div>';
+    list.innerHTML = '<div class="channel-empty">' + _esc(message || (q ? 'រកមិនឃើញឆានែល' : 'មិនទាន់មានឆានែល។ បង្កើតថ្មីខាងក្រោម។')) + '</div>';
     return;
   }
   list.innerHTML = channels.map(function(ch) {
-    var name = String(ch.name || '').toUpperCase().replace(/[^A-Z0-9\-_]/g, '').slice(0, 40);
+    var name = cleanRoomName(ch.name);
     if (!name) return '';
     var count = Number(ch.user_count || 0);
     var active = myRoom && name === myRoom;
-    var visibility = _channelVisibility(ch);
-    var expires = ch.expires_at ? _channelExpiryText(ch.expires_at) : '';
-    var meta = _channelVisibilityText(visibility) + ' · ' + (count > 0 ? 'Active now' : (expires || 'Empty · expires soon'));
-    return '<button class="channel-row' + (active ? ' active' : '') + '" type="button" data-channel="' + _esc(name) + '" data-visibility="' + _esc(visibility) + '">' +
-      '<span class="channel-row-main"><span class="channel-row-name">#' + _esc(name) + '</span><span class="channel-row-meta">' + _esc(meta) + '</span></span>' +
-      '<span class="channel-row-count' + (count > 0 ? ' online' : '') + '"><span class="channel-row-dot"></span>ចំនួនមនុស្ស ' + count + '</span>' +
+    var visibility = (ch.visibility === 'private' || ch.private) ? 'private' : 'public';
+    var isPrivate = visibility === 'private';
+    var expires = _channelExpiryText(ch);
+    var meta = (isPrivate ? '🔒 ឯកជន / Private' : '🌐 សាធារណៈ / Public');
+    if (expires) meta += ' · ' + expires;
+    else meta += count > 0 ? ' · Active now' : ' · Empty';
+    return '<button class="channel-row' + (active ? ' active' : '') + (isPrivate ? ' private' : '') + '" type="button" data-channel="' + _esc(name) + '" data-visibility="' + visibility + '">' +
+      '<span class="channel-row-main"><span class="channel-row-name">#' + _esc(name) + '</span><span class="channel-row-meta' + (isPrivate ? ' private' : '') + '">' + _esc(meta) + '</span></span>' +
+      '<span class="channel-row-badges"><span class="channel-row-count' + (count > 0 ? ' online' : '') + '"><span class="channel-row-dot"></span>' + count + ' នាក់</span>' + (expires ? '<span class="channel-expire">' + _esc(expires) + '</span>' : '') + '</span>' +
       '</button>';
   }).join('');
   Array.from(list.querySelectorAll('.channel-row')).forEach(function(btn) {
     btn.addEventListener('click', function() {
       var room = btn.getAttribute('data-channel') || '';
       if (!room) return;
+      var visibility = btn.getAttribute('data-visibility') || 'public';
       var input = document.getElementById('channelInput');
-      var visibility = _cleanChannelVisibility(btn.getAttribute('data-visibility') || 'public');
       if (input) input.value = room;
-      setChannelVisibility(visibility, true);
+      setChannelVisibility(visibility);
+      if (visibility === 'private' && room !== myRoom) {
+        var secret = document.getElementById('channelSecretInput');
+        showToast('ឆានែលឯកជន៖ បញ្ចូល invite code ឬ PIN');
+        setTimeout(function(){ if (secret) secret.focus(); }, 80);
+        return;
+      }
       closeChannelSheet();
-      joinChannel(room, visibility);
+      joinChannel(room, { visibility: visibility });
     });
   });
 }
-
-function _channelExpiryText(value) {
-  var ts = Date.parse(value);
-  if (!Number.isFinite(ts)) return '';
-  var ms = ts - Date.now();
-  if (ms <= 0) return 'Expired';
-  var min = Math.max(1, Math.ceil(ms / 60000));
-  return 'Empty · expires in ' + min + ' min';
+function _channelExpiryText(ch) {
+  ch = ch || {};
+  var seconds = Number(ch.ttl_remaining_seconds || 0);
+  if (!seconds && ch.expires_at) {
+    var ts = Date.parse(ch.expires_at);
+    if (Number.isFinite(ts)) seconds = Math.max(0, Math.floor((ts - Date.now()) / 1000));
+  }
+  if (seconds <= 0) return '';
+  var m = Math.floor(seconds / 60);
+  var sec = seconds % 60;
+  return 'ទទេ · ផុតក្នុង ' + (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
 }
-
+function _showInviteCode(code) {
+  _currentInviteCode = cleanInvite(code);
+  var box = document.getElementById('channelInviteBox');
+  if (!box || !_currentInviteCode) return;
+  box.innerHTML = 'កូដអញ្ជើញឆានែលឯកជន៖<br><span class="channel-invite-code">' + _esc(_currentInviteCode) + '</span>';
+  box.classList.add('on');
+}
+function _saveLastJoinPayload(room, payload) {
+  var keep = {
+    room: cleanRoomName(room),
+    visibility: payload && payload.visibility || _currentChannelVisibility || 'public',
+    invite_code: payload && cleanInvite(payload.invite_code || payload.channel_code || payload.code || ''),
+    pin: payload && cleanPIN(payload.pin || payload.channel_pin || '')
+  };
+  if (keep.room) _safeStorageSet('aikom_last_join', JSON.stringify(keep));
+}
+function _restoreLastJoinPayload() {
+  try { return JSON.parse(_safeStorageGet('aikom_last_join') || '{}') || {}; }
+  catch (_) { return {}; }
+}
+function _clearPendingJoin() {
+  _pendingJoinRoom = '';
+  _pendingJoinPrevRoom = '';
+}
 // ── Sheets ──
 function openChannelSheet() {
   var inp = document.getElementById('channelInput');
-  inp.value = myRoom || '';
-  var current = _channelList.find(function(ch) { return String(ch.name || '').toUpperCase() === myRoom; });
-  setChannelVisibility(current ? _channelVisibility(current) : myChannelVisibility, true);
+  if (inp) inp.value = myRoom || '';
+  var search = document.getElementById('channelSearchInput');
+  if (search) search.value = _channelSearch || '';
+  setChannelVisibility(_currentChannelVisibility || 'public');
   document.getElementById('channelOverlay').classList.add('open');
-  renderChannelList(_channelList, _channelList.length ? '' : 'Loading channels...');
+  renderChannelList(_channelList, _channelList.length ? '' : 'កំពុងផ្ទុកឆានែល...');
   loadChannelList();
-  setTimeout(function () { inp.focus(); inp.select(); }, 150);
+  setTimeout(function () { if (inp) { inp.focus(); inp.select(); } }, 150);
 }
 function closeChannelSheet() { document.getElementById('channelOverlay').classList.remove('open'); }
 function doJoin() {
-  var r = document.getElementById('channelInput').value.trim().toUpperCase().replace(/[^A-Z0-9\-_]/g,'').slice(0,40);
-  if (!r) return;
+  var r = cleanRoomName(document.getElementById('channelInput').value);
+  if (!r) { showToast('សូមបញ្ចូលឈ្មោះឆានែល'); return; }
+  var secretEl = document.getElementById('channelSecretInput');
+  var pinEl = document.getElementById('channelPinInput');
+  var opts = {
+    visibility: _channelVisibility,
+    invite_code: secretEl ? cleanInvite(secretEl.value) : '',
+    pin: pinEl ? cleanPIN(pinEl.value) : ''
+  };
   closeChannelSheet();
-  if (r === myRoom) return;
-  joinChannel(r, myChannelVisibility);
+  joinChannel(r, opts);
 }
-function joinChannel(room, visibility) {
-  room = room.toUpperCase().replace(/[^A-Z0-9\-_]/g, '').slice(0, 40);
+function joinChannel(room, opts) {
+  opts = opts || {};
+  room = cleanRoomName(room);
   if (!room) return;
-  visibility = _cleanChannelVisibility(visibility || myChannelVisibility || 'public');
-  myRoom = room;
-  myChannelVisibility = visibility;
-  _safeStorageSet('wt_channel_visibility', visibility);
+  _pendingJoinPrevRoom = myRoom;
+  _pendingJoinRoom = room;
   peers = {};
   updatePeers();
-  chNameEl.textContent = '#' + room;
-  channelPill.classList.remove('ph');
-  _updateShareBtn();
-  chDot.className = 'ch-dot';
-  setStatus('Joining ' + room + '...', 'warn');
-  socket.emit('join_room', { room: room, name: myName, visibility: visibility, channel_type: visibility });
+  setStatus('កំពុងចូលឆានែល ' + room + '...', 'warn');
+  var payload = {
+    room: room,
+    name: myName,
+    visibility: opts.visibility || _channelVisibility || 'public',
+    channel_type: opts.visibility || _channelVisibility || 'public'
+  };
+  var invite = cleanInvite(opts.invite_code || opts.channel_code || opts.code || opts.secret || '');
+  var pin = cleanPIN(opts.pin || opts.channel_pin || '');
+  if (invite) payload.invite_code = invite;
+  if (pin) payload.pin = pin;
+  socket.emit('join_room', payload);
   if (mapInstance) talkHereBtn.disabled = false;
-  _updateMapTopbar();
 }
 function openNameSheet() {
   document.getElementById('nameInput').value = myName.toUpperCase();
@@ -3184,7 +3257,7 @@ function saveName() {
   var _namePart = document.getElementById('usernameNamePart');
   if (_namePart) _namePart.textContent = myName; else usernameText.textContent = '@' + myName;
   mapUserText.textContent  = '@' + myName;
-  pttHint.textContent = 'Select a channel';
+  pttHint.textContent = 'ជ្រើសឆានែល';
   pttHint.classList.remove('hidden');
   document.getElementById('nameOverlay').classList.remove('open');
   if (myRoom) socket.emit('update_name', { name: myName });
@@ -3893,15 +3966,15 @@ function geoCheckAll(lat, lng) {
         if (isLive) stopLive();
         if (_talkMode === 'live') setTalkMode('hold');
         myRoom = '';
-        chNameEl.textContent = 'Tap to join channel';
+        chNameEl.textContent = 'ប៉ះដើម្បីចូលឆានែល';
         channelPill.classList.add('ph');
         chDot.className = 'ch-dot';
         peerCt.textContent = '';
         pttCircle.classList.add('disabled');
-        pttHint.textContent = 'Select a channel';
+        pttHint.textContent = 'ជ្រើសឆានែល';
         pttHint.classList.remove('hidden');
         talkHereBtn.disabled = true;
-        setStatus('Tap grid to join a channel', '');
+        setStatus('ប៉ះដើម្បីចូលឆានែល', '');
         _updateShareBtn();
         peers = {};
       } else if (myRoom === z.channel) {
@@ -4121,15 +4194,16 @@ function updatePeers() {
   peerCt.classList.toggle('has-peers', total > 1);
 }
 function copyChannelLink() {
-  if (!myRoom) { showToast('Join a channel first'); return; }
+  if (!myRoom) { showToast('សូមចូលឆានែលជាមុន'); return; }
   var url = location.origin + location.pathname +
     '?room=' + encodeURIComponent(myRoom) +
-    (_talkMode === 'live' ? '&mode=live' : '');
+    (_talkMode === 'live' ? '&mode=live' : '') +
+    (_currentInviteCode ? '&invite=' + encodeURIComponent(_currentInviteCode) : '');
   var modeLabel = _talkMode === 'live' ? ' (Live mode)' : '';
   if (navigator.share) {
     navigator.share({
       title: 'អាយកូម · ' + myRoom,
-      text:  'Join me on អាយកូម, channel #' + myRoom + modeLabel,
+      text:  'ចូលរួមជាមួយខ្ញុំលើ អាយកូម ឆានែល #' + myRoom + modeLabel,
       url:   url
     }).catch(function(err) { if (err.name !== 'AbortError') fallbackCopy(url); });
   } else { fallbackCopy(url); }
@@ -4191,7 +4265,7 @@ function aiRender() {
   if (!aiMessages.length) {
     var empty = document.createElement('div');
     empty.className = 'ai-empty';
-    empty.innerHTML = '<div class="ai-empty-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z"/><path d="M5 15.5h9.5a4 4 0 0 1 0 8H9l-4 2v-10z" transform="translate(0 -4)"/></svg></div><div class="ai-empty-title">Ask your AI assistant</div><div class="ai-empty-sub">Type a question, ask for ideas, translate text, or get help while using អាយកូម.</div>';
+    empty.innerHTML = '<div class="ai-empty-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z"/><path d="M5 15.5h9.5a4 4 0 0 1 0 8H9l-4 2v-10z" transform="translate(0 -4)"/></svg></div><div class="ai-empty-title">Ask your AI assistant</div><div class="ai-empty-sub">Type a question, ask for ideas, translate text, or get help while using WalkieTalk.</div>';
     var suggestions = document.createElement('div');
     suggestions.className = 'ai-suggestions';
     ['Summarize my idea', 'Translate to Khmer', 'Help me write a message'].forEach(function(text) {
@@ -4329,8 +4403,12 @@ socket.on('connect', function () {
       }
     }, { timeout: 3000 });
   }
-  if (!myRoom) setStatus('Tap grid to join a channel', '');
-  else { setStatus('Reconnected', 'ok'); joinChannel(myRoom, myChannelVisibility); }
+  var savedJoin = _restoreLastJoinPayload();
+  if (myRoom) { setStatus('បានភ្ជាប់ឡើងវិញ', 'ok'); joinChannel(myRoom, savedJoin); }
+  else if (savedJoin && savedJoin.room) { setStatus('កំពុងចូលឆានែលចុងក្រោយ...', 'warn'); joinChannel(savedJoin.room, savedJoin); }
+  else setStatus('ប៉ះដើម្បីចូលឆានែល', '');
+  socket.emit('channels_list', {});
+  loadChannelList();
   geoLoadData();
 });
 socket.on('disconnect', function () {
@@ -4346,7 +4424,7 @@ socket.on('disconnect', function () {
     pttCircle.classList.remove('live-mode');
   }
   pttCircle.classList.add('disabled');
-  pttHint.textContent = 'Select a channel';
+  pttHint.textContent = 'ជ្រើសឆានែល';
   pttHint.classList.remove('hidden');
   talkHereBtn.disabled = true;
   stopRecording(true);
@@ -4358,10 +4436,26 @@ socket.on('disconnect', function () {
     _hideQualityDetail();
   }
 });
-socket.on('connect_error', function () { wtSetConnectionState('reconnecting', 'Reconnecting...'); });
+socket.on('connect_error', function () { wtSetConnectionState('reconnecting', 'កំពុងភ្ជាប់ឡើងវិញ...'); wtWakeServer(); });
 socket.on('connect', function () { socket.emit('channels_list', {}); loadChannelList(); });
 
 socket.on('room_state', function (data) {
+  data = data || {};
+  var joinedRoom = cleanRoomName(data.room || data.channel || _pendingJoinRoom || myRoom);
+  if (joinedRoom) {
+    myRoom = joinedRoom;
+    chNameEl.textContent = '#' + joinedRoom;
+    channelPill.classList.remove('ph');
+    _currentChannelVisibility = (data.visibility === 'private' || data.private) ? 'private' : 'public';
+    _saveLastJoinPayload(joinedRoom, { visibility: _currentChannelVisibility, invite_code: data.invite_code || _currentInviteCode });
+    _updateShareBtn();
+    _updateMapTopbar();
+  }
+  if (data.invite_code) {
+    _showInviteCode(data.invite_code);
+    showToast('Invite code: ' + data.invite_code);
+  }
+  _clearPendingJoin();
   peers = {};
   (data.members || []).forEach(function (m) { if (m.sid !== socket.id) peers[m.sid] = m.name || m.sid.slice(0,6); });
   updatePeers();
@@ -4422,35 +4516,54 @@ socket.on('voice_message', function (data) {
   drainQueue();
 });
 
+function friendlyErrorKhmer(code, fallback) {
+  var map = {
+    BAD_CHANNEL: 'សូមបញ្ចូលឈ្មោះឆានែលត្រឹមត្រូវ',
+    ROOM_FULL: 'ឆានែលពេញហើយ សូមជ្រើសឆានែលផ្សេង',
+    MSG_TOO_LARGE: 'សារសំឡេងធំពេក សូមថតឲ្យខ្លីជាងនេះ',
+    RATE_LIMITED: 'សូមរង់ចាំបន្តិច អ្នកផ្ញើលឿនពេក',
+    PRIVATE_CHANNEL: 'ឆានែលឯកជន ត្រូវការកូដអញ្ជើញ ឬ PIN ត្រឹមត្រូវ',
+    CHANNEL_PIN_REQUIRED: 'សូមបញ្ចូល PIN សម្រាប់ឆានែលឯកជន',
+    INVALID_CHANNEL_SECRET: 'កូដអញ្ជើញ ឬ PIN មិនត្រឹមត្រូវ',
+    NOT_IN_ROOM: 'សូមចូលឆានែលជាមុន',
+    FEATURE_DISABLED: 'មុខងារនេះត្រូវបានបិទក្នុងកំណែនេះ',
+    UNKNOWN_EVENT: 'កម្មវិធីកំពុងប្រើ event មិនស្គាល់'
+  };
+  return map[code] || fallback || 'មានបញ្ហាពីម៉ាស៊ីនមេ';
+}
 socket.on('error', function (data) {
+  data = data || {};
   var code = data.code || '';
-  if (code === 'ROOM_FULL') {
-    showToast('Channel full (max 20)');
-    setStatus('Channel full — try another', 'warn');
-    if (isLive) stopLive();
-    if (_talkMode === 'live') {
-      isLiveMode = false; _talkMode = 'hold';
-      var _hb2 = document.getElementById('modeHoldBtn');
-      var _lb2 = document.getElementById('modeLiveBtn');
-      if (_hb2) { _hb2.classList.add('active'); _hb2.setAttribute('aria-pressed','true'); }
-      if (_lb2) { _lb2.classList.remove('active'); _lb2.setAttribute('aria-pressed','false'); }
-      pttCircle.classList.remove('live-mode');
+  var msg = friendlyErrorKhmer(code, data.msg);
+  showToast(msg);
+  if (code === 'ROOM_FULL' || code === 'PRIVATE_CHANNEL' || code === 'BAD_CHANNEL' || code === 'INVALID_CHANNEL_SECRET' || code === 'CHANNEL_PIN_REQUIRED') {
+    setStatus(msg, 'warn');
+    if (_pendingJoinRoom) {
+      _pendingJoinRoom = '';
+      if (!_pendingJoinPrevRoom && !myRoom) {
+        chNameEl.textContent = 'ប៉ះដើម្បីចូលឆានែល';
+        channelPill.classList.add('ph');
+        chDot.className = 'ch-dot';
+        peerCt.textContent = '';
+        pttCircle.classList.add('disabled');
+        pttHint.textContent = 'ជ្រើសឆានែល';
+        talkHereBtn.disabled = true;
+      }
+      _pendingJoinPrevRoom = '';
     }
-    myRoom = ''; chNameEl.textContent = 'Tap to join channel';
-    channelPill.classList.add('ph'); chDot.className = 'ch-dot'; peerCt.textContent = '';
-    _updateShareBtn();
-    pttCircle.classList.add('disabled');
-    pttHint.textContent = 'Select a channel';
-    pttHint.classList.remove('hidden');
-    talkHereBtn.disabled = true;
+    if (code === 'PRIVATE_CHANNEL' || code === 'INVALID_CHANNEL_SECRET' || code === 'CHANNEL_PIN_REQUIRED') {
+      openChannelSheet();
+      setChannelVisibility('private');
+      var secret = document.getElementById('channelSecretInput');
+      setTimeout(function(){ if (secret) secret.focus(); }, 120);
+    }
   } else if (code === 'MSG_TOO_LARGE') {
-    showToast('Recording too large — keep under 60s');
     pttCircle.classList.remove('sending');
     chDot.className = numPeers() > 0 ? 'ch-dot online' : 'ch-dot';
     setStatus(_idleStatus(), _idleCls());
   } else if (code === 'RATE_LIMITED') {
-    showToast('Slow down — too many messages');
-  } else { showToast(data.msg || 'Server error'); }
+    setStatus(msg, 'warn');
+  }
 });
 
 socket.on('status_update', function (data) {
@@ -4485,9 +4598,13 @@ socket.on('channels_state', function(data) {
 socket.on('channels_expired', function(data) {
   data = data || {};
   var expired = Array.isArray(data.channels) ? data.channels : [];
-  if (expired.length) showToast('Expired empty channel: #' + expired[0]);
+  if (expired.length) showToast('ឆានែលទទេផុតកំណត់៖ #' + expired[0]);
   loadChannelList();
 });
+setInterval(function(){
+  var overlay = document.getElementById('channelOverlay');
+  if (overlay && overlay.classList.contains('open')) renderChannelList(_channelList);
+}, 1000);
 
 // ── Realtime zone sync ──
 socket.on('zone_upserted', function(data) {
@@ -5615,7 +5732,7 @@ function screenUpdateUI() {
       phSub.textContent = 'Use a modern browser with WebRTC support to watch screen sharing.';
     } else if (!hasRoom) {
       phTitle.textContent = 'Join a channel first';
-      phSub.textContent = 'Screen sharing follows your current អាយកូម channel.';
+      phSub.textContent = 'Screen sharing follows your current WalkieTalk channel.';
     } else if (_screenSharing) {
       var localKind = screenCaptureWord(_screenCaptureKind);
       phTitle.textContent = 'You are sharing ' + localKind;
@@ -5738,7 +5855,7 @@ async function screenStartShare() {
   socket.emit('screen_share_start', {
     stream_id: _screenStreamId,
     kind: _screenCaptureKind,
-    title: _screenCaptureKind === 'camera' ? 'អាយកូម camera' : 'អាយកូម screen',
+    title: _screenCaptureKind === 'camera' ? 'WalkieTalk camera' : 'WalkieTalk screen',
     has_audio: stream.getAudioTracks().length > 0
   });
 
