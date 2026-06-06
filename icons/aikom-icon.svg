@@ -1,17 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 512 512">
+  <!-- Generator: Adobe Illustrator 30.0.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 123)  -->
   <defs>
-    <radialGradient id="bg" cx="35%" cy="20%" r="85%">
-      <stop offset="0" stop-color="#2a2118"/>
-      <stop offset="1" stop-color="#060608"/>
-    </radialGradient>
-    <linearGradient id="stroke" x1="80" y1="60" x2="430" y2="460">
-      <stop offset="0" stop-color="#ffb340"/>
-      <stop offset="1" stop-color="#ff6a00"/>
-    </linearGradient>
+    <style>
+      .st0 {
+        fill: #ffce00;
+      }
+    </style>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <rect x="40" y="40" width="432" height="432" rx="96" fill="none" stroke="url(#stroke)" stroke-opacity="0.38" stroke-width="10"/>
-  <circle cx="256" cy="256" r="160" fill="#ffffff" opacity="0.035"/>
-  <text x="256" y="302" text-anchor="middle" font-family="Noto Sans Khmer, Khmer OS, Arial, sans-serif" font-size="152" font-weight="800" fill="#ffffff">អា</text>
-  <path d="M160 356h192" stroke="url(#stroke)" stroke-width="20" stroke-linecap="round"/>
+  <rect x=".89" y="2.17" width="512" height="512" rx="97.44" ry="97.44"/>
+  <circle class="st0" cx="256.89" cy="258.17" r="221.27"/>
+  <circle cx="256.89" cy="258.17" r="175.7"/>
+  <g>
+    <path class="st0" d="M244.81,163.89c10.43-.77,27.11-.93,36.89,2.44,44.37,15.32,26,70.56,29.86,105.77-1.46,17.53-13.85,33.51-30.67,38.75-9.81,3.06-36.34,3.13-46.23.36-17.61-4.92-30.31-20.51-32.17-38.66,1.24-22.2-1.59-46.07,0-68.06s20.55-39.02,42.32-40.61Z"/>
+    <path class="st0" d="M251.89,332.9c-11.55.09-22.3.72-33.32-3.25-20.39-7.34-34.78-26.49-36.12-48.21-.55-8.87-.81-23.97,0-32.65.56-6.04,7.13-7.45,9.58-2.09.87,10.68-.4,21.78.2,32.41,1.39,24.7,19.33,42.64,44.03,44.03,12.34.69,29.16.69,41.51,0,24.67-1.39,42.64-19.34,44.03-44.03.55-9.78-1.29-22.43.01-31.67.75-5.31,8.87-5.41,9.71.48.3,27.54,3.57,53.91-20.24,72.87-14.77,11.76-30.75,13.07-49.15,12.13v15.61c0,2.03-3.24,4.5-5.32,4.4-1.92-.09-4.93-2.5-4.93-4.4v-15.61Z"/>
+  </g>
 </svg>
