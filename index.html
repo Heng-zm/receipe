@@ -6,12 +6,13 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="WalkieTalk">
+<meta name="apple-mobile-web-app-title" content="អាយកូម">
 <meta name="theme-color" content="#060608">
 <link rel="manifest" href="manifest.json">
 <link class="apple-touch-icon" rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23060608'/%3E%3Crect x='200' y='80' width='112' height='180' rx='56' fill='none' stroke='%23ff9f0a' stroke-width='28'/%3E%3Cpath d='M128 240c0 70.7 57.3 128 128 128s128-57.3 128-128' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round' fill='none'/%3E%3Cline x1='256' y1='368' x2='256' y2='430' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round'/%3E%3Cline x1='196' y1='430' x2='316' y2='430' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round'/%3E%3C/svg%3E">
-<title>WalkieTalk</title>
+<title>អាយកូម</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;500;600;700;800&display=swap');
 :root {
   --bg:        #040407;
   --bg-card:   #09090f;
@@ -42,7 +43,7 @@
   --ease-expo:   cubic-bezier(0.16, 1, 0.3, 1);
 }
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-html,body { width:100%; height:100%; background:var(--bg); color:var(--white); font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter',system-ui,sans-serif; overflow:hidden; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility; }
+html,body { width:100%; height:100%; background:var(--bg); color:var(--white); font-family:'Google Sans','Noto Sans Khmer',-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter',system-ui,sans-serif; overflow:hidden; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility; }
 body::after {
   content:''; position:fixed; inset:0; z-index:999;
   background-image:url("data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PScwIDAgMjU2IDI1NicgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJz48ZmlsdGVyIGlkPSduJz48ZmVUdXJidWxlbmNlIHR5cGU9J2ZyYWN0YWxOb2lzZScgYmFzZUZyZXF1ZW5jeT0nMC45NScgbnVtT2N0YXZlcz0nMycgc3RpdGNoVGlsZXM9J3N0aXRjaCcvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPScxMDAlJyBoZWlnaHQ9JzEwMCUnIGZpbHRlcj0ndXJsKCNuKScgb3BhY2l0eT0nMC4wMicvPjwvc3ZnPg==");
@@ -87,6 +88,9 @@ body::after {
 .reconnect-bar.on { transform:translateY(0); }
 .topbar { display:flex; align-items:center; justify-content:space-between; padding:0 20px; flex-shrink:0; height:54px; position:relative; z-index:1; border-bottom:1px solid rgba(255,255,255,0.03); }
 .topbar-left { display:flex; align-items:center; }
+.brand-lockup { display:flex; align-items:center; gap:10px; min-width:0; }
+.brand-name { font-size:18px; line-height:1; font-weight:800; letter-spacing:-0.2px; color:var(--white); white-space:nowrap; font-family:'Google Sans','Noto Sans Khmer',system-ui,sans-serif; text-shadow:0 1px 0 rgba(0,0,0,.25); }
+.brand-mark { width:38px; height:38px; border:1px solid rgba(255,255,255,.08); border-radius:12px; background:linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.02)); box-shadow:inset 0 1px 0 rgba(255,255,255,.045), 0 8px 22px rgba(0,0,0,.32); }
 .topbar-right { display:flex; gap:8px; align-items:center; }
 .top-icon-btn { background:none; border:none; cursor:pointer; padding:6px 4px; display:flex; align-items:center; justify-content:center; border-radius:8px; opacity:0.8; transition:opacity 0.1s var(--ease-out), transform 0.1s var(--ease-spring); }
 .top-icon-btn:active { opacity:0.5; transform:scale(0.92); }
@@ -298,6 +302,19 @@ body::after {
 .channel-row-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.22); }
 .channel-row-count.online .channel-row-dot { background:var(--green); box-shadow:0 0 6px var(--green); }
 .channel-empty { border:1px dashed rgba(255,255,255,.09); border-radius:14px; padding:14px; text-align:center; color:rgba(255,255,255,.46); font-size:12px; line-height:1.45; }
+.channel-type-label { margin:10px 0 8px; font-size:11px; font-weight:800; color:rgba(255,255,255,.68); letter-spacing:.15px; }
+.channel-type-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0 12px; }
+.channel-type-option { min-height:58px; border:1px solid rgba(255,255,255,.085); border-radius:16px; background:rgba(255,255,255,.035); color:rgba(255,255,255,.72); display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer; font-family:inherit; text-align:left; transition:border-color .16s var(--ease-out), background .16s var(--ease-out), transform .1s var(--ease-spring), box-shadow .18s var(--ease-out); }
+.channel-type-option:active { transform:scale(.985); }
+.channel-type-option.active { border-color:rgba(255,159,10,.72); background:linear-gradient(135deg, rgba(255,159,10,.18), rgba(255,159,10,.055)); color:var(--white); box-shadow:0 0 0 1px rgba(255,159,10,.10), 0 8px 26px rgba(255,159,10,.07); }
+.channel-type-icon { width:32px; height:32px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:rgba(255,255,255,.06); color:rgba(255,255,255,.75); font-size:16px; }
+.channel-type-option.active .channel-type-icon { background:rgba(255,159,10,.16); color:var(--amber); }
+.channel-type-main { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.channel-type-title { font-size:12.5px; font-weight:800; line-height:1.15; }
+.channel-type-sub { font-size:10.5px; font-weight:650; color:rgba(255,255,255,.42); line-height:1.2; }
+.channel-type-option.active .channel-type-sub { color:rgba(255,159,10,.85); }
+.channel-row-meta .vis-private { color:var(--amber); }
+.channel-row-meta .vis-public { color:rgba(90,200,245,.92); }
 
 .geo-toolbar { display:none; }
 .geo-fab     { display:none; }
@@ -1336,7 +1353,7 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
 }
 
 
-/* Mapbox GL controls: match WalkieTalk dark UI */
+/* Mapbox GL controls: match អាយកូម dark UI */
 .mapboxgl-ctrl-logo,
 .mapboxgl-ctrl-attrib { opacity: 0.72; }
 .mapboxgl-ctrl-group {
@@ -1384,11 +1401,14 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
 
   <div class="topbar">
     <div class="topbar-left">
-      <button class="top-icon-btn" id="btnGrid" title="Channels" style="opacity:0.85">
-        <svg width="32" height="18" viewBox="0 0 32 18" fill="none">
-          <text x="0" y="15" font-family="SF Mono,Fira Code,monospace" font-size="16" font-weight="700" fill="white" letter-spacing="-1">WT</text>
-        </svg>
-      </button>
+      <div class="brand-lockup">
+        <button class="top-icon-btn brand-mark" id="btnGrid" title="Channels" aria-label="Open channels">
+          <svg width="32" height="18" viewBox="0 0 32 18" fill="none">
+            <text x="0" y="15" font-family="SF Mono,Fira Code,monospace" font-size="16" font-weight="700" fill="white" letter-spacing="-1">WT</text>
+          </svg>
+        </button>
+        <div class="brand-name">អាយកូម</div>
+      </div>
       <button class="top-icon-btn aux" id="btnMap" title="Map">
         <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
           <path d="M1 5l6-3 8 4 6-3v14l-6 3-8-4-6 3V5z" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none" opacity="0.85"/>
@@ -1614,7 +1634,7 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
       <div class="ai-title-wrap">
         <div class="ai-kicker">Assistant</div>
         <div class="ai-title">Chat with AI</div>
-        <div class="ai-subtitle" id="aiSubtitle">Ask anything while you use WalkieTalk</div>
+        <div class="ai-subtitle" id="aiSubtitle">Ask anything while you use អាយកូម</div>
       </div>
       <button class="ai-icon-btn" id="aiClearBtn" aria-label="Clear AI chat" title="Clear chat">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/><path d="M10 11v6M14 11v6"/></svg>
@@ -1690,16 +1710,27 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
 <div class="overlay" id="channelOverlay">
   <div class="sheet channel-sheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-title">Channels</div>
-    <div class="sheet-sub">ជ្រើស channel ឬបង្កើតថ្មី · Empty channels expire after 15 minutes</div>
+    <div class="sheet-title">ឆានែល</div>
+    <div class="sheet-sub">ជ្រើស channel ឬបង្កើតថ្មី · ឆានែលទំនេរ expire បន្ទាប់ពី 15 នាទី</div>
     <div class="channel-list-head">
-      <div class="channel-list-title">Channel list · ចំនួនមនុស្ស</div>
+      <div class="channel-list-title">បញ្ជីឆានែល · ចំនួនមនុស្ស</div>
       <button class="channel-refresh" id="channelRefreshBtn" type="button">Refresh</button>
     </div>
     <div class="channel-list" id="channelList">
       <div class="channel-empty">Loading channels...</div>
     </div>
-    <input class="sheet-input" id="channelInput" placeholder="CREATE OR JOIN CHANNEL" maxlength="30" autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
+    <input class="sheet-input" id="channelInput" placeholder="ឈ្មោះ CHANNEL" maxlength="30" autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
+    <div class="channel-type-label">ប្រភេទឆានែល</div>
+    <div class="channel-type-grid" id="channelTypeGrid" role="group" aria-label="Channel type">
+      <button class="channel-type-option active" type="button" data-channel-type="public" id="channelTypePublic">
+        <span class="channel-type-icon">🌐</span>
+        <span class="channel-type-main"><span class="channel-type-title">សាធារណៈ</span><span class="channel-type-sub">Public</span></span>
+      </button>
+      <button class="channel-type-option" type="button" data-channel-type="private" id="channelTypePrivate">
+        <span class="channel-type-icon">🔒</span>
+        <span class="channel-type-main"><span class="channel-type-title">ឯកជន</span><span class="channel-type-sub">Private</span></span>
+      </button>
+    </div>
     <button class="sheet-btn primary" id="channelJoinBtn">Create / Join</button>
     <button class="sheet-btn secondary" id="channelCancelBtn">Cancel</button>
   </div>
@@ -2081,6 +2112,7 @@ var _deviceId    = (function() {
   return id;
 })();
 var myRoom       = '';
+var myChannelVisibility = _cleanChannelVisibility(_safeStorageGet('wt_channel_visibility') || 'public');
 var peers        = {};
 var playQueue    = [];
 var queuePlaying = false;
@@ -2238,7 +2270,7 @@ window.addEventListener('beforeinstallprompt', function(e) {
 window.addEventListener('appinstalled', function() {
   _deferredInstallPrompt = null;
   _hideInstallBar();
-  showToast('WalkieTalk installed!');
+  showToast('អាយកូម installed!');
   _safeStorageSet('wt_pwa_installed', '1');
 });
 
@@ -2287,7 +2319,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function _el(id) { return document.getElementById(id); }
 function _listen(idOrEl, eventName, handler, opts) {
   var node = (typeof idOrEl === 'string') ? _el(idOrEl) : idOrEl;
-  if (!node) { console.warn('[WalkieTalk] Missing UI element:', idOrEl); return null; }
+  if (!node) { console.warn('[អាយកូម] Missing UI element:', idOrEl); return null; }
   node.addEventListener(eventName, handler, opts);
   return node;
 }
@@ -2323,6 +2355,10 @@ function wireUI() {
   _listen('channelInput', 'keydown', function (e) { if (e.key === 'Enter') doJoin(); });
   _listen('channelJoinBtn', 'click', doJoin);
   _listen('channelRefreshBtn', 'click', loadChannelList);
+  Array.from(document.querySelectorAll('.channel-type-option')).forEach(function(btn) {
+    _listen(btn, 'click', function() { setChannelVisibility(btn.getAttribute('data-channel-type') || 'public'); });
+  });
+  setChannelVisibility(myChannelVisibility, true);
 
 
   _listen('nameOverlay', 'click', function (e) { if (e.target === this) this.classList.remove('open'); });
@@ -3011,6 +3047,26 @@ function updateMapMarker(center) {
 var _channelList = [];
 var _channelListLoading = false;
 
+function _cleanChannelVisibility(value) {
+  value = String(value || '').trim().toLowerCase();
+  return value === 'private' ? 'private' : 'public';
+}
+function setChannelVisibility(value, silent) {
+  myChannelVisibility = _cleanChannelVisibility(value);
+  _safeStorageSet('wt_channel_visibility', myChannelVisibility);
+  Array.from(document.querySelectorAll('.channel-type-option')).forEach(function(btn) {
+    btn.classList.toggle('active', _cleanChannelVisibility(btn.getAttribute('data-channel-type')) === myChannelVisibility);
+  });
+  if (!silent) showToast(myChannelVisibility === 'private' ? 'ឆានែលឯកជន / Private' : 'ឆានែលសាធារណៈ / Public');
+}
+function _channelVisibility(ch) {
+  return _cleanChannelVisibility(ch && (ch.visibility || ch.channel_type || ch.type || ch.privacy));
+}
+function _channelVisibilityText(value) {
+  value = _cleanChannelVisibility(value);
+  return value === 'private' ? '🔒 ឯកជន / Private' : '🌐 សាធារណៈ / Public';
+}
+
 function loadChannelList() {
   if (_channelListLoading) return;
   _channelListLoading = true;
@@ -3046,11 +3102,12 @@ function renderChannelList(channels, message) {
     if (!name) return '';
     var count = Number(ch.user_count || 0);
     var active = myRoom && name === myRoom;
+    var visibility = _channelVisibility(ch);
     var expires = ch.expires_at ? _channelExpiryText(ch.expires_at) : '';
-    var meta = count > 0 ? 'Active now' : (expires || 'Empty · expires soon');
-    return '<button class="channel-row' + (active ? ' active' : '') + '" type="button" data-channel="' + _esc(name) + '">' +
+    var meta = _channelVisibilityText(visibility) + ' · ' + (count > 0 ? 'Active now' : (expires || 'Empty · expires soon'));
+    return '<button class="channel-row' + (active ? ' active' : '') + '" type="button" data-channel="' + _esc(name) + '" data-visibility="' + _esc(visibility) + '">' +
       '<span class="channel-row-main"><span class="channel-row-name">#' + _esc(name) + '</span><span class="channel-row-meta">' + _esc(meta) + '</span></span>' +
-      '<span class="channel-row-count' + (count > 0 ? ' online' : '') + '"><span class="channel-row-dot"></span>' + count + ' នាក់</span>' +
+      '<span class="channel-row-count' + (count > 0 ? ' online' : '') + '"><span class="channel-row-dot"></span>ចំនួនមនុស្ស ' + count + '</span>' +
       '</button>';
   }).join('');
   Array.from(list.querySelectorAll('.channel-row')).forEach(function(btn) {
@@ -3058,9 +3115,11 @@ function renderChannelList(channels, message) {
       var room = btn.getAttribute('data-channel') || '';
       if (!room) return;
       var input = document.getElementById('channelInput');
+      var visibility = _cleanChannelVisibility(btn.getAttribute('data-visibility') || 'public');
       if (input) input.value = room;
+      setChannelVisibility(visibility, true);
       closeChannelSheet();
-      joinChannel(room);
+      joinChannel(room, visibility);
     });
   });
 }
@@ -3078,6 +3137,8 @@ function _channelExpiryText(value) {
 function openChannelSheet() {
   var inp = document.getElementById('channelInput');
   inp.value = myRoom || '';
+  var current = _channelList.find(function(ch) { return String(ch.name || '').toUpperCase() === myRoom; });
+  setChannelVisibility(current ? _channelVisibility(current) : myChannelVisibility, true);
   document.getElementById('channelOverlay').classList.add('open');
   renderChannelList(_channelList, _channelList.length ? '' : 'Loading channels...');
   loadChannelList();
@@ -3089,12 +3150,15 @@ function doJoin() {
   if (!r) return;
   closeChannelSheet();
   if (r === myRoom) return;
-  joinChannel(r);
+  joinChannel(r, myChannelVisibility);
 }
-function joinChannel(room) {
+function joinChannel(room, visibility) {
   room = room.toUpperCase().replace(/[^A-Z0-9\-_]/g, '').slice(0, 40);
   if (!room) return;
+  visibility = _cleanChannelVisibility(visibility || myChannelVisibility || 'public');
   myRoom = room;
+  myChannelVisibility = visibility;
+  _safeStorageSet('wt_channel_visibility', visibility);
   peers = {};
   updatePeers();
   chNameEl.textContent = '#' + room;
@@ -3102,7 +3166,7 @@ function joinChannel(room) {
   _updateShareBtn();
   chDot.className = 'ch-dot';
   setStatus('Joining ' + room + '...', 'warn');
-  socket.emit('join_room', { room: room, name: myName });
+  socket.emit('join_room', { room: room, name: myName, visibility: visibility, channel_type: visibility });
   if (mapInstance) talkHereBtn.disabled = false;
   _updateMapTopbar();
 }
@@ -4064,8 +4128,8 @@ function copyChannelLink() {
   var modeLabel = _talkMode === 'live' ? ' (Live mode)' : '';
   if (navigator.share) {
     navigator.share({
-      title: 'WalkieTalk · ' + myRoom,
-      text:  'Join me on WalkieTalk, channel #' + myRoom + modeLabel,
+      title: 'អាយកូម · ' + myRoom,
+      text:  'Join me on អាយកូម, channel #' + myRoom + modeLabel,
       url:   url
     }).catch(function(err) { if (err.name !== 'AbortError') fallbackCopy(url); });
   } else { fallbackCopy(url); }
@@ -4127,7 +4191,7 @@ function aiRender() {
   if (!aiMessages.length) {
     var empty = document.createElement('div');
     empty.className = 'ai-empty';
-    empty.innerHTML = '<div class="ai-empty-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z"/><path d="M5 15.5h9.5a4 4 0 0 1 0 8H9l-4 2v-10z" transform="translate(0 -4)"/></svg></div><div class="ai-empty-title">Ask your AI assistant</div><div class="ai-empty-sub">Type a question, ask for ideas, translate text, or get help while using WalkieTalk.</div>';
+    empty.innerHTML = '<div class="ai-empty-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z"/><path d="M5 15.5h9.5a4 4 0 0 1 0 8H9l-4 2v-10z" transform="translate(0 -4)"/></svg></div><div class="ai-empty-title">Ask your AI assistant</div><div class="ai-empty-sub">Type a question, ask for ideas, translate text, or get help while using អាយកូម.</div>';
     var suggestions = document.createElement('div');
     suggestions.className = 'ai-suggestions';
     ['Summarize my idea', 'Translate to Khmer', 'Help me write a message'].forEach(function(text) {
@@ -4266,7 +4330,7 @@ socket.on('connect', function () {
     }, { timeout: 3000 });
   }
   if (!myRoom) setStatus('Tap grid to join a channel', '');
-  else { setStatus('Reconnected', 'ok'); joinChannel(myRoom); }
+  else { setStatus('Reconnected', 'ok'); joinChannel(myRoom, myChannelVisibility); }
   geoLoadData();
 });
 socket.on('disconnect', function () {
@@ -5551,7 +5615,7 @@ function screenUpdateUI() {
       phSub.textContent = 'Use a modern browser with WebRTC support to watch screen sharing.';
     } else if (!hasRoom) {
       phTitle.textContent = 'Join a channel first';
-      phSub.textContent = 'Screen sharing follows your current WalkieTalk channel.';
+      phSub.textContent = 'Screen sharing follows your current អាយកូម channel.';
     } else if (_screenSharing) {
       var localKind = screenCaptureWord(_screenCaptureKind);
       phTitle.textContent = 'You are sharing ' + localKind;
@@ -5674,7 +5738,7 @@ async function screenStartShare() {
   socket.emit('screen_share_start', {
     stream_id: _screenStreamId,
     kind: _screenCaptureKind,
-    title: _screenCaptureKind === 'camera' ? 'WalkieTalk camera' : 'WalkieTalk screen',
+    title: _screenCaptureKind === 'camera' ? 'អាយកូម camera' : 'អាយកូម screen',
     has_audio: stream.getAudioTracks().length > 0
   });
 

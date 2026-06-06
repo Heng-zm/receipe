@@ -1,4 +1,4 @@
-# WalkieTalk Frontend — Vercel
+# អាយកូម Frontend — Vercel
 
 Static frontend only. No backend code and no `web/env.js`.
 
@@ -25,3 +25,10 @@ Health    -> DEFAULT_BACKEND_API_URL + /health
 Set Vercel project root to this `frontend/` folder.
 
 No build command is required.
+
+
+## UI updates
+
+- App title/logo text: `អាយកូម`.
+- Channel create/join sheet supports `សាធារណៈ / Public` and `ឯកជន / Private`.
+- Khmer-friendly Google font stack uses `Noto Sans Khmer` with a Google Sans-style fallback.
