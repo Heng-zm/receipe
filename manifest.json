@@ -1,6 +1,6 @@
 {
-  "name": "អាយកូម",
-  "short_name": "អាយកូម",
+  "name": "Aikom",
+  "short_name": "Aikom",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
@@ -13,5 +13,5 @@
       "purpose": "any maskable"
     }
   ],
-  "description": "អាយកូម - Push-to-talk channels"
+  "description": "Aikom - Push-to-talk channels"
 }

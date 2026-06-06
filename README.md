@@ -1,4 +1,4 @@
-# អាយកូម Frontend
+# Aikom Frontend
 
 Static frontend for Vercel.
 
@@ -17,3 +17,11 @@ No `web/env.js` is used. The frontend points to the Render backend from `fronten
 Deploy the `frontend/` folder.
 
 No build command is required.
+
+## English-only optimization
+
+- All visible UI text is English only.
+- Uses a fast system font stack instead of an external Google Fonts request.
+- App name, manifest, channel sheet, errors, share text, and countdown labels are English.
+
+- Added a lightweight network-first service worker (`sw.js`) so the PWA opens faster without keeping old deploys stuck.
