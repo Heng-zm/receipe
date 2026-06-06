@@ -11,7 +11,6 @@
 <link rel="manifest" href="manifest.json">
 <link class="apple-touch-icon" rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23060608'/%3E%3Crect x='200' y='80' width='112' height='180' rx='56' fill='none' stroke='%23ff9f0a' stroke-width='28'/%3E%3Cpath d='M128 240c0 70.7 57.3 128 128 128s128-57.3 128-128' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round' fill='none'/%3E%3Cline x1='256' y1='368' x2='256' y2='430' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round'/%3E%3Cline x1='196' y1='430' x2='316' y2='430' stroke='%23ff9f0a' stroke-width='28' stroke-linecap='round'/%3E%3C/svg%3E">
 <title>WalkieTalk</title>
-<script src="env.js"></script>
 <style>
 :root {
   --bg:        #040407;
@@ -1874,24 +1873,29 @@ window.addEventListener('offline', wtHandleOnlineState);
 
 
 // ── Config ──
-// Frontend runtime env uses one public value only:
-//   window.WT_ENV = { API_BASE_URL: 'https://your-backend.onrender.com' }
-// Every frontend request is derived from this backend API base URL:
-//   REST:      API_BASE_URL + /...
-//   WebSocket: API_BASE_URL + /ws
-//   Mapbox:    API_BASE_URL + /config/mapbox
-var WT_ENV = window.WT_ENV || {};
-var DEFAULT_SERVER_URL = (window.location && /^https?:$/.test(window.location.protocol))
-  ? window.location.origin
-  : 'https://walkietalk-server-4pmn.onrender.com';
+// Split deployment:
+//   Frontend: Vercel static site
+//   Backend:  Render Go API/WebSocket server
+// No web/env.js and no frontend secret keys. Edit this one public URL only.
+// For local testing, you can override temporarily in browser console:
+//   localStorage.setItem('wt_backend_url', 'http://localhost:3000')
+var DEFAULT_BACKEND_API_URL = 'https://walkietalk-server-4pmn.onrender.com';
+function wtBackendOverrideFromQuery() {
+  try {
+    var params = new URLSearchParams(window.location.search || '');
+    var api = params.get('api') || params.get('backend');
+    return api ? String(api) : '';
+  } catch (_) {
+    return '';
+  }
+}
 var SERVER_URL = _cleanServerUrl(
-  (WT_ENV && WT_ENV.API_BASE_URL) || DEFAULT_SERVER_URL
+  wtBackendOverrideFromQuery() ||
+  localStorage.getItem('wt_backend_url') ||
+  DEFAULT_BACKEND_API_URL
 );
-var PUBLIC_API_KEY = '';
 function wtAuthHeaders(extra) {
-  var headers = Object.assign({}, extra || {});
-  if (PUBLIC_API_KEY) headers['X-Api-Key'] = PUBLIC_API_KEY;
-  return headers;
+  return Object.assign({}, extra || {});
 }
 function wtDeviceHeaders(extra) {
   var headers = wtAuthHeaders(extra);
