@@ -12,6 +12,45 @@
 <link rel="icon" href="icons/aikom-icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/aikom-icon.svg">
 <title>Aikom</title>
+
+<script>
+  tailwind = window.tailwind || {};
+  tailwind.config = {
+    corePlugins: { preflight: false },
+    theme: {
+      extend: {
+        colors: {
+          aikom: {
+            black: '#000000',
+            panel: '#05070d',
+            blue: '#0a84ff',
+            blue2: '#3b9cff',
+            line: 'rgba(255,255,255,0.10)'
+          }
+        },
+        boxShadow: {
+          soft: '0 18px 70px rgba(0,0,0,0.48)',
+          blue: '0 0 0 1px rgba(10,132,255,0.28), 0 12px 36px rgba(10,132,255,0.12)'
+        },
+        borderRadius: {
+          app: '1.375rem',
+          sheet: '1.75rem'
+        },
+        fontFamily: {
+          sans: ['Inter var','Inter','Segoe UI','Roboto','system-ui','-apple-system','BlinkMacSystemFont','sans-serif'],
+          mono: ['SF Mono','Roboto Mono','ui-monospace','monospace']
+        }
+      }
+    },
+    safelist: [
+      'bg-black','text-white','border-white/10','bg-white/5','bg-white/[0.035]',
+      'rounded-2xl','rounded-3xl','shadow-soft','shadow-blue','text-aikom-blue',
+      'bg-aikom-blue','border-aikom-blue/30','ring-aikom-blue/30',
+      'from-aikom-blue/20','to-transparent','backdrop-blur-2xl'
+    ]
+  };
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
 <style>
 :root {
   --bg:        #000000;
@@ -1692,21 +1731,35 @@ body {
 }
 
 
+
+/* Tailwind utility polish layer: keep legacy JS hooks, but clean visual spacing with utilities. */
+.tw-shell { min-height: 100dvh; background:#000; color:#fff; }
+.tw-glass { background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.10); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); }
+.tw-input { background: rgba(255,255,255,0.055) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 18px !important; min-height: 48px !important; padding: 0 16px !important; }
+.tw-primary { background:#0a84ff !important; color:#fff !important; border: 1px solid rgba(255,255,255,.12) !important; box-shadow:0 12px 30px rgba(10,132,255,.18); }
+.tw-secondary { background: rgba(255,255,255,0.055) !important; color:#fff !important; border: 1px solid rgba(255,255,255,0.10) !important; }
+.tw-card { background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.035)); border:1px solid rgba(255,255,255,.10); border-radius:24px; box-shadow:0 18px 70px rgba(0,0,0,.35); }
+.tw-sheet { width:min(94vw, 460px) !important; padding:18px !important; border-radius:28px 28px 0 0 !important; background:linear-gradient(180deg,rgba(8,12,20,.98),rgba(0,0,0,.98)) !important; border:1px solid rgba(255,255,255,.10) !important; box-shadow:0 -18px 70px rgba(0,0,0,.58) !important; }
+.tw-row { border:1px solid rgba(255,255,255,.10) !important; background:rgba(255,255,255,.04) !important; border-radius:18px !important; }
+.tw-row.active { border-color:rgba(10,132,255,.42) !important; background:rgba(10,132,255,.12) !important; }
+.tw-safe-x { padding-left:max(16px, env(safe-area-inset-left)) !important; padding-right:max(16px, env(safe-area-inset-right)) !important; }
+@media (min-width: 768px) { .tw-sheet { border-radius:28px !important; margin-bottom:24px !important; } }
+
 </style>
 </head>
-<body>
+<body class="tw-shell bg-black text-white antialiased selection:bg-blue-500/30">
 
 <!-- ════════════ MAIN VIEW ════════════ -->
-<div class="view" id="mainView">
+<div class="view relative min-h-[100dvh] overflow-hidden bg-black text-white" id="mainView">
 
-  <div class="reconnect-bar" id="reconnectBar">
+  <div class="reconnect-bar tw-safe-x fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-2 border-b border-white/10 bg-black/90 py-2 text-xs font-medium text-white backdrop-blur-xl" id="reconnectBar">
     <div class="spinner"></div>
     <span>Reconnecting...</span>
   </div>
 
   <!-- PWA install prompt -->
-  <div class="install-bar" id="installBar" role="banner" aria-label="Install app">
-    <div class="install-bar-icon">
+  <div class="install-bar tw-glass mx-4 rounded-3xl p-3 shadow-soft" id="installBar" role="banner" aria-label="Install app">
+    <div class="install-bar-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-blue-400/25 bg-blue-500/15 text-white">
       <svg width="20" height="20" viewBox="0 0 42 48" fill="none" aria-hidden="true">
         <rect x="13.5" y="1.5" width="15" height="23" rx="7.5" stroke="#0a84ff" stroke-width="2.2" fill="none"/>
         <path d="M6 23c0 8.3 6.7 15 15 15s15-6.7 15-15" stroke="#0a84ff" stroke-width="2.2" stroke-linecap="round" fill="none"/>
@@ -1718,16 +1771,16 @@ body {
       <div class="install-bar-title">Install Aikom</div>
       <div class="install-bar-sub">Open faster as a PWA</div>
     </div>
-    <button class="install-bar-btn" id="installBtn">Install</button>
-    <button class="install-bar-dismiss" id="installDismiss" aria-label="Dismiss">✕</button>
+    <button class="install-bar-btn tw-primary rounded-full px-4 py-2 text-xs font-bold" id="installBtn">Install</button>
+    <button class="install-bar-dismiss grid h-8 w-8 place-items-center rounded-full bg-white/5 text-white/50" id="installDismiss" aria-label="Dismiss">✕</button>
   </div>
 
-  <div class="topbar">
-    <div class="topbar-left">
-      <button class="top-icon-btn" id="btnGrid" title="Channels" aria-label="Channels" style="opacity:0.95">
-        <span class="app-logo-badge" aria-hidden="true">AI</span>
+  <div class="topbar tw-safe-x flex h-16 shrink-0 items-center justify-between border-b border-white/5 bg-black/60 backdrop-blur-xl">
+    <div class="topbar-left flex min-w-0 items-center gap-3">
+      <button class="top-icon-btn grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-white/5 shadow-blue" id="btnGrid" title="Channels" aria-label="Channels" style="opacity:0.95">
+        <span class="app-logo-badge grid h-8 w-8 place-items-center rounded-xl bg-blue-500 text-sm font-black tracking-tight text-white" aria-hidden="true">AI</span>
       </button>
-      <div class="brand-title">Aikom</div>
+      <div class="brand-title truncate text-lg font-extrabold tracking-tight text-white">Aikom</div>
       <button class="top-icon-btn aux" id="btnMap" title="Map">
         <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
           <path d="M1 5l6-3 8 4 6-3v14l-6 3-8-4-6 3V5z" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none" opacity="0.85"/>
@@ -1736,8 +1789,8 @@ body {
         </svg>
       </button>
     </div>
-    <div class="topbar-right">
-    <button class="top-icon-btn" id="btnShare" title="Share channel link" aria-label="Share channel">
+    <div class="topbar-right flex shrink-0 items-center gap-2">
+    <button class="top-icon-btn tw-secondary h-10 rounded-full px-3" id="btnShare" title="Share channel link" aria-label="Share channel">
       <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true">
         <circle cx="15" cy="3" r="2" stroke="white" stroke-width="1.6" fill="none"/>
         <circle cx="15" cy="17" r="2" stroke="white" stroke-width="1.6" fill="none"/>
@@ -1796,8 +1849,8 @@ body {
     <div class="location-text" id="locationText"><svg class="location-icon" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="4" cy="3.5" r="1.5" stroke="currentColor" stroke-width="1"/><path d="M4 7C4 7 1 4.7 1 3A3 3 0 0 1 7 3C7 4.7 4 7 4 7Z" stroke="currentColor" stroke-width="1" fill="none"/></svg>Locating...</div>
   </div>
 
-  <div class="channel-wrap">
-    <div class="channel-pill ph" id="channelPill">
+  <div class="channel-wrap tw-safe-x flex justify-center pt-3">
+    <div class="channel-pill ph tw-glass min-h-12 rounded-2xl px-4" id="channelPill">
       <span class="unread-dot"></span>
       <span class="ch-dot" id="chDot"></span>
       <span class="ch-name" id="chNameEl">Tap to choose channel</span>
@@ -1806,7 +1859,7 @@ body {
   </div>
 
   <!-- Mode switcher: Hold / Live -->
-  <div class="mode-switcher">
+  <div class="mode-switcher tw-safe-x flex justify-center py-2">
     <div class="mode-seg" role="group" aria-label="Talk mode">
       <button class="mode-btn m-hold active" id="modeHoldBtn" aria-pressed="true" title="Hold to talk — press and hold the circle">
         <svg class="mode-btn-icon" viewBox="0 0 14 16" fill="none" aria-hidden="true">
@@ -1823,7 +1876,7 @@ body {
     </div>
   </div>
 
-  <div class="circle-wrap">
+  <div class="circle-wrap tw-safe-x flex-1">
     <div class="cancel-hint" id="cancelHint">Slide up to cancel</div>
 
     <svg class="limit-svg" id="limitSvg" viewBox="0 0 300 300" aria-hidden="true">
@@ -2026,45 +2079,50 @@ body {
 </div>
 
 <!-- Channel sheet -->
-<div class="overlay" id="channelOverlay">
-  <div class="sheet channel-sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title">Aikom Channels</div>
-    <div class="sheet-sub">Create or join a channel · empty channels expire after 15 minutes</div>
-    <input class="channel-search" id="channelSearchInput" placeholder="Search channels" maxlength="40" autocomplete="off" spellcheck="false"/>
-    <div class="channel-list-head">
-      <div class="channel-list-title">Channel list · users</div>
-      <button class="channel-refresh" id="channelRefreshBtn" type="button">Refresh</button>
-    </div>
-    <div class="channel-list" id="channelList">
-      <div class="channel-empty">Loading channels...</div>
-    </div>
-    <div class="channel-form-card">
-      <input class="sheet-input" id="channelInput" placeholder="CHANNEL NAME" maxlength="30" autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
-      <div class="channel-type-tabs" role="group" aria-label="Channel type">
-        <button class="channel-type-btn active" id="channelPublicBtn" type="button" data-visibility="public">Public<br><span>Open channel</span></button>
-        <button class="channel-type-btn" id="channelPrivateBtn" type="button" data-visibility="private">Private<br><span>Invite or PIN</span></button>
+<div class="overlay fixed inset-0 z-[200] bg-black/70 backdrop-blur-xl" id="channelOverlay">
+  <div class="sheet channel-sheet tw-sheet mx-auto max-h-[92dvh] overflow-hidden">
+    <div class="sheet-handle mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/20"></div>
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <div class="sheet-title text-2xl font-black tracking-tight text-white">Aikom Channels</div>
+        <div class="sheet-sub mt-1 text-sm leading-5 text-white/55">Create or join a channel · empty channels expire after 15 minutes</div>
       </div>
-      <div class="channel-private-fields" id="channelPrivateFields">
-        <input class="sheet-input" id="channelSecretInput" placeholder="Invite code or PIN for private channel" maxlength="64" autocomplete="off" spellcheck="false"/>
-        <input class="sheet-input" id="channelPinInput" placeholder="Set optional new PIN" inputmode="numeric" maxlength="12" autocomplete="off"/>
-        <div class="channel-help">🔒 Private channels require an invite code or PIN before joining. The owner receives an invite code automatically.</div>
+      <div class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-blue-400/25 bg-blue-500/15 text-sm font-black text-white">AI</div>
+    </div>
+    <input class="channel-search tw-input mt-4 w-full text-sm text-white placeholder:text-white/35" id="channelSearchInput" placeholder="Search channels" maxlength="40" autocomplete="off" spellcheck="false"/>
+    <div class="channel-list-head mt-4 flex items-center justify-between gap-3">
+      <div class="channel-list-title text-xs font-bold uppercase tracking-[0.18em] text-white/45">Channel list · users</div>
+      <button class="channel-refresh tw-secondary rounded-full px-3 py-2 text-xs font-bold" id="channelRefreshBtn" type="button">Refresh</button>
+    </div>
+    <div class="channel-list mt-3 max-h-[34dvh] space-y-2 overflow-y-auto pr-1" id="channelList">
+      <div class="channel-empty rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-center text-sm text-white/50">Loading channels...</div>
+    </div>
+    <div class="channel-form-card tw-card mt-4 space-y-3 p-4">
+      <input class="sheet-input tw-input w-full font-mono text-sm uppercase tracking-wide text-white placeholder:text-white/35" id="channelInput" placeholder="CHANNEL NAME" maxlength="30" autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
+      <div class="channel-type-tabs grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-black/40 p-1" role="group" aria-label="Channel type">
+        <button class="channel-type-btn active rounded-xl px-3 py-3 text-sm font-extrabold transition" id="channelPublicBtn" type="button" data-visibility="public">Public<br><span class="text-xs font-medium opacity-70">Open channel</span></button>
+        <button class="channel-type-btn rounded-xl px-3 py-3 text-sm font-extrabold transition" id="channelPrivateBtn" type="button" data-visibility="private">Private<br><span class="text-xs font-medium opacity-70">Invite or PIN</span></button>
       </div>
-      <div class="channel-invite-box" id="channelInviteBox"></div>
-      <button class="sheet-btn primary" id="channelJoinBtn">Create / Join</button>
-      <button class="sheet-btn secondary" id="channelCancelBtn">Cancel</button>
+      <div class="channel-private-fields space-y-2" id="channelPrivateFields">
+        <input class="sheet-input tw-input w-full text-sm text-white placeholder:text-white/35" id="channelSecretInput" placeholder="Invite code or PIN for private channel" maxlength="64" autocomplete="off" spellcheck="false"/>
+        <input class="sheet-input tw-input w-full text-sm text-white placeholder:text-white/35" id="channelPinInput" placeholder="Set optional new PIN" inputmode="numeric" maxlength="12" autocomplete="off"/>
+        <div class="channel-help rounded-2xl border border-blue-400/20 bg-blue-500/10 p-3 text-xs leading-5 text-white/70">Private channels require an invite code or PIN before joining. The owner receives an invite code automatically.</div>
+      </div>
+      <div class="channel-invite-box rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70" id="channelInviteBox"></div>
+      <button class="sheet-btn primary tw-primary min-h-12 w-full rounded-2xl text-sm font-black" id="channelJoinBtn">Create / Join</button>
+      <button class="sheet-btn secondary tw-secondary min-h-12 w-full rounded-2xl text-sm font-bold" id="channelCancelBtn">Cancel</button>
     </div>
   </div>
 </div>
 
 <!-- Name sheet -->
 <div class="overlay" id="nameOverlay">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title">Your name</div>
-    <input class="sheet-input" id="nameInput" placeholder="YOUR NAME" maxlength="20" autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
-    <button class="sheet-btn primary" id="nameSaveBtn">Save</button>
-    <button class="sheet-btn secondary" id="nameCancelBtn">Cancel</button>
+  <div class="sheet tw-sheet mx-auto">
+    <div class="sheet-handle mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/20"></div>
+    <div class="sheet-title text-2xl font-black tracking-tight text-white">Your name</div>
+    <input class="sheet-input tw-input mt-4 w-full uppercase tracking-wide text-white placeholder:text-white/35" id="nameInput" placeholder="YOUR NAME" maxlength="20" autocomplete="off" spellcheck="false" style="text-transform:uppercase"/>
+    <button class="sheet-btn primary tw-primary mt-3 min-h-12 w-full rounded-2xl font-black" id="nameSaveBtn">Save</button>
+    <button class="sheet-btn secondary tw-secondary mt-2 min-h-12 w-full rounded-2xl font-bold" id="nameCancelBtn">Cancel</button>
   </div>
 </div>
 
@@ -3448,9 +3506,9 @@ function renderChannelList(channels, message) {
     var meta = (isPrivate ? '🔒 Private' : '🌐 Public');
     if (expires) meta += ' · ' + expires;
     else meta += count > 0 ? ' · Active now' : ' · Empty';
-    return '<button class="channel-row' + (active ? ' active' : '') + (isPrivate ? ' private' : '') + '" type="button" data-channel="' + _esc(name) + '" data-visibility="' + visibility + '">' +
-      '<span class="channel-row-main"><span class="channel-row-name">#' + _esc(name) + '</span><span class="channel-row-meta' + (isPrivate ? ' private' : '') + '">' + _esc(meta) + '</span></span>' +
-      '<span class="channel-row-badges"><span class="channel-row-count' + (count > 0 ? ' online' : '') + '"><span class="channel-row-dot"></span>' + count + ' users</span>' + (expires ? '<span class="channel-expire">' + _esc(expires) + '</span>' : '') + '</span>' +
+    return '<button class="channel-row tw-row group flex w-full items-center justify-between gap-3 px-3.5 py-3 transition active:scale-[.985]' + (active ? ' active shadow-blue' : '') + (isPrivate ? ' private' : '') + '" type="button" data-channel="' + _esc(name) + '" data-visibility="' + visibility + '">' +
+      '<span class="channel-row-main min-w-0"><span class="channel-row-name block truncate font-mono text-sm font-extrabold tracking-wide text-white">#' + _esc(name) + '</span><span class="channel-row-meta' + (isPrivate ? ' private' : '') + ' mt-1 block truncate text-xs text-white/45">' + _esc(meta) + '</span></span>' +
+      '<span class="channel-row-badges flex shrink-0 flex-col items-end gap-1"><span class="channel-row-count inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-white/80' + (count > 0 ? ' online' : '') + '"><span class="channel-row-dot"></span>' + count + ' users</span>' + (expires ? '<span class="channel-expire text-[10px] font-bold uppercase tracking-wide text-blue-300/80">' + _esc(expires) + '</span>' : '') + '</span>' +
       '</button>';
   }).join('');
   Array.from(list.querySelectorAll('.channel-row')).forEach(function(btn) {
