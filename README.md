@@ -36,3 +36,10 @@ The frontend has no `web/env.js`. Branding, manifest, and PWA title are **អា
 - Khmer member count text `ចំនួនមនុស្ស`
 - Empty channel countdown
 - Auto reconnect and auto rejoin last channel
+
+## UI safe-area layout update
+
+- Frontend viewport now uses `viewport-fit=cover` for correct iPhone/Android safe-area handling.
+- Main talk screen spacing was rebalanced for small phones, tall phones, and landscape.
+- Channel sheet sizing, list height, buttons, and form spacing were standardized.
+- Bottom navigation, toast, install prompt, map controls, and overlays now respect safe-area insets.

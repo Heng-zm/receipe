@@ -2,7 +2,7 @@
 <html lang="km">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1379,6 +1379,329 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
 .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-out .mapboxgl-ctrl-icon,
 .mapboxgl-ctrl button.mapboxgl-ctrl-compass .mapboxgl-ctrl-icon { filter: invert(1) opacity(0.85); }
 
+
+/* ════════════ AIKOM STANDARD SAFE-AREA LAYOUT PATCH v3 ════════════
+   Frontend-only UI polish: balanced spacing, dynamic viewport sizing,
+   iPhone/Android safe areas, cleaner channel sheet, and standard touch sizes. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --page-x: max(16px, var(--safe-left), var(--safe-right));
+  --page-max: 520px;
+  --topbar-h: clamp(54px, 7.2vh, 60px);
+  --nav-h: 64px;
+  --touch: 44px;
+  --circ: clamp(198px, min(58vw, 34dvh), 276px);
+}
+html, body {
+  min-height: 100%;
+  min-height: 100dvh;
+  overscroll-behavior: none;
+}
+body {
+  font-family: "Noto Sans Khmer", "Noto Sans", "Google Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+.view {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+#mainView {
+  padding-top: calc(var(--safe-top) + 8px) !important;
+  padding-bottom: 0 !important;
+  height: 100dvh;
+  min-height: 100dvh;
+}
+.topbar {
+  height: var(--topbar-h) !important;
+  padding-left: calc(var(--page-x) + 2px) !important;
+  padding-right: calc(max(16px, var(--safe-right)) + 2px) !important;
+  gap: 12px;
+}
+.topbar-left { gap: 10px !important; flex: 1 1 auto; overflow: hidden; }
+.topbar-right { gap: 8px !important; flex-shrink: 0; }
+.app-logo-badge {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 12px !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+}
+.brand-title {
+  font-size: clamp(18px, 5vw, 21px) !important;
+  line-height: 1.15 !important;
+  max-width: 42vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.top-icon-btn,
+.power-btn,
+.quality-btn,
+.map-back,
+.map-topbar-fab,
+.nav-btn,
+.mode-btn,
+.sheet-btn,
+.channel-refresh,
+.channel-type-btn {
+  min-width: var(--touch);
+  min-height: var(--touch);
+}
+#btnShare {
+  min-height: 42px;
+  padding: 8px 12px !important;
+}
+.power-btn { width: 42px !important; height: 42px !important; }
+.quality-btn { min-height: 42px; padding-inline: 10px !important; }
+.username-wrap {
+  padding-top: clamp(6px, 1.4dvh, 12px) !important;
+}
+.username {
+  min-height: 36px !important;
+  padding: 7px 15px !important;
+  max-width: min(88vw, 360px);
+}
+.channel-wrap {
+  padding: clamp(8px, 1.6dvh, 14px) var(--page-x) 0 !important;
+}
+.channel-pill {
+  width: min(100%, 420px);
+  min-height: 48px !important;
+  justify-content: center;
+  padding: 11px 16px !important;
+}
+.ch-name {
+  max-width: min(64vw, 260px) !important;
+  font-size: 12.5px;
+  line-height: 1.25;
+}
+.mode-switcher {
+  padding-top: clamp(8px, 1.6dvh, 14px) !important;
+}
+.mode-seg { max-width: min(100%, 310px); }
+.mode-btn {
+  min-width: clamp(86px, 24vw, 112px) !important;
+  padding: 8px 15px !important;
+}
+.circle-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: clamp(8px, 2dvh, 18px) var(--page-x) clamp(6px, 1.2dvh, 12px) !important;
+}
+.ptt-circle {
+  width: var(--circ) !important;
+  height: var(--circ) !important;
+  max-width: calc(100vw - (var(--page-x) * 2) - 6px);
+  max-height: 100%;
+}
+.limit-svg {
+  width: calc(var(--circ) + 8px) !important;
+  height: calc(var(--circ) + 8px) !important;
+  max-width: calc(100vw - (var(--page-x) * 2));
+}
+.ripples {
+  width: var(--circ) !important;
+  height: var(--circ) !important;
+}
+.wave-wrap {
+  height: clamp(28px, 5dvh, 40px) !important;
+  padding-inline: var(--page-x) !important;
+}
+.status-line {
+  min-height: 28px;
+  padding: 3px var(--page-x) 8px !important;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.bottom-nav {
+  min-height: calc(var(--nav-h) + var(--safe-bottom));
+  padding: 7px max(10px, var(--safe-left)) max(8px, var(--safe-bottom)) max(10px, var(--safe-left)) !important;
+  gap: 6px !important;
+}
+.nav-btn {
+  min-height: 50px !important;
+  padding: 7px 8px !important;
+  justify-content: center;
+}
+.nav-label { font-size: 10.5px; line-height: 1.1; }
+.reconnect-bar {
+  top: var(--safe-top) !important;
+  min-height: 36px;
+}
+.quality-detail {
+  top: calc(var(--safe-top) + var(--topbar-h) + 8px) !important;
+  right: calc(max(12px, var(--safe-right)) + 4px) !important;
+}
+.install-bar {
+  left: calc(max(14px, var(--safe-left)) + 2px) !important;
+  right: calc(max(14px, var(--safe-right)) + 2px) !important;
+  bottom: calc(var(--safe-bottom) + var(--nav-h) + 14px) !important;
+}
+.toast {
+  bottom: calc(var(--safe-bottom) + var(--nav-h) + 18px) !important;
+  max-width: min(92vw, 460px) !important;
+}
+.overlay {
+  padding: calc(var(--safe-top) + 10px) max(12px, var(--safe-right)) 0 max(12px, var(--safe-left)) !important;
+  align-items: flex-end;
+}
+.sheet {
+  width: min(100%, var(--page-max));
+  max-height: calc(100dvh - var(--safe-top) - 16px) !important;
+  margin-inline: auto;
+  border-radius: 28px 28px 0 0 !important;
+  padding: 14px clamp(16px, 4.2vw, 22px) calc(var(--safe-bottom) + 18px) !important;
+  gap: 12px !important;
+}
+.sheet-handle { width: 36px !important; height: 4px !important; margin-bottom: 2px !important; }
+.sheet-title {
+  font-size: clamp(17px, 4.8vw, 20px) !important;
+  line-height: 1.25 !important;
+}
+.sheet-sub {
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  max-width: 34em;
+  margin-inline: auto;
+}
+.sheet-input,
+.channel-search {
+  min-height: 48px !important;
+  border-radius: 15px !important;
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+  padding: 11px 13px !important;
+}
+.channel-sheet {
+  max-height: calc(100dvh - var(--safe-top) - 16px) !important;
+}
+.channel-list-head {
+  margin-top: 2px !important;
+  align-items: center;
+}
+.channel-list-title {
+  font-size: 11.5px !important;
+  line-height: 1.35 !important;
+}
+.channel-refresh {
+  padding: 6px 12px !important;
+  font-size: 11px !important;
+}
+.channel-list {
+  max-height: clamp(150px, 30dvh, 300px) !important;
+  gap: 9px !important;
+  padding-block: 2px 6px !important;
+}
+.channel-row {
+  min-height: 62px;
+  padding: 11px 12px !important;
+  border-radius: 16px !important;
+  gap: 10px !important;
+}
+.channel-row-name {
+  font-size: 13px !important;
+  line-height: 1.25 !important;
+}
+.channel-row-meta {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+.channel-row-badges { gap: 6px !important; }
+.channel-row-count {
+  padding: 6px 9px !important;
+  font-size: 11.5px !important;
+  white-space: nowrap;
+}
+.channel-expire {
+  max-width: 116px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+.channel-form-card {
+  margin-top: 8px !important;
+  padding: 13px !important;
+  border-radius: 18px !important;
+  gap: 10px !important;
+}
+.channel-type-tabs { gap: 9px !important; }
+.channel-type-btn {
+  padding: 10px 8px !important;
+  border-radius: 15px !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+}
+.channel-private-fields { gap: 9px !important; }
+.channel-help { font-size: 11px !important; line-height: 1.45 !important; }
+.sheet-btn {
+  min-height: 48px !important;
+  border-radius: 15px !important;
+  font-size: 14px !important;
+}
+.map-topbar {
+  padding: calc(var(--safe-top) + 8px) calc(max(14px, var(--safe-right)) + 2px) 11px calc(max(14px, var(--safe-left)) + 2px) !important;
+}
+.map-bottom {
+  padding: 12px calc(max(14px, var(--safe-right)) + 2px) calc(var(--safe-bottom) + 12px) calc(max(14px, var(--safe-left)) + 2px) !important;
+}
+.geo-banners {
+  bottom: calc(var(--safe-bottom) + 76px) !important;
+  left: calc(max(12px, var(--safe-left)) + 2px) !important;
+  right: calc(max(12px, var(--safe-right)) + 2px) !important;
+}
+.geo-draw-hint {
+  top: calc(var(--safe-top) + 68px) !important;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (min-width: 720px) {
+  :root { --page-max: 460px; --circ: clamp(240px, 34vmin, 324px); }
+  .overlay { align-items: center !important; justify-content: center !important; padding: 24px !important; }
+  .sheet {
+    border-radius: 28px !important;
+    max-height: min(86dvh, 760px) !important;
+    padding-bottom: 22px !important;
+  }
+  .bottom-nav { max-width: 520px; margin-inline: auto; border-radius: 22px 22px 0 0; }
+}
+@media (max-width: 390px) {
+  :root { --page-x: max(12px, var(--safe-left), var(--safe-right)); --circ: clamp(188px, min(56vw, 32dvh), 236px); }
+  .brand-title { max-width: 34vw; }
+  #btnShare .share-label { display: none !important; }
+  .mode-btn { min-width: 78px !important; padding-inline: 12px !important; }
+  .channel-row { align-items: flex-start; }
+  .channel-row-badges { min-width: 84px; }
+  .channel-row-count { font-size: 10.5px !important; padding-inline: 8px !important; }
+  .sheet { padding-inline: 14px !important; }
+}
+@media (max-height: 720px) {
+  :root { --circ: clamp(178px, min(54vw, 31dvh), 234px); --topbar-h: 52px; --nav-h: 58px; }
+  .username-wrap { padding-top: 4px !important; }
+  .channel-wrap, .mode-switcher { padding-top: 6px !important; }
+  .wave-wrap { height: 26px !important; }
+  .status-line { min-height: 24px; padding-bottom: 5px !important; }
+  .ptt-inner svg { width: 32px !important; height: 39px !important; }
+  .sheet { gap: 10px !important; }
+  .channel-list { max-height: clamp(120px, 24dvh, 220px) !important; }
+}
+@media (max-height: 620px) {
+  .username-wrap { display: none; }
+  .wave-wrap { display: none !important; }
+  .status-line { font-size: 11.5px; }
+  .circle-wrap { padding-top: 4px !important; padding-bottom: 4px !important; }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  :root { --circ: min(48dvh, 210px); --topbar-h: 50px; --nav-h: 52px; }
+  .username-wrap, .wave-wrap { display: none !important; }
+  .channel-wrap, .mode-switcher { padding-top: 4px !important; }
+  .bottom-nav { min-height: calc(52px + var(--safe-bottom)); }
+}
+
+
 </style>
 </head>
 <body>
@@ -1411,6 +1734,9 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
 
   <div class="topbar">
     <div class="topbar-left">
+      <button class="top-icon-btn" id="btnGrid" title="ឆានែល" aria-label="ឆានែល" style="opacity:0.95">
+        <span class="app-logo-badge" aria-hidden="true">អា</span>
+      </button>
       <div class="brand-title">អាយកូម</div>
       <button class="top-icon-btn aux" id="btnMap" title="Map">
         <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
