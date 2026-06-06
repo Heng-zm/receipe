@@ -1874,18 +1874,20 @@ window.addEventListener('offline', wtHandleOnlineState);
 
 
 // ── Config ──
-// Optional frontend runtime env file:
-//   window.WT_ENV = { API_BASE_URL: 'https://your-backend.onrender.com', PUBLIC_API_KEY: '' }
+// Frontend runtime env uses one public value only:
+//   window.WT_ENV = { API_BASE_URL: 'https://your-backend.onrender.com' }
+// Every frontend request is derived from this backend API base URL:
+//   REST:      API_BASE_URL + /...
+//   WebSocket: API_BASE_URL + /ws
+//   Mapbox:    API_BASE_URL + /config/mapbox
 var WT_ENV = window.WT_ENV || {};
 var DEFAULT_SERVER_URL = (window.location && /^https?:$/.test(window.location.protocol))
   ? window.location.origin
   : 'https://walkietalk-server-4pmn.onrender.com';
-var SERVER_URL  = _cleanServerUrl(
-  WT_ENV.API_BASE_URL || window.WT_SERVER_URL || _safeStorageGet('wt_server_url') || DEFAULT_SERVER_URL
+var SERVER_URL = _cleanServerUrl(
+  (WT_ENV && WT_ENV.API_BASE_URL) || DEFAULT_SERVER_URL
 );
-var PUBLIC_API_KEY = String(
-  WT_ENV.PUBLIC_API_KEY || window.WT_PUBLIC_API_KEY || _safeStorageGet('wt_public_api_key') || ''
-).trim();
+var PUBLIC_API_KEY = '';
 function wtAuthHeaders(extra) {
   var headers = Object.assign({}, extra || {});
   if (PUBLIC_API_KEY) headers['X-Api-Key'] = PUBLIC_API_KEY;
@@ -1906,8 +1908,7 @@ var CIRC        = 864; // 2π × 137.5
 function WTNativeSocket(serverUrl, options) {
   options = options || {};
   this.serverUrl = _cleanServerUrl(serverUrl);
-  var configuredWsUrl = _cleanServerUrl(options.wsURL || (WT_ENV && WT_ENV.WS_URL) || window.WT_WS_URL || '');
-  this.wsUrl = configuredWsUrl || this._toWSUrl(this.serverUrl, options.path || '/ws');
+  this.wsUrl = this._toWSUrl(this.serverUrl, options.path || '/ws');
   this.connected = false;
   this.connecting = false;
   this.id = '';
@@ -2060,7 +2061,6 @@ WTNativeSocket.prototype.disconnect = function() {
 
 var socket = new WTNativeSocket(SERVER_URL, {
   path: '/ws',
-  wsURL: WT_ENV.WS_URL || window.WT_WS_URL || '',
   reconnectionDelay: 1000,
   reconnectionDelayMax: 8000,
   timeout: 12000
@@ -2658,9 +2658,7 @@ function reverseGeocode(lat, lng) {
 //     default_style: "standard"
 //   }
 // Keep the public pk token in backend ENV. Do not hardcode it in this frontend file.
-var MAPBOX_CONFIG_ENDPOINT = _cleanServerUrl(
-  WT_ENV.MAPBOX_CONFIG_URL || window.WT_MAPBOX_CONFIG_URL || (SERVER_URL + '/config/mapbox')
-);
+var MAPBOX_CONFIG_ENDPOINT = _cleanServerUrl(SERVER_URL + '/config/mapbox');
 var MAPBOX_ACCESS_TOKEN = '';
 var MAPBOX_STYLE_URLS = {
   standard:  'mapbox://styles/mapbox/standard',
