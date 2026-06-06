@@ -1863,7 +1863,7 @@ window.addEventListener('offline', wtHandleOnlineState);
 
 
 // ── Config ──
-var DEFAULT_SERVER_URL = 'https://walkietalk-server-4pmn.onrender.com';
+var DEFAULT_SERVER_URL = 'https://walkietalk-server-4pmn.onrender.com/';
 var SERVER_URL  = _cleanServerUrl(window.WT_SERVER_URL || _safeStorageGet('wt_server_url') || DEFAULT_SERVER_URL);
 var PUBLIC_API_KEY = String(window.WT_PUBLIC_API_KEY || _safeStorageGet('wt_public_api_key') || '').trim();
 function wtAuthHeaders(extra) {
@@ -3362,25 +3362,36 @@ function _geoClearPreview() {
   _geoRefreshPreview();
 }
 
+function _zonesApiUrl(path) {
+  path = path || '/zones';
+  var sep = path.indexOf('?') >= 0 ? '&' : '?';
+  return SERVER_URL + path + sep + 'device_id=' + encodeURIComponent(_deviceId);
+}
+
+function _normalizeZoneRow(r) {
+  r = r || {};
+  var radius = r.radius != null ? r.radius : r.radius_m;
+  var channel = r.channel || r.name || myRoom || 'ZONE';
+  return {
+    id:        r.id,
+    deviceId:  r.device_id || r.deviceId || _deviceId,
+    name:      r.name || channel,
+    channel:   channel,
+    lat:       Number(r.lat),
+    lng:       Number(r.lng),
+    radius:    Number(radius) || 300,
+    color:     r.color,
+    autoJoin:  r.auto_join !== false && r.autoJoin !== false,
+    createdBy: r.created_by || r.createdBy || '',
+    expiresAt: r.expires_at || r.expiresAt || null
+  };
+}
+
 function sbFetchZones(onSuccess, onError) {
-  wtFetchJSON(SERVER_URL + '/zones', { method: 'GET' }, { timeout: 12000, retries: 2 })
-  .then(function(rows) {
-    if (!Array.isArray(rows)) rows = [];
-    onSuccess(rows.map(function(r) {
-      return {
-        id:        r.id,
-        deviceId:  r.device_id,
-        name:      r.name,
-        channel:   r.channel,
-        lat:       Number(r.lat),
-        lng:       Number(r.lng),
-        radius:    Number(r.radius),
-        color:     r.color,
-        autoJoin:  r.auto_join,
-        createdBy: r.created_by || '',
-        expiresAt: r.expires_at || null
-      };
-    }).filter(function(z) {
+  wtFetchJSON(_zonesApiUrl('/zones'), { method: 'GET' }, { timeout: 12000, retries: 2 })
+  .then(function(data) {
+    var rows = Array.isArray(data) ? data : (Array.isArray(data.zones) ? data.zones : []);
+    onSuccess(rows.map(_normalizeZoneRow).filter(function(z) {
       return z.id && z.channel && Number.isFinite(z.lat) && Number.isFinite(z.lng) && Number.isFinite(z.radius);
     }));
   })
@@ -3400,8 +3411,9 @@ function sbUpsertZone(z, onDone, onError) {
     lat:       z.lat,
     lng:       z.lng,
     radius:    z.radius,
+    radius_m:  z.radius,
     color:     z.color,
-    auto_join:   z.autoJoin,
+    auto_join:   z.autoJoin !== false,
     created_by:  z.createdBy || myName
   };
   wtFetchJSON(SERVER_URL + '/zones', {
@@ -3418,8 +3430,7 @@ function sbUpsertZone(z, onDone, onError) {
 
 function sbDeleteZone(id, onError) {
   wtFetchJSON(
-    SERVER_URL + '/zones/' + encodeURIComponent(id) +
-    '?device_id=' + encodeURIComponent(_deviceId),
+    _zonesApiUrl('/zones/' + encodeURIComponent(id)),
     { method: 'DELETE', headers: wtAuthHeaders() },
     { timeout: 12000, retries: 2 }
   )
