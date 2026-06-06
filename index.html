@@ -1748,7 +1748,6 @@ body.socket-offline .power-btn::after { background: var(--red); box-shadow: 0 0 
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
 'use strict';
 
@@ -1866,19 +1865,177 @@ window.addEventListener('offline', wtHandleOnlineState);
 // ── Config ──
 var DEFAULT_SERVER_URL = 'https://server-y327.onrender.com';
 var SERVER_URL  = _cleanServerUrl(window.WT_SERVER_URL || _safeStorageGet('wt_server_url') || DEFAULT_SERVER_URL);
+var PUBLIC_API_KEY = String(window.WT_PUBLIC_API_KEY || _safeStorageGet('wt_public_api_key') || '').trim();
+function wtAuthHeaders(extra) {
+  var headers = Object.assign({}, extra || {});
+  if (PUBLIC_API_KEY) headers['X-Api-Key'] = PUBLIC_API_KEY;
+  return headers;
+}
 var MAX_REC_SEC = 60;
 var MIN_REC_MS  = 500;
 var CIRC        = 864; // 2π × 137.5
 
-// ── Socket ──
-var socket = io(SERVER_URL, {
-  transports: ['websocket', 'polling'],
-  upgrade: true,
-  reconnection: true,
+// ── Native WebSocket client for the Golang backend ──
+// Go backend endpoint: /ws
+// Wire format: { event: "join_room", data: { ... } }
+function WTNativeSocket(serverUrl, options) {
+  options = options || {};
+  this.serverUrl = _cleanServerUrl(serverUrl);
+  this.wsUrl = this._toWSUrl(this.serverUrl, options.path || '/ws');
+  this.connected = false;
+  this.connecting = false;
+  this.id = '';
+  this._ws = null;
+  this._handlers = {};
+  this._queue = [];
+  this._manualClose = false;
+  this._reconnectTimer = null;
+  this._attempt = 0;
+  this._maxDelay = options.reconnectionDelayMax || 8000;
+  this._baseDelay = options.reconnectionDelay || 1000;
+  this._timeout = options.timeout || 12000;
+  this.connect();
+}
+WTNativeSocket.prototype._toWSUrl = function(serverUrl, path) {
+  var base = String(serverUrl || '').replace(/\/+$/, '');
+  if (!base) base = window.location.origin;
+  if (base.indexOf('ws://') === 0 || base.indexOf('wss://') === 0) return base + path;
+  if (base.indexOf('http://') === 0) return 'ws://' + base.slice(7) + path;
+  if (base.indexOf('https://') === 0) return 'wss://' + base.slice(8) + path;
+  return (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + base.replace(/^\/+/, '') + path;
+};
+WTNativeSocket.prototype.on = function(event, fn) {
+  if (!event || typeof fn !== 'function') return this;
+  if (!this._handlers[event]) this._handlers[event] = [];
+  this._handlers[event].push(fn);
+  return this;
+};
+WTNativeSocket.prototype.off = function(event, fn) {
+  if (!event || !this._handlers[event]) return this;
+  if (!fn) { delete this._handlers[event]; return this; }
+  this._handlers[event] = this._handlers[event].filter(function(cb) { return cb !== fn; });
+  return this;
+};
+WTNativeSocket.prototype._fire = function(event, data) {
+  var list = (this._handlers[event] || []).slice();
+  for (var i = 0; i < list.length; i++) {
+    try { list[i](data || {}); } catch (err) { console.error('[WS handler]', event, err); }
+  }
+};
+WTNativeSocket.prototype._normalizeOutgoing = function(event, data) {
+  data = data || {};
+  if ((event === 'screen_offer' || event === 'screen_answer' || event === 'screen_ice_candidate') && data.to && !data.target_sid) {
+    data.target_sid = data.to;
+  }
+  return data;
+};
+WTNativeSocket.prototype._normalizeIncoming = function(event, data) {
+  data = data || {};
+  if ((event === 'screen_offer' || event === 'screen_answer' || event === 'screen_ice_candidate') && data.sender_sid && !data.from) {
+    data.from = data.sender_sid;
+  }
+  return data;
+};
+WTNativeSocket.prototype.emit = function(event, data) {
+  if (!event) return false;
+  var msg = JSON.stringify({ event: event, data: this._normalizeOutgoing(event, data || {}) });
+  if (this.connected && this._ws && this._ws.readyState === WebSocket.OPEN) {
+    this._ws.send(msg);
+    return true;
+  }
+  this._queue.push(msg);
+  if (this._queue.length > 200) this._queue.shift();
+  if (!this.connecting) this.connect();
+  return false;
+};
+WTNativeSocket.prototype._flush = function() {
+  while (this._queue.length && this.connected && this._ws && this._ws.readyState === WebSocket.OPEN) {
+    this._ws.send(this._queue.shift());
+  }
+};
+WTNativeSocket.prototype.connect = function() {
+  var self = this;
+  if (self.connecting || (self._ws && (self._ws.readyState === WebSocket.OPEN || self._ws.readyState === WebSocket.CONNECTING))) return;
+  self._manualClose = false;
+  self.connecting = true;
+  clearTimeout(self._reconnectTimer);
+
+  var ws;
+  try { ws = new WebSocket(self.wsUrl); }
+  catch (err) {
+    self.connecting = false;
+    self._fire('connect_error', err);
+    self._scheduleReconnect();
+    return;
+  }
+  self._ws = ws;
+  var opened = false;
+  var openTimer = setTimeout(function() {
+    if (!opened && ws.readyState === WebSocket.CONNECTING) {
+      try { ws.close(); } catch (_) {}
+    }
+  }, self._timeout);
+
+  ws.onopen = function() {
+    opened = true;
+    clearTimeout(openTimer);
+    self.connecting = false;
+    // Wait for the server's `connected` envelope so socket.id is available.
+  };
+  ws.onmessage = function(ev) {
+    var env;
+    try { env = JSON.parse(ev.data); }
+    catch (_) { return; }
+    var event = env.event || '';
+    var data = self._normalizeIncoming(event, env.data || {});
+    if (event === 'connected') {
+      self.id = data.sid || data.id || self.id;
+      var wasConnected = self.connected;
+      self.connected = true;
+      self.connecting = false;
+      self._attempt = 0;
+      self._flush();
+      if (!wasConnected) self._fire('connect', data);
+      self._fire('connected', data);
+      return;
+    }
+    self._fire(event, data);
+  };
+  ws.onerror = function(err) {
+    self._fire('connect_error', err || {});
+  };
+  ws.onclose = function() {
+    clearTimeout(openTimer);
+    var wasConnected = self.connected;
+    self.connected = false;
+    self.connecting = false;
+    if (wasConnected) self._fire('disconnect', {});
+    if (!self._manualClose) self._scheduleReconnect();
+  };
+};
+WTNativeSocket.prototype._scheduleReconnect = function() {
+  var self = this;
+  if (self._manualClose || !navigator.onLine) return;
+  clearTimeout(self._reconnectTimer);
+  self._attempt += 1;
+  var delay = Math.min(self._maxDelay, self._baseDelay * Math.pow(1.6, Math.max(0, self._attempt - 1)));
+  delay += Math.floor(Math.random() * 350);
+  self._reconnectTimer = setTimeout(function() { self.connect(); }, delay);
+};
+WTNativeSocket.prototype.disconnect = function() {
+  this._manualClose = true;
+  clearTimeout(this._reconnectTimer);
+  this.connected = false;
+  this.connecting = false;
+  if (this._ws) {
+    try { this._ws.close(1000, 'client disconnect'); } catch (_) {}
+  }
+};
+
+var socket = new WTNativeSocket(SERVER_URL, {
+  path: '/ws',
   reconnectionDelay: 1000,
   reconnectionDelayMax: 8000,
-  randomizationFactor: 0.4,
-  reconnectionAttempts: Infinity,
   timeout: 12000
 });
 
@@ -3249,7 +3406,7 @@ function sbUpsertZone(z, onDone, onError) {
   };
   wtFetchJSON(SERVER_URL + '/zones', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: wtAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload)
   }, { timeout: 15000, retries: 2 })
   .then(function(data) { if (onDone) onDone(data); })
@@ -3263,7 +3420,7 @@ function sbDeleteZone(id, onError) {
   wtFetchJSON(
     SERVER_URL + '/zones/' + encodeURIComponent(id) +
     '?device_id=' + encodeURIComponent(_deviceId),
-    { method: 'DELETE' },
+    { method: 'DELETE', headers: wtAuthHeaders() },
     { timeout: 12000, retries: 2 }
   )
   .catch(function(e) {
@@ -3985,7 +4142,7 @@ function aiFinishPending(msgId) {
 function aiSendViaHttp(payload) {
   wtFetchJSON(SERVER_URL + '/ai/chat', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: wtAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload)
   }, { timeout: 48000, retries: 1 })
   .then(function(body) {
@@ -5068,7 +5225,7 @@ function _hideQualityDetail() {
   clearTimeout(_qualityPopTimer);
 }
 // ══════════════════════════════════════════════════════════
-// SCREEN SHARING — WebRTC peer-to-peer video + Socket.IO signaling
+// SCREEN SHARING — WebRTC peer-to-peer video + native WebSocket signaling
 // ══════════════════════════════════════════════════════════
 // _screenView is declared with the other view refs above.
 var _screenShare = null;
@@ -5463,7 +5620,7 @@ function screenCreatePc(targetSid, role) {
   pc.onicecandidate = function(event) {
     if (!event.candidate || !socket || !socket.connected) return;
     socket.emit('screen_ice_candidate', {
-      to: targetSid,
+      target_sid: targetSid,
       stream_id: _screenStreamId || ((_screenShare || {}).stream_id || ''),
       candidate: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate
     });
@@ -5630,7 +5787,7 @@ async function screenHandleViewerReady(data) {
   await pc.setLocalDescription(offer);
   var localOffer = screenLocalDescriptionPayload(pc);
   socket.emit('screen_offer', {
-    to: viewerSid,
+    target_sid: viewerSid,
     type: localOffer.type,
     sdp: localOffer.sdp,
     stream_id: _screenStreamId
@@ -5653,7 +5810,7 @@ async function screenHandleOffer(data) {
   await _screenPresenterPc.setLocalDescription(answer);
   var localAnswer = screenLocalDescriptionPayload(_screenPresenterPc);
   socket.emit('screen_answer', {
-    to: data.from,
+    target_sid: data.from,
     type: localAnswer.type,
     sdp: localAnswer.sdp,
     stream_id: data.stream_id || ((_screenShare || {}).stream_id || '')
